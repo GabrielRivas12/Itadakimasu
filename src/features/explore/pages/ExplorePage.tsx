@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
   FlatList,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { searchAnime, Anime } from '../../../../services/anilist';
+import { searchAnime, Anime, AnimeSeason } from '../../../../services/anilist';
 import { SearchBar } from '../components/SearchBar';
 import { GenreFilters } from '../components/GenreFilters';
 import { AnimeGridCard } from '../components/AnimeGridCard';
+import { ExploreLoading, ExploreEmpty } from '../components/ExploreStates';
 
 export function ExplorePage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('Todos');
+  const [selectedSeason, setSelectedSeason] = useState<AnimeSeason | 'Todas'>('Todas');
+  const [selectedYear, setSelectedYear] = useState<number | 'Todos'>('Todos');
   const [results, setResults] = useState<Anime[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,8 +29,10 @@ export function ExplorePage() {
       try {
         const queryText = searchQuery.trim() !== '' ? searchQuery : null;
         const genreText = selectedGenre !== 'Todos' ? selectedGenre : null;
+        const seasonValue = selectedSeason !== 'Todas' ? selectedSeason : null;
+        const yearValue = selectedYear !== 'Todos' ? selectedYear : null;
         
-        const data = await searchAnime(queryText, genreText);
+        const data = await searchAnime(queryText, genreText, seasonValue, yearValue);
         
         if (isMounted) {
           setResults(data);
@@ -46,7 +48,7 @@ export function ExplorePage() {
       isMounted = false;
       clearTimeout(delayDebounceFn);
     };
-  }, [searchQuery, selectedGenre]);
+  }, [searchQuery, selectedGenre, selectedSeason, selectedYear]);
 
   const handleAnimePress = (id: number) => {
     router.push(`/anime/${id}`);
@@ -63,13 +65,14 @@ export function ExplorePage() {
       <GenreFilters
         selectedGenre={selectedGenre}
         onSelectGenre={setSelectedGenre}
+        selectedSeason={selectedSeason}
+        onSelectSeason={setSelectedSeason}
+        selectedYear={selectedYear}
+        onSelectYear={setSelectedYear}
       />
 
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
-          <Text style={styles.loadingText}>Buscando contenido...</Text>
-        </View>
+        <ExploreLoading />
       ) : (
         <FlatList
           data={results}
@@ -78,13 +81,7 @@ export function ExplorePage() {
           contentContainerStyle={styles.gridContent}
           columnWrapperStyle={styles.gridRow}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={48} color="#475569" />
-              <Text style={styles.emptyText}>No se encontraron resultados</Text>
-              <Text style={styles.emptySubtext}>Intenta buscar con otros términos o filtros</Text>
-            </View>
-          }
+          ListEmptyComponent={<ExploreEmpty />}
           renderItem={({ item }) => (
             <AnimeGridCard item={item} onPress={handleAnimePress} />
           )}
@@ -99,16 +96,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0b0f19',
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#94a3b8',
-    fontSize: 14,
-    marginTop: 12,
-  },
   gridContent: {
     paddingHorizontal: 10,
     paddingBottom: 24,
@@ -116,23 +103,5 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     justifyContent: 'space-between',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 20,
-  },
-  emptyText: {
-    color: '#f8fafc',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  emptySubtext: {
-    color: '#64748b',
-    fontSize: 13,
-    textAlign: 'center',
   },
 });

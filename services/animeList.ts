@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Anime } from './anilist';
+import { cacheAnimeDetails } from './cache';
 
 export type UserListStatus = 'En Proceso' | 'Terminado' | 'Por Ver';
 
@@ -17,6 +18,14 @@ export async function getUserList(): Promise<UserListItem[]> {
     const data = await AsyncStorage.getItem(USER_LIST_KEY);
     if (data) {
       const list = JSON.parse(data);
+      
+      // Cachear los detalles de todos los animes en la lista del usuario para cargarlos al instante
+      for (const item of list) {
+        if (item.anime) {
+          await cacheAnimeDetails(item.anime.id, item.anime);
+        }
+      }
+
       // Migrar datos antiguos que no tienen progress
       return list.map((item: any) => ({
         ...item,
