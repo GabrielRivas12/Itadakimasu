@@ -28,13 +28,13 @@ export function StatusSelector({
   const getProgressText = () => {
     if (!userStatus) return '';
     if (userStatus === 'Terminado') {
-      return `✅ Completado (${totalEpisodes || '??'} ep.)`;
+      return `Completado (${totalEpisodes || '??'} ep.)`;
     }
     if (userStatus === 'En Proceso') {
-      return `📺 Progreso: ${userProgress}/${totalEpisodes || '??'} episodios`;
+      return `Progreso: ${userProgress}/${totalEpisodes || '??'} episodios`;
     }
     if (userStatus === 'Por Ver') {
-      return `📌 Pendiente por ver`;
+      return `Pendiente por ver`;
     }
     return '';
   };

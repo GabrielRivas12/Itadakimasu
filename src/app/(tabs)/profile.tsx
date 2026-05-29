@@ -1,5 +1,5 @@
-import { LibraryPage } from '../../features/library/pages/LibraryPage';
+import { ProfilePage } from '../../features/profile/pages/ProfilePage';
 
 export default function ProfileRoute() {
-  return <LibraryPage />;
+  return <ProfilePage />;
 }

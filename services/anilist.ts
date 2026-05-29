@@ -1,5 +1,33 @@
 const ANILIST_URL = 'https://graphql.anilist.co';
 
+export interface CharacterNode {
+  id: number;
+  name: {
+    full: string;
+    userPreferred: string;
+  };
+  image: {
+    large: string;
+  };
+}
+
+export interface VoiceActor {
+  id: number;
+  name: {
+    full: string;
+    userPreferred: string;
+  };
+  image: {
+    large: string;
+  };
+}
+
+export interface CharacterEdge {
+  role: string;
+  node: CharacterNode;
+  voiceActors?: VoiceActor[];
+}
+
 export interface Anime {
   id: number;
   idMal?: number;
@@ -27,6 +55,29 @@ export interface Anime {
   };
   studios?: {
     nodes: Array<{ name: string }>;
+  };
+  characters?: {
+    edges: CharacterEdge[];
+  };
+  relations?: {
+    edges: Array<{
+      relationType: string;
+      node: {
+        id: number;
+        title: {
+          romaji: string;
+          english: string | null;
+          native: string;
+        };
+        coverImage: {
+          large: string;
+          medium: string;
+        };
+        type: string;
+        status?: string;
+        averageScore?: number | null;
+      };
+    }>;
   };
 }
 
@@ -126,14 +177,30 @@ export async function fetchPopularAnime(page = 1, perPage = 10): Promise<Anime[]
   }
 }
 
-export async function searchAnime(search: string | null, genre: string | null, page = 1, perPage = 20): Promise<Anime[]> {
+export type AnimeSeason = 'WINTER' | 'SPRING' | 'SUMMER' | 'FALL';
+
+export async function searchAnime(
+  search: string | null,
+  genre: string | null,
+  season: AnimeSeason | null = null,
+  year: number | null = null,
+  page = 1,
+  perPage = 20
+): Promise<Anime[]> {
   const activeGenre = genre && genre !== 'Todos' ? [genre] : null;
   const activeSearch = search && search.trim() !== '' ? search : null;
 
   const query = `
-    query ($page: Int, $perPage: Int, $search: String, $genres: [String]) {
+    query ($page: Int, $perPage: Int, $search: String, $genres: [String], $season: MediaSeason, $seasonYear: Int) {
       Page(page: $page, perPage: $perPage) {
-        media(search: $search, genre_in: $genres, type: ANIME, sort: POPULARITY_DESC) {
+        media(
+          search: $search,
+          genre_in: $genres,
+          season: $season,
+          seasonYear: $seasonYear,
+          type: ANIME,
+          sort: POPULARITY_DESC
+        ) {
           id
           idMal
           title {
@@ -159,6 +226,8 @@ export async function searchAnime(search: string | null, genre: string | null, p
   const variables: Record<string, any> = { page, perPage };
   if (activeSearch) variables.search = activeSearch;
   if (activeGenre) variables.genres = activeGenre;
+  if (season) variables.season = season;
+  if (year) variables.seasonYear = year;
 
   try {
     const response = await fetch(ANILIST_URL, {
@@ -211,6 +280,51 @@ export async function fetchAnimeDetails(id: number): Promise<Anime | null> {
         studios(isMain: true) {
           nodes {
             name
+          }
+        }
+        characters(sort: [ROLE, RELEVANCE, ID], perPage: 12) {
+          edges {
+            role
+            node {
+              id
+              name {
+                full
+                userPreferred
+              }
+              image {
+                large
+              }
+            }
+            voiceActors(language: JAPANESE) {
+              id
+              name {
+                full
+                userPreferred
+              }
+              image {
+                large
+              }
+            }
+          }
+        }
+        relations {
+          edges {
+            relationType
+            node {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+                medium
+              }
+              type
+              status
+              averageScore
+            }
           }
         }
       }

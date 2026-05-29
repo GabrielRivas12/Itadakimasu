@@ -1,99 +1,188 @@
-import React from 'react';
-import { StyleSheet, Text, ScrollView, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { AnimeSeason } from '../../../../services/anilist';
+import { YearPickerModal } from './YearPickerModal';
 
-const GENRES = [
-  'Todos',
-  'Action',
-  'Adventure',
-  'Comedy',
-  'Drama',
-  'Fantasy',
-  'Romance',
-  'Sci-Fi',
-  'Supernatural',
-  'Mystery',
-];
-
-const DISPLAY_GENRES: Record<string, string> = {
-  Todos: 'Todos',
-  Action: 'Acción',
-  Adventure: 'Aventura',
-  Comedy: 'Comedia',
-  Drama: 'Drama',
-  Fantasy: 'Fantasía',
-  Romance: 'Romance',
-  'Sci-Fi': 'Ciencia Ficción',
-  Supernatural: 'Sobrenatural',
-  Mystery: 'Misterio',
-};
-
-interface GenreFiltersProps {
+interface AdvancedFiltersProps {
   selectedGenre: string;
   onSelectGenre: (genre: string) => void;
+  selectedSeason: AnimeSeason | 'Todas';
+  onSelectSeason: (season: AnimeSeason | 'Todas') => void;
+  selectedYear: number | 'Todos';
+  onSelectYear: (year: number | 'Todos') => void;
 }
 
-export function GenreFilters({ selectedGenre, onSelectGenre }: GenreFiltersProps) {
+const GENRE_MAP: Record<string, string> = {
+  'Todos': 'Todos',
+  'Action': 'Acción',
+  'Adventure': 'Aventura',
+  'Comedy': 'Comedia',
+  'Drama': 'Drama',
+  'Ecchi': 'Ecchi',
+  'Fantasy': 'Fantasía',
+  'Horror': 'Terror',
+  'Mahou Shoujo': 'Chica Mágica',
+  'Mecha': 'Mecha',
+  'Music': 'Música',
+  'Mystery': 'Misterio',
+  'Psychological': 'Psicológico',
+  'Romance': 'Romance',
+  'Sci-Fi': 'Ciencia Ficción',
+  'Slice of Life': 'Recuentos de la Vida',
+  'Sports': 'Deportes',
+  'Supernatural': 'Sobrenatural',
+  'Thriller': 'Suspense'
+};
+
+const GENRES = Object.keys(GENRE_MAP);
+
+const SEASONS: { label: string; value: AnimeSeason | 'Todas' }[] = [
+  { label: 'Todas', value: 'Todas' },
+  { label: 'Invierno', value: 'WINTER' },
+  { label: 'Primavera', value: 'SPRING' },
+  { label: 'Verano', value: 'SUMMER' },
+  { label: 'Otoño', value: 'FALL' },
+];
+
+export function GenreFilters({
+  selectedGenre,
+  onSelectGenre,
+  selectedSeason,
+  onSelectSeason,
+  selectedYear,
+  onSelectYear
+}: AdvancedFiltersProps) {
+  const [showYearPicker, setShowYearPicker] = useState(false);
+
   return (
-    <View style={styles.genresContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.genresList}
-      >
-        {GENRES.map((genre) => {
-          const isSelected = selectedGenre === genre;
-          return (
+    <View style={styles.container}>
+      {/* Géneros */}
+      <View style={styles.filterSection}>
+        <Text style={styles.sectionLabel}>Géneros</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {GENRES.map((genre) => (
             <TouchableOpacity
               key={genre}
+              style={[styles.chip, selectedGenre === genre && styles.chipActive]}
               onPress={() => onSelectGenre(genre)}
-              style={[
-                styles.genreBadge,
-                isSelected && styles.genreBadgeActive,
-              ]}
             >
-              <Text
-                style={[
-                  styles.genreText,
-                  isSelected && styles.genreTextActive,
-                ]}
-              >
-                {DISPLAY_GENRES[genre] || genre}
+              <Text style={[styles.chipText, selectedGenre === genre && styles.chipTextActive]}>
+                {GENRE_MAP[genre]}
               </Text>
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Temporadas y Año Selector */}
+      <View style={styles.row}>
+        <View style={[styles.filterSection, { flex: 2 }]}>
+          <Text style={styles.sectionLabel}>Temporada</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            {SEASONS.map((s) => (
+              <TouchableOpacity
+                key={s.value}
+                style={[styles.chip, selectedSeason === s.value && styles.chipActive]}
+                onPress={() => onSelectSeason(s.value)}
+              >
+                <Text style={[styles.chipText, selectedSeason === s.value && styles.chipTextActive]}>
+                  {s.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={[styles.filterSection, { flex: 1, marginLeft: 12 }]}>
+          <Text style={styles.sectionLabel}>Año</Text>
+          <View style={{ paddingHorizontal: 16 }}>
+            <TouchableOpacity 
+              style={[styles.yearPickerButton, selectedYear !== 'Todos' && styles.chipActive]}
+              onPress={() => setShowYearPicker(true)}
+            >
+              <Text style={[styles.chipText, selectedYear !== 'Todos' && styles.chipTextActive]}>
+                {selectedYear}
+              </Text>
+              <Ionicons 
+                name="calendar-outline" 
+                size={14} 
+                color={selectedYear !== 'Todos' ? '#ffffff' : '#94a3b8'} 
+                style={{ marginLeft: 6 }}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      <YearPickerModal
+        visible={showYearPicker}
+        initialYear={selectedYear}
+        onClose={() => setShowYearPicker(false)}
+        onConfirm={(year) => {
+          onSelectYear(year);
+          setShowYearPicker(false);
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  genresContainer: {
+  container: {
+    paddingBottom: 12,
+  },
+  filterSection: {
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 16,
     marginBottom: 8,
+    textTransform: 'uppercase',
   },
-  genresList: {
+  row: {
+    flexDirection: 'row',
+    paddingRight: 16,
+    alignItems: 'flex-start',
+  },
+  scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    gap: 8,
   },
-  genreBadge: {
+  chip: {
     backgroundColor: '#1e293b',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 8,
     borderWidth: 1,
     borderColor: '#334155',
   },
-  genreBadgeActive: {
+  yearPickerButton: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 85,
+  },
+  chipActive: {
     backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
+    borderColor: '#a78bfa',
   },
-  genreText: {
-    color: '#94a3b8',
+  chipText: {
+    color: '#cbd5e1',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  genreTextActive: {
+  chipTextActive: {
     color: '#ffffff',
+    fontWeight: 'bold',
   },
 });
