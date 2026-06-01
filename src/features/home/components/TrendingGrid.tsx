@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Anime } from '../../../../services/anilist';
 
@@ -9,7 +9,7 @@ interface TrendingGridProps {
   onPress: (id: number) => void;
 }
 
-export function TrendingGrid({ trending, onPress }: TrendingGridProps) {
+export const TrendingGrid = memo(function TrendingGrid({ trending, onPress }: TrendingGridProps) {
   return (
     <View style={styles.trendingGrid}>
       {trending.map((item) => (
@@ -36,7 +36,7 @@ export function TrendingGrid({ trending, onPress }: TrendingGridProps) {
       ))}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   trendingGrid: {

@@ -39,6 +39,7 @@ export default function TabLayout() {
         options={{
           title: 'Inicio',
           tabBarLabel: 'Inicio',
+          headerTitle: 'Inicio',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
@@ -53,6 +54,7 @@ export default function TabLayout() {
         options={{
           title: 'Explorar',
           tabBarLabel: 'Explorar',
+          headerTitle: 'Explorar',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'search' : 'search-outline'}
@@ -67,6 +69,7 @@ export default function TabLayout() {
         options={{
           title: 'Mi Perfil',
           tabBarLabel: 'Perfil',
+          headerTitle: 'Mi Perfil',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'person' : 'person-outline'}

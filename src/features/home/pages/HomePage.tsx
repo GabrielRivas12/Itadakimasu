@@ -4,14 +4,12 @@ import {
   Text,
   View,
   ScrollView,
-  StatusBar,
   ActivityIndicator,
   RefreshControl,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { fetchTrendingAnime, fetchPopularAnime, Anime } from '../../../../services/anilist';
 import { FeaturedBanner } from '../components/FeaturedBanner';
@@ -24,49 +22,64 @@ interface ContinueAnime extends Anime {
   mockEpisode: string;
 }
 
+// Module-level cache to persist data across remounts during the session
+let sessionTrending: Anime[] = [];
+let sessionPopular: ContinueAnime[] = [];
+let sessionFeatured: Anime | null = null;
+let homeInitialized = false;
+
 export function HomePage() {
   const router = useRouter();
-  const [trending, setTrending] = useState<Anime[]>([]);
-  const [popular, setPopular] = useState<ContinueAnime[]>([]);
-  const [featured, setFeatured] = useState<Anime | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [trending, setTrending] = useState<Anime[]>(sessionTrending);
+  const [popular, setPopular] = useState<ContinueAnime[]>(sessionPopular);
+  const [featured, setFeatured] = useState<Anime | null>(sessionFeatured);
+  const [loading, setLoading] = useState(!homeInitialized);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(homeInitialized ? 1 : 0)).current;
 
   const pageRef = useRef(1);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
   const [loadingMoreState, setLoadingMoreState] = useState(false);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
+    // If we already have data and it's not a forced refresh, don't do anything
+    if (!forceRefresh && homeInitialized && sessionTrending.length > 0) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      // 1. Intentar cargar desde el caché para mostrar algo inmediato
-      const cachedList = await getCachedTrendingList();
-      const cachedBanner = await getCachedTrendingBanner();
-      
-      if (cachedList && cachedList.length > 0) {
-        setTrending(cachedList);
-        pageRef.current = 1;
-        hasMoreRef.current = cachedList.length >= 10;
+      // 1. Load from AsyncStorage cache only if not initialized and no session data
+      if (!forceRefresh && !homeInitialized && sessionTrending.length === 0) {
+        const cachedList = await getCachedTrendingList();
+        const cachedBanner = await getCachedTrendingBanner();
         
-        if (cachedBanner) {
-          setFeatured(cachedBanner);
-        } else {
-          setFeatured(cachedList[0]);
+        if (cachedList && cachedList.length > 0) {
+          sessionTrending = cachedList;
+          setTrending(cachedList);
+          pageRef.current = 1;
+          hasMoreRef.current = cachedList.length >= 10;
+          
+          const banner = cachedBanner || cachedList[0];
+          sessionFeatured = banner;
+          setFeatured(banner);
+          
+          setLoading(false);
+          // We don't set homeInitialized to true yet because we might want a fresh background fetch
+          // but for this specific "only 1 time" requirement, we could.
         }
-        
-        // Quitar el skeleton de inmediato ya que tenemos datos para mostrar
-        setLoading(false);
       }
 
-      // 2. Si no hay caché o queremos actualizar en segundo plano, llamar a la red
+      // 2. Fetch from network if forced or not initialized
       const [trendingData, popularData] = await Promise.all([
         fetchTrendingAnime(1, 10),
         fetchPopularAnime(1, 10),
       ]);
 
       if (trendingData.length > 0) {
+        sessionTrending = trendingData;
         setTrending(trendingData);
         pageRef.current = 1;
         hasMoreRef.current = trendingData.length >= 10;
@@ -74,9 +87,10 @@ export function HomePage() {
         setLoadingMoreState(false);
         
         const bannerAnime = trendingData[0];
+        sessionFeatured = bannerAnime;
         setFeatured(bannerAnime);
 
-        // Guardar la versión fresca en caché
+        // Update AsyncStorage cache
         await cacheTrendingList(trendingData);
         await cacheTrendingBanner(bannerAnime);
       }
@@ -90,7 +104,11 @@ export function HomePage() {
           mockEpisode: episodeValues[index % episodeValues.length],
         };
       });
+      
+      sessionPopular = popularWithProgress;
       setPopular(popularWithProgress);
+      
+      homeInitialized = true;
     } catch (error) {
       console.error('Error loading AnimeLT home data:', error);
     } finally {
@@ -137,7 +155,7 @@ export function HomePage() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData();
+    loadData(true);
   };
 
   const handleAnimePress = (id: number) => {
@@ -152,9 +170,7 @@ export function HomePage() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-      
+    <View style={styles.container}>
       {loading ? (
         <ScrollView showsVerticalScrollIndicator={false}>
           <HomeSkeleton />
@@ -184,7 +200,7 @@ export function HomePage() {
           </ScrollView>
         </Animated.View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
