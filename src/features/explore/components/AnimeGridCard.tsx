@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Anime } from '../../../../services/anilist';
 
@@ -9,7 +9,7 @@ interface AnimeGridCardProps {
   onPress: (id: number) => void;
 }
 
-export function AnimeGridCard({ item, onPress }: AnimeGridCardProps) {
+export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress }: AnimeGridCardProps) {
   return (
     <TouchableOpacity
       style={styles.card}
@@ -38,7 +38,7 @@ export function AnimeGridCard({ item, onPress }: AnimeGridCardProps) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
