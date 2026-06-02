@@ -14,6 +14,8 @@ import { StatusTabs } from '../components/StatusTabs';
 import { LibraryAnimeCard } from '../components/LibraryAnimeCard';
 import { ProfileEmptyList } from '../components/ProfileEmptyList';
 import { useProfile } from '../hooks/useProfile';
+import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 export const ProfilePage = memo(function ProfilePage() {
   const router = useRouter();
@@ -32,71 +34,86 @@ export const ProfilePage = memo(function ProfilePage() {
     handleAnimePress,
   } = useProfile();
 
+  const { isWeb, getContentWidth, getColumns } = useResponsive();
+  const columns = getColumns(1, 1, 2, 2);
+
   if (isLoading) {
     return <View style={styles.container} />;
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }]}>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
         <Text style={styles.headerSubtitle}>Gestiona tu colección</Text>
       </View>
-      {user ? (
-        <View style={styles.headerContainer}>
-          <UserHeader
-            name={user.name || 'Usuario'}
-            role="Cuenta sincronizada con Google"
-            avatarUrl={user.photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
-          />
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Ionicons name="log-out-outline" size={24} color="#ef4444" />
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.loginContainer}>
-          <View style={styles.loginCard}>
-            <Text style={styles.loginText}>
-              Inicia sesión con tu cuenta de Google para tener tu lista en todos tus dispositivos
-            </Text>
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Ionicons name="logo-google" size={20} color="#ffffff" style={styles.buttonIcon} />
-              <Text style={styles.loginButtonText}>Iniciar sesión con Google</Text>
+      
+      <View style={isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }}>
+        {user ? (
+          <View style={styles.headerContainer}>
+            <UserHeader
+              name={user.name || 'Usuario'}
+              role="Cuenta sincronizada con Google"
+              avatarUrl={user.photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+            />
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+              <Ionicons name="log-out-outline" size={24} color="#ef4444" />
             </TouchableOpacity>
           </View>
-        </View>
-      )}
-
-      <StatsCard
-        inProcess={countInProcess}
-        completed={countCompleted}
-        planToWatch={countPlanToWatch}
-      />
-
-      <StatusTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
-      <FlatList
-        data={filteredList}
-        keyExtractor={(item) => item.anime.id.toString()}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <ProfileEmptyList 
-            activeTab={activeTab} 
-            onExplorePress={() => router.push('/explore')} 
-          />
-        }
-        renderItem={({ item }) => (
-          <LibraryAnimeCard
-            item={item}
-            onPress={handleAnimePress}
-            onRemove={handleRemove}
-          />
+        ) : (
+          <View style={styles.loginContainer}>
+            <View style={[styles.loginCard, isWeb && { maxWidth: 600, marginHorizontal: 'auto', width: '100%' }]}>
+              <Text style={styles.loginText}>
+                Inicia sesión con tu cuenta de Google para tener tu lista en todos tus dispositivos
+              </Text>
+              <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+                <Ionicons name="logo-google" size={20} color="#ffffff" style={styles.buttonIcon} />
+                <Text style={styles.loginButtonText}>Iniciar sesión con Google</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
-      />
+
+        <StatsCard
+          inProcess={countInProcess}
+          completed={countCompleted}
+          planToWatch={countPlanToWatch}
+        />
+
+        <StatusTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      </View>
+
+      <View style={styles.flex}>
+        <FlatList
+          key={columns}
+          data={filteredList}
+          keyExtractor={(item) => item.anime.id.toString()}
+          numColumns={columns}
+          contentContainerStyle={[
+            styles.listContent,
+            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }
+          ]}
+          columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <ProfileEmptyList 
+              activeTab={activeTab} 
+              onExplorePress={() => router.push('/explore')} 
+            />
+          }
+          renderItem={({ item }) => (
+            <LibraryAnimeCard
+              item={item}
+              onPress={handleAnimePress}
+              onRemove={handleRemove}
+              width={columns > 1 ? `${100 / columns - 2}%` : undefined}
+            />
+          )}
+        />
+      </View>
     </View>
   );
 });
@@ -105,6 +122,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0b0f19',
+  },
+  flex: {
+    flex: 1,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -134,6 +154,9 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 24,
+  },
+  gridRow: {
+    justifyContent: 'flex-start',
   },
   loginContainer: {
     padding: 20,

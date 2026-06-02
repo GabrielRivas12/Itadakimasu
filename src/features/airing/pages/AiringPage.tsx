@@ -11,6 +11,8 @@ import { AnimeGridCard } from '../../explore/components/AnimeGridCard';
 import { ExploreLoading } from '../../explore/components/ExploreStates';
 import { Ionicons } from '@expo/vector-icons';
 import { useAiring } from '../hooks/useAiring';
+import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 export const AiringPage = memo(function AiringPage() {
   const {
@@ -23,9 +25,12 @@ export const AiringPage = memo(function AiringPage() {
     handleAnimePress,
   } = useAiring();
 
+  const { getColumns, isWeb, getContentWidth } = useResponsive();
+  const columns = getColumns(2, 3, 4, 6);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }]}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.headerTitle}>En Emisión</Text>
@@ -48,28 +53,40 @@ export const AiringPage = memo(function AiringPage() {
       </View>
 
       {loading && results.length === 0 ? (
-        <ExploreLoading />
+        <ResponsiveContainer>
+          <ExploreLoading />
+        </ResponsiveContainer>
       ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
-          numColumns={2}
-          contentContainerStyle={styles.gridContent}
-          columnWrapperStyle={styles.gridRow}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <AnimeGridCard item={item} onPress={handleAnimePress} />
-          )}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={() => 
-            loadingMore ? (
-              <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#8b5cf6" />
-              </View>
-            ) : null
-          }
-        />
+        <View style={styles.flex}>
+          <FlatList
+            key={columns} // Force re-render when columns change
+            data={results}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            numColumns={columns}
+            contentContainerStyle={[
+              styles.gridContent,
+              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }
+            ]}
+            columnWrapperStyle={styles.gridRow}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <AnimeGridCard 
+                item={item} 
+                onPress={handleAnimePress} 
+                width={`${100 / columns - 2}%`}
+              />
+            )}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={() => 
+              loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color="#8b5cf6" />
+                </View>
+              ) : null
+            }
+          />
+        </View>
       )}
     </View>
   );
@@ -79,6 +96,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0b0f19',
+  },
+  flex: {
+    flex: 1,
   },
   header: {
     paddingHorizontal: 20,
@@ -130,7 +150,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   gridRow: {
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   footerLoader: {
     paddingVertical: 20,

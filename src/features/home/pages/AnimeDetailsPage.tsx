@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Share,
@@ -25,9 +24,12 @@ import { EpisodePlayer } from '../components/EpisodePlayer';
 import { EpisodePicker } from '../components/EpisodePicker';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
+import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 export function AnimeDetailsPage() {
   const router = useRouter();
+  const { isWeb, getContentWidth } = useResponsive();
   
   const {
     anime,
@@ -103,9 +105,9 @@ export function AnimeDetailsPage() {
       />
 
       {loading ? (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ResponsiveContainer>
           <SkeletonLoader />
-        </ScrollView>
+        </ResponsiveContainer>
       ) : !anime ? (
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#f43f5e" />
@@ -116,71 +118,77 @@ export function AnimeDetailsPage() {
         </View>
       ) : (
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            <AnimeHeader anime={anime} />
-
-            <StatusSelector
-              userStatus={userStatus}
-              userProgress={userProgress}
-              totalEpisodes={anime.episodes}
-              showStatusSelector={showStatusSelector}
-              setShowStatusSelector={setShowStatusSelector}
-              onUpdateStatus={handleUpdateStatus}
-              onUpdateProgress={handleUpdateProgress}
-              onRemove={handleRemove}
-            />
-
-            <QuickStats
-              averageScore={anime.averageScore}
-              episodes={anime.episodes}
-              status={anime.status || 'UNKNOWN'}
-            />
-
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionHeader}>Sinopsis</Text>
-              {loadingSpanishSynopsis ? (
-                <View style={styles.synopsisLoading}>
-                  <ActivityIndicator size="small" color="#8b5cf6" />
-                  <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.synopsisText}>{displaySynopsis}</Text>
-                  {displaySource && (
-                    <Text style={styles.synopsisSourceText}>{displaySource}</Text>
-                  )}
-                </>
-              )}
-            </View>
-
-            <CharacterList characters={anime.characters} />
-
-            {contentNotAvailable ? (
-              <View style={styles.notAvailableContainer}>
-                <Ionicons name="videocam-off-outline" size={32} color="#64748b" />
-                <Text style={styles.notAvailableText}>Este contenido no está disponible actualmente.</Text>
-              </View>
-            ) : anime1VInfo && displayedEpisodes.length > 0 ? (
-              <View style={styles.playerSection}>
-                <Text style={styles.sectionHeader}>
-                  {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Reproductor'}
-                </Text>
-                <EpisodePlayer url={streamUrl} />
-                <EpisodePicker
-                  episodes={displayedEpisodes}
-                  currentEpisodeNumber={currentEpisode?.number || null}
-                  onEpisodePress={handleEpisodeSelect}
-                  onLoadMore={loadMoreEpisodes}
-                  hasMore={hasMoreEpisodes}
-                  isLoadingMore={isLoadingMore}
+          <ResponsiveContainer contentContainerStyle={styles.scrollContent}>
+            <View style={isWeb && styles.webDetailsContainer}>
+              <View style={isWeb && styles.webSidebar}>
+                <AnimeHeader anime={anime} />
+                
+                <StatusSelector
+                  userStatus={userStatus}
+                  userProgress={userProgress}
+                  totalEpisodes={anime.episodes}
+                  showStatusSelector={showStatusSelector}
+                  setShowStatusSelector={setShowStatusSelector}
+                  onUpdateStatus={handleUpdateStatus}
+                  onUpdateProgress={handleUpdateProgress}
+                  onRemove={handleRemove}
                 />
+
+                <QuickStats
+                  averageScore={anime.averageScore}
+                  episodes={anime.episodes}
+                  status={anime.status || 'UNKNOWN'}
+                />
+
+                <TechnicalSpecs anime={anime} />
               </View>
-            ) : null}
 
-            <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
+              <View style={isWeb && styles.webMainContent}>
+                <View style={styles.sectionContainer}>
+                  <Text style={styles.sectionHeader}>Sinopsis</Text>
+                  {loadingSpanishSynopsis ? (
+                    <View style={styles.synopsisLoading}>
+                      <ActivityIndicator size="small" color="#8b5cf6" />
+                      <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.synopsisText}>{displaySynopsis}</Text>
+                      {displaySource && (
+                        <Text style={styles.synopsisSourceText}>{displaySource}</Text>
+                      )}
+                    </>
+                  )}
+                </View>
 
-            <TechnicalSpecs anime={anime} />
-          </ScrollView>
+                <CharacterList characters={anime.characters} />
+
+                {contentNotAvailable ? (
+                  <View style={styles.notAvailableContainer}>
+                    <Ionicons name="videocam-off-outline" size={32} color="#64748b" />
+                    <Text style={styles.notAvailableText}>Este contenido no está disponible actualmente.</Text>
+                  </View>
+                ) : anime1VInfo && displayedEpisodes.length > 0 ? (
+                  <View style={styles.playerSection}>
+                    <Text style={styles.sectionHeader}>
+                      {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Reproductor'}
+                    </Text>
+                    <EpisodePlayer url={streamUrl} />
+                    <EpisodePicker
+                      episodes={displayedEpisodes}
+                      currentEpisodeNumber={currentEpisode?.number || null}
+                      onEpisodePress={handleEpisodeSelect}
+                      onLoadMore={loadMoreEpisodes}
+                      hasMore={hasMoreEpisodes}
+                      isLoadingMore={isLoadingMore}
+                    />
+                  </View>
+                ) : null}
+
+                <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
+              </View>
+            </View>
+          </ResponsiveContainer>
         </Animated.View>
       )}
 
@@ -211,6 +219,17 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  webDetailsContainer: {
+    flexDirection: 'row',
+    paddingTop: 20,
+  },
+  webSidebar: {
+    width: 300,
+    paddingRight: 20,
+  },
+  webMainContent: {
+    flex: 1,
   },
   errorContainer: {
     flex: 1,

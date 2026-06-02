@@ -2,19 +2,22 @@ import React from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserListItem } from '../../../../services/animeList';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface LibraryAnimeCardProps {
   item: UserListItem;
   onPress: (id: number) => void;
   onRemove: (id: number, title: string) => void;
+  width?: number | string;
 }
 
-export function LibraryAnimeCard({ item, onPress, onRemove }: LibraryAnimeCardProps) {
+export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnimeCardProps) {
+  const { isWeb } = useResponsive();
   const title = item.anime.title.romaji || item.anime.title.english;
   
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, width ? { width } : null, isWeb && styles.webCard]}
       activeOpacity={0.8}
       onPress={() => onPress(item.anime.id)}
     >
@@ -32,7 +35,7 @@ export function LibraryAnimeCard({ item, onPress, onRemove }: LibraryAnimeCardPr
             </View>
           )}
           <Text style={styles.episodesText}>
-            {item.anime.episodes ? `${item.anime.episodes} Episodios` : 'En emisión'}
+            {item.anime.episodes ? `${item.anime.episodes} Eps` : 'En emisión'}
           </Text>
         </View>
 
@@ -66,6 +69,9 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
     padding: 10,
     alignItems: 'center',
+  },
+  webCard: {
+    marginHorizontal: 5,
   },
   cardImage: {
     width: 70,

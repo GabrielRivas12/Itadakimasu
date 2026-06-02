@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  ScrollView,
   ActivityIndicator,
   RefreshControl,
   Animated,
@@ -12,6 +11,8 @@ import { FeaturedBanner } from '../components/FeaturedBanner';
 import { TrendingGrid } from '../components/TrendingGrid';
 import { HomeSkeleton } from '../components/HomeSkeleton';
 import { useHome } from '../hooks/useHome';
+import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 export function HomePage() {
   const {
@@ -26,24 +27,24 @@ export function HomePage() {
     handleScroll,
   } = useHome();
 
+  const { isWeb, getContentWidth } = useResponsive();
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }]}>
         <Text style={styles.headerTitle}>Inicio</Text>
         <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu</Text>
       </View>
       {loading ? (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ResponsiveContainer>
           <HomeSkeleton />
-        </ScrollView>
+        </ResponsiveContainer>
       ) : (
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
+          <ResponsiveContainer
             contentContainerStyle={styles.scrollContent}
-            scrollEventThrottle={16}
             onScroll={handleScroll}
-            onMomentumScrollEnd={handleScroll}
+            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />
             }
@@ -58,7 +59,7 @@ export function HomePage() {
                 <ActivityIndicator size="small" color="#8b5cf6" />
               </View>
             )}
-          </ScrollView>
+          </ResponsiveContainer>
         </Animated.View>
       )}
     </View>
