@@ -22,7 +22,7 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
           <Text style={styles.tagText}>TENDENCIA HOY</Text>
         </View>
         <Text style={styles.bannerTitle} numberOfLines={1}>
-          {featured.title.english || featured.title.romaji}
+          {featured.title.romaji || featured.title.english}
         </Text>
         <Text style={styles.bannerSubtitle} numberOfLines={2}>
           {featured.description

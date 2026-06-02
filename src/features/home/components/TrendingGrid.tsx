@@ -26,7 +26,7 @@ export const TrendingGrid = memo(function TrendingGrid({ trending, onPress }: Tr
           )}
           <View style={styles.trendingContent}>
             <Text style={styles.trendingTitle} numberOfLines={1}>
-              {item.title.english || item.title.romaji}
+              {item.title.romaji || item.title.english}
             </Text>
             <Text style={styles.trendingEpisode}>
               {item.episodes ? `${item.episodes} Episodios` : 'En emisión'}

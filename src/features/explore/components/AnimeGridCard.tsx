@@ -26,7 +26,7 @@ export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress }: Anim
       )}
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.title.english || item.title.romaji}
+          {item.title.romaji || item.title.english}
         </Text>
         <View style={styles.genreTagsContainer}>
           {item.genres.slice(0, 2).map((g) => (

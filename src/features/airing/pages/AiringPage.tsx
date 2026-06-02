@@ -1,79 +1,27 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { memo } from 'react';
 import {
   StyleSheet,
   View,
   FlatList,
   ActivityIndicator,
   Text,
+  TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { fetchAiringAnime, Anime } from '../../../../services/anilist';
 import { AnimeGridCard } from '../../explore/components/AnimeGridCard';
 import { ExploreLoading } from '../../explore/components/ExploreStates';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity as RNTouchableOpacity } from 'react-native';
+import { useAiring } from '../hooks/useAiring';
 
 export const AiringPage = memo(function AiringPage() {
-  const router = useRouter();
-  const [results, setResults] = useState<Anime[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [isAdult, setIsAdult] = useState(false);
-
-  const loadAiring = async (pageNum: number, isInitial: boolean = false, adultFilter: boolean = isAdult) => {
-    try {
-      if (isInitial) {
-        setLoading(true);
-        setPage(1);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
-      }
-
-      const data = await fetchAiringAnime(pageNum, 20, adultFilter);
-      
-      if (data) {
-        if (isInitial) {
-          setResults(data);
-        } else {
-          setResults(prev => [...prev, ...data]);
-        }
-        
-        if (data.length < 20) {
-          setHasMore(false);
-        }
-      } else {
-        setHasMore(false);
-      }
-    } catch (error) {
-      console.error('Error loading airing anime:', error);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAiring(1, true, isAdult);
-  }, [isAdult]);
-
-  const toggleAdult = () => {
-    setIsAdult(!isAdult);
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && !loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      loadAiring(nextPage, false, isAdult);
-    }
-  };
-
-  const handleAnimePress = (id: number) => {
-    router.push(`/anime/${id}`);
-  };
+  const {
+    results,
+    loading,
+    loadingMore,
+    isAdult,
+    toggleAdult,
+    handleLoadMore,
+    handleAnimePress,
+  } = useAiring();
 
   return (
     <View style={styles.container}>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, FlatList, LayoutAnimation } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, LayoutAnimation, ActivityIndicator, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Anime1VEpisode } from '../../../../services/anime1v';
 
@@ -7,12 +7,18 @@ interface EpisodePickerProps {
   episodes: Anime1VEpisode[];
   currentEpisodeNumber: number | null;
   onEpisodePress: (episode: Anime1VEpisode) => void;
+  onLoadMore?: () => Promise<void>;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export const EpisodePicker: React.FC<EpisodePickerProps> = ({
   episodes,
   currentEpisodeNumber,
   onEpisodePress,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -26,17 +32,37 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
     setIsExpanded(false);
   };
 
-  const renderEpisodeItem = ({ item }: { item: Anime1VEpisode }) => {
+  const handleLoadMore = () => {
+    if (onLoadMore && hasMore && !isLoadingMore) {
+      onLoadMore();
+    }
+  };
+
+  const handleScroll = ({ nativeEvent }: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+    const isNearBottom =
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - 80;
+    if (isNearBottom) handleLoadMore();
+  };
+
+  const renderEpisodeItem = (item: Anime1VEpisode) => {
     const isSelected = item.number === currentEpisodeNumber;
     return (
       <TouchableOpacity
+        key={item.id.toString()}
         style={[styles.episodeItem, isSelected && styles.selectedItem]}
         onPress={() => handleEpisodeSelect(item)}
+        activeOpacity={0.7}
       >
         <View style={styles.episodeInfo}>
           <Text style={[styles.episodeText, isSelected && styles.selectedText]}>
             Episodio {item.number}
           </Text>
+          {item.title && (
+            <Text style={styles.episodeTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+          )}
           {isSelected && <Ionicons name="play" size={16} color="#ffffff" />}
         </View>
         <Ionicons name="chevron-forward" size={16} color={isSelected ? "#ffffff" : "#475569"} />
@@ -44,14 +70,37 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
     );
   };
 
+  const renderFooter = () => {
+    if (isLoadingMore) {
+      return (
+        <View style={styles.loadingMore}>
+          <ActivityIndicator size="small" color="#8b5cf6" />
+          <Text style={styles.loadingMoreText}>Cargando más episodios...</Text>
+        </View>
+      );
+    }
+
+    if (!hasMore && episodes.length > 0) {
+      return (
+        <View style={styles.endMessage}>
+          <Text style={styles.endMessageText}>
+            📺 Total: {episodes.length} episodios
+          </Text>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   if (episodes.length === 0) return null;
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Lista de Capítulos</Text>
-      
-      <TouchableOpacity 
-        style={[styles.trigger, isExpanded && styles.activeTrigger]} 
+
+      <TouchableOpacity
+        style={[styles.trigger, isExpanded && styles.activeTrigger]}
         onPress={toggleDropdown}
         activeOpacity={0.7}
       >
@@ -60,25 +109,30 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
             <Ionicons name="list" size={18} color="#8b5cf6" />
           </View>
           <Text style={styles.triggerText}>
-            {currentEpisodeNumber ? `Viendo: Episodio ${currentEpisodeNumber}` : 'Seleccionar Episodio'}
+            {currentEpisodeNumber
+              ? `Viendo: Episodio ${currentEpisodeNumber}`
+              : `Seleccionar Episodio (${episodes.length}${hasMore ? '+' : ''})`}
           </Text>
         </View>
-        <Ionicons 
-          name={isExpanded ? "chevron-up" : "chevron-down"} 
-          size={20} 
-          color="#94a3b8" 
+        <Ionicons
+          name={isExpanded ? "chevron-up" : "chevron-down"}
+          size={20}
+          color="#94a3b8"
         />
       </TouchableOpacity>
 
       {isExpanded && (
         <View style={styles.dropdown}>
-          <FlatList
-            data={episodes}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderEpisodeItem}
-            scrollEnabled={false} // Para que el ScrollView padre maneje el scroll
-            contentContainerStyle={styles.listContent}
-          />
+          <ScrollView
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={true}
+            style={styles.scrollList}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+          >
+            {episodes.map((item) => renderEpisodeItem(item))}
+            {renderFooter()}
+          </ScrollView>
         </View>
       )}
     </View>
@@ -119,6 +173,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
   iconBadge: {
     width: 32,
@@ -132,6 +187,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '600',
+    flex: 1,
   },
   dropdown: {
     backgroundColor: '#1e293b',
@@ -140,11 +196,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderTopWidth: 0,
     borderColor: '#334155',
-    maxHeight: 400, // Limitar altura si hay muchos episodios
-    overflow: 'hidden',
+    maxHeight: 400,
   },
-  listContent: {
-    paddingVertical: 8,
+  scrollList: {
+    maxHeight: 400,
   },
   episodeItem: {
     flexDirection: 'row',
@@ -159,6 +214,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#8b5cf6',
   },
   episodeInfo: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -168,8 +224,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  episodeTitle: {
+    color: '#64748b',
+    fontSize: 12,
+    flex: 1,
+  },
   selectedText: {
     color: '#ffffff',
     fontWeight: 'bold',
+  },
+  loadingMore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 16,
+  },
+  loadingMoreText: {
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  endMessage: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  endMessageText: {
+    color: '#64748b',
+    fontSize: 12,
   },
 });

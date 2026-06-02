@@ -10,7 +10,7 @@ interface LibraryAnimeCardProps {
 }
 
 export function LibraryAnimeCard({ item, onPress, onRemove }: LibraryAnimeCardProps) {
-  const title = item.anime.title.english || item.anime.title.romaji;
+  const title = item.anime.title.romaji || item.anime.title.english;
   
   return (
     <TouchableOpacity

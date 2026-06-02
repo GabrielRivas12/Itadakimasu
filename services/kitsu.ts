@@ -1,8 +1,6 @@
 import { translateToSpanish } from './translate';
 
-const KITSU_URL = 'https://kitsu.io/api/edge';
-
-const cleanHtmlText = (text: string): string => {
+export const cleanHtmlText = (text: string): string => {
   if (!text) return '';
   return text
     .replace(/<[^>]*>/g, '')
@@ -49,64 +47,22 @@ export function extractSourceAttribution(text: string): { cleanText: string; sou
   return { cleanText: text.trim(), source: null };
 }
 
-export async function fetchSpanishSynopsisFromJikan(malId: number): Promise<{ synopsis: string; source: string | null } | null> {
+export async function translateDescription(description: string): Promise<{ synopsis: string; source: string | null } | null> {
+  if (!description || !description.trim()) return null;
+  
   try {
-    console.log(` Obteniendo sinopsis para MAL ID: ${malId}`);
+    const cleanedDescription = cleanHtmlText(description);
+    const { cleanText, source } = extractSourceAttribution(cleanedDescription);
     
-    const response = await fetch(`https://api.jikan.moe/v4/anime/${malId}`);
+    console.log(`Traduciendo descripción de AniList al español...`);
+    const translatedSynopsis = await translateToSpanish(cleanText);
     
-    if (!response.ok) {
-      console.log(`Jikan API error: ${response.status} for MAL ID ${malId}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    const synopsis = data.data?.synopsis;
-    
-    if (synopsis && synopsis.trim()) {
-      const cleanedSynopsis = cleanHtmlText(synopsis);
-      const { cleanText, source } = extractSourceAttribution(cleanedSynopsis);
-      console.log(` Sinopsis obtenida, traduciendo sinopsis sin fuente...`);
-      
-      const translatedSynopsis = await translateToSpanish(cleanText);
-      console.log(` Sinopsis traducida al español`);
-      return { synopsis: translatedSynopsis, source };
-    }
-    
-    console.log(`No se encontró sinopsis para MAL ID: ${malId}`);
-    return null;
+    return { 
+      synopsis: translatedSynopsis, 
+      source: source || 'Fuente: AniList' 
+    };
   } catch (error) {
-    console.error(`Error fetching Jikan synopsis for MAL ID ${malId}:`, error);
-    return null;
-  }
-}
-
-export async function fetchKitsuSpanishSynopsis(malId: number): Promise<{ synopsis: string; source: string | null } | null> {
-  try {
-    const response = await fetch(
-      `${KITSU_URL}/mappings?filter[externalSite]=myanimelist/anime&filter[externalId]=${malId}&include=item`
-    );
-
-    const json = await response.json();
-    
-    if (!json.data || json.data.length === 0) {
-      return null;
-    }
-
-    const included = json.included || [];
-    const anime = included.find((item: any) => item.type === 'anime');
-    
-    if (anime && anime.attributes?.synopsis) {
-      const synopsis = anime.attributes.synopsis;
-      const cleanedSynopsis = cleanHtmlText(synopsis);
-      const { cleanText, source } = extractSourceAttribution(cleanedSynopsis);
-      const translatedSynopsis = await translateToSpanish(cleanText);
-      return { synopsis: translatedSynopsis, source };
-    }
-
-    return null;
-  } catch (error) {
-    console.error(`Error fetching Kitsu synopsis for MAL ID ${malId}:`, error);
+    console.error('Error traduciendo descripción:', error);
     return null;
   }
 }
