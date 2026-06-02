@@ -67,7 +67,7 @@ export function AnimeDetailsPage() {
     if (!anime) return;
     try {
       await Share.share({
-        message: `¡Mira este anime en AnimeLT! ${anime.title.english || anime.title.romaji}\nhttps://anilist.co/anime/${anime.id}`,
+        message: `¡Mira este anime en AnimeLT! ${anime.title.romaji || anime.title.english}\nhttps://anilist.co/anime/${anime.id}`,
       });
     } catch (error) {
       console.error('Error sharing anime:', error);
@@ -86,7 +86,7 @@ export function AnimeDetailsPage() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: loading ? 'Cargando...' : (anime?.title.english || anime?.title.romaji || 'Detalles'),
+          title: loading ? 'Cargando...' : (anime?.title.romaji || anime?.title.english || 'Detalles'),
           headerTransparent: true,
           headerTintColor: '#ffffff',
           headerLeft: () => (

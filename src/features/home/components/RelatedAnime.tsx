@@ -84,7 +84,7 @@ export function RelatedAnime({ relations, onPress }: RelatedAnimeProps) {
               </View>
               <View style={styles.info}>
                 <Text style={styles.title} numberOfLines={2}>
-                  {item.title.english || item.title.romaji}
+                  {item.title.romaji || item.title.english}
                 </Text>
               </View>
             </TouchableOpacity>

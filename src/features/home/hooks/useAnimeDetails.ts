@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Alert, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchAnimeDetails, Anime } from '../../../../services/anilist';
-import { fetchSpanishSynopsisFromJikan } from '../../../../services/kitsu';
+import { translateDescription } from '../../../../services/kitsu';
 import {
   getAnimeStatus,
   addOrUpdateAnimeInList,
@@ -105,6 +105,8 @@ export const useAnimeDetails = () => {
         getAnimeProgress(id),
       ]);
 
+      let currentAnime = cachedAnime;
+
       if (cachedAnime) {
         setAnime(cachedAnime);
         if (cachedAnime.characters?.edges && cachedAnime.relations?.edges) {
@@ -115,34 +117,26 @@ export const useAnimeDetails = () => {
       setUserStatus(status);
       setUserProgress(progress);
 
-      let translationPromise: Promise<{ synopsis: string; source: string | null } | null> | null = null;
-      if (cachedAnime?.idMal) {
-        translationPromise = fetchSpanishSynopsisFromJikan(cachedAnime.idMal);
-      }
-
       if (!cachedAnime || !cachedAnime.characters || !cachedAnime.relations) {
         const details = await fetchAnimeDetails(id);
         
         if (details) {
           setAnime(details);
+          currentAnime = details;
           await cacheAnimeDetails(id, details);
-          
-          if (details.idMal && (!cachedAnime || details.idMal !== cachedAnime.idMal)) {
-            translationPromise = fetchSpanishSynopsisFromJikan(details.idMal);
-          }
         }
       }
 
-      if (translationPromise) {
+      if (currentAnime?.description) {
         setLoadingSpanishSynopsis(true);
         try {
-          const result = await translationPromise;
+          const result = await translateDescription(currentAnime.description);
           if (result && result.synopsis.trim()) {
             setSpanishSynopsis(result.synopsis);
             setSynopsisSource(result.source);
           }
         } catch (error) {
-          console.error('Error fetching synopsis:', error);
+          console.error('Error translating synopsis:', error);
         } finally {
           setLoadingSpanishSynopsis(false);
         }
@@ -153,6 +147,7 @@ export const useAnimeDetails = () => {
       setLoading(false);
     }
   };
+
 
   const loadMoreEpisodes = async () => {
     if (!anime1VInfo || !hasMoreEpisodes || isLoadingMore) return;
@@ -191,10 +186,11 @@ export const useAnimeDetails = () => {
 
       const domain = anime.isAdult ? "hentaila" : undefined;
 
+      // Usar Romaji como prioridad máxima para el matching
       const mainTitle = anime.title.romaji || anime.title.english || '';
       const animeNormalized = normalizeTitleStrict(mainTitle);
       
-      if (animeNormalized.significantWords.length === 0) {
+      if (animeNormalized.significantWords.length === 0 && mainTitle.length < 3) {
         setContentNotAvailable(true);
         return;
       }
@@ -205,6 +201,9 @@ export const useAnimeDetails = () => {
       let bestMatchInfo: Anime1VInfo | null = null;
 
       for (const query of queries) {
+        // Evitar queries que puedan romper el backend (muy cortas o vacías)
+        if (!query || query.trim().length < 3) continue;
+
         const results = await searchAnime1V(query, domain);
         
         if (results && results.length > 0) {
@@ -212,16 +211,16 @@ export const useAnimeDetails = () => {
             const resultNormalized = normalizeTitleStrict(result.title);
             const matchResult = calculateMatchScoreStrict(animeNormalized, resultNormalized);
             
-            if (matchResult.matched && matchResult.matchType !== 'none') {
+            if (matchResult.matched) {
+              // Si es un match aceptable, verificamos info detallada
               const info = await getAnime1VInfo(result.url, 999);
               
               if (info && info.episodes && info.episodes.length > 0) {
                 const infoNormalized = normalizeTitleStrict(info.title);
                 const finalMatch = calculateMatchScoreStrict(animeNormalized, infoNormalized);
                 
-                const threshold = animeNormalized.isLongTitle ? 0.65 : 0.7;
-                
-                if (finalMatch.matched && finalMatch.score >= threshold) {
+                // Umbral más permisivo (0.5) para asegurar que encontramos el contenido
+                if (finalMatch.matched && finalMatch.score >= 0.5) {
                   const candidateScore = finalMatch.score;
                   
                   if (!bestMatch || candidateScore > bestMatch.score) {
@@ -237,21 +236,16 @@ export const useAnimeDetails = () => {
             }
           }
           
-          if (bestMatch && bestMatch.matchType === 'strong' && bestMatch.score >= 0.8) {
+          // Si encontramos un match muy bueno (exacto o casi exacto), no seguimos buscando
+          if (bestMatch && bestMatch.score >= 0.85) {
             break;
           }
         }
       }
 
-      const finalThreshold = animeNormalized.isLongTitle ? 0.7 : 0.75;
-      
-      if (!bestMatch || !bestMatchInfo || bestMatch.score < finalThreshold) {
+      // Validar si encontramos algo con un mínimo de confianza
+      if (!bestMatch || !bestMatchInfo || bestMatch.score < 0.45) {
         console.log(`No valid match found for: ${mainTitle}`);
-        setContentNotAvailable(true);
-        return;
-      }
-
-      if (!bestMatchInfo.episodes || bestMatchInfo.episodes.length === 0) {
         setContentNotAvailable(true);
         return;
       }

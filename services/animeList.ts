@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Anime } from './anilist';
 import { cacheAnimeDetails } from './cache';
 import { 
-  syncAnimeToFirestore, 
+  syncAnimeToFirestore,   
   fetchUserListFromFirestore, 
   removeFromFirestore, 
   updateProgressInFirestore 
@@ -30,9 +30,6 @@ const getStorageKey = () => {
   return user ? `@AnimeLT:user_list:${user.uid}` : GUEST_STORAGE_KEY;
 };
 
-/**
- * Obtiene la lista del usuario (Caché -> Firestore)
- */
 export async function getUserList(): Promise<UserListItem[]> {
   try {
     const user = auth().currentUser;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, Image, Platform } from 'react-native';
+import { StyleSheet, Text, View, Image } from 'react-native';
 import { Anime } from '../../../../services/anilist';
 
 interface AnimeHeaderProps {
@@ -7,6 +7,12 @@ interface AnimeHeaderProps {
 }
 
 export function AnimeHeader({ anime }: AnimeHeaderProps) {
+  // Prioritize Romaji as the single main title
+  const displayTitle = anime.title.romaji || anime.title.english || anime.title.native || 'Detalles';
+  const studioName = anime.studios?.nodes && anime.studios.nodes.length > 0 
+    ? anime.studios.nodes[0].name 
+    : null;
+
   return (
     <>
       <View style={styles.bannerContainer}>
@@ -23,17 +29,12 @@ export function AnimeHeader({ anime }: AnimeHeaderProps) {
         
         <View style={styles.titleContainer}>
           <Text style={styles.animeTitle} numberOfLines={3}>
-            {anime.title.english || anime.title.romaji}
+            {displayTitle}
           </Text>
-          {anime.title.romaji && anime.title.english && (
-            <Text style={styles.animeJapaneseTitle} numberOfLines={1}>
-              {anime.title.romaji}
-            </Text>
-          )}
           
-          {anime.studios && anime.studios.nodes.length > 0 && (
+          {studioName && (
             <Text style={styles.studioText}>
-              {anime.studios.nodes[0].name}
+              {studioName}
             </Text>
           )}
         </View>
@@ -86,11 +87,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     lineHeight: 22,
-  },
-  animeJapaneseTitle: {
-    color: '#94a3b8',
-    fontSize: 13,
-    marginTop: 4,
   },
   studioText: {
     color: '#8b5cf6',

@@ -55,7 +55,7 @@ async function fetchFromApi<T>(
 
     //  1. Validar status HTTP
     if (!response.ok) {
-      console.log(`HTTP ERROR ${response.status} en ${endpoint}`);
+      console.log(`HTTP ERROR ${response.status} en ${endpoint} con params: ${JSON.stringify(params)}`);
       return null;
     }
 
