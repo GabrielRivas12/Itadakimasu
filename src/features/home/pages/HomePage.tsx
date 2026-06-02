@@ -171,6 +171,10 @@ export function HomePage() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Inicio</Text>
+        <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu</Text>
+      </View>
       {loading ? (
         <ScrollView showsVerticalScrollIndicator={false}>
           <HomeSkeleton />
@@ -211,6 +215,22 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 24,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 45,
+    paddingBottom: 15,
+    backgroundColor: '#0b0f19',
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  headerSubtitle: {
+    color: '#94a3b8',
+    fontSize: 14,
+    marginTop: 4,
   },
   sectionTitle: {
     color: '#ffffff',

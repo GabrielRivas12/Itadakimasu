@@ -32,6 +32,16 @@ import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
 import { getCachedAnimeDetails, cacheAnimeDetails } from '../../../../services/cache';
+import { 
+  searchAnime1V, 
+  getAnime1VInfo, 
+  getAnime1VEpisodeLinks, 
+  Anime1VEpisode, 
+  Anime1VInfo,
+  Anime1VStreamLink 
+} from '../../../../services/anime1v';
+import { EpisodePlayer } from '../components/EpisodePlayer';
+import { EpisodePicker } from '../components/EpisodePicker';
 
 const cleanHtmlText = (text: string): string => {
   if (!text) return '';
@@ -61,6 +71,13 @@ export function AnimeDetailsPage() {
   const [selectedStatus, setSelectedStatus] = useState<UserListStatus | null>(null);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
 
+  // Anime1V states
+  const [anime1VInfo, setAnime1VInfo] = useState<Anime1VInfo | null>(null);
+  const [currentEpisode, setCurrentEpisode] = useState<Anime1VEpisode | null>(null);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [loadingStream, setLoadingStream] = useState(false);
+  const [contentNotAvailable, setContentNotAvailable] = useState(false);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const animeId = typeof id === 'string' ? parseInt(id, 10) : Array.isArray(id) ? parseInt(id[0], 10) : null;
@@ -70,6 +87,151 @@ export function AnimeDetailsPage() {
       loadDetails(animeId);
     }
   }, [animeId]);
+
+  useEffect(() => {
+    if (anime && !anime1VInfo && !contentNotAvailable) {
+      searchAndLoadAnime1V();
+    }
+  }, [anime]);
+
+ const normalizeTitle = (title: string) => {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// 🔥 scoring real de similitud (keyword overlap)
+const similarityScore = (a: string, b: string) => {
+  const aWords = normalizeTitle(a).split(' ');
+  const bWords = normalizeTitle(b).split(' ');
+
+  if (aWords.length === 0 || bWords.length === 0) return 0;
+
+  const matches = aWords.filter(w => bWords.includes(w)).length;
+
+  return matches / Math.max(aWords.length, bWords.length);
+};
+
+// 🔥 genera variantes de búsqueda
+const buildSearchQueries = (anime: any): string[] => {
+  const titles = [anime.title.romaji, anime.title.english]
+    .filter(Boolean) as string[];
+
+  const queries: string[] = [];
+
+  for (const t of titles) {
+    const clean = normalizeTitle(t);
+
+    queries.push(t); // original
+    queries.push(clean); // limpio
+    queries.push(clean.split(' ').slice(0, 4).join(' ')); // corto
+    queries.push(clean.split(' ')[0]); // keyword base
+  }
+
+  return [...new Set(queries)]; // remove duplicates
+};
+
+const searchAndLoadAnime1V = async () => {
+  if (!anime) return;
+
+  try {
+    setContentNotAvailable(false);
+
+    const domain = anime.isAdult ? 'hentaila' : undefined;
+
+    const queries = buildSearchQueries(anime);
+
+    let allResults: any[] = [];
+
+    // 🔥 1. probar múltiples queries
+    for (const q of queries) {
+      const res = await searchAnime1V(q, domain);
+      if (res?.length) {
+        allResults = res;
+        break;
+      }
+    }
+
+    if (!allResults.length) {
+      setContentNotAvailable(true);
+      return;
+    }
+
+    // 🔥 2. scoring de resultados (MEJOR PARTE)
+    const scored = allResults.map(r => {
+      const score = Math.max(
+        ...queries.map(q => similarityScore(q, r.title))
+      );
+
+      return { item: r, score };
+    });
+
+    // 🔥 3. ordenar por mejor match
+    scored.sort((a, b) => b.score - a.score);
+
+    const best = scored[0];
+
+    // 🔥 4. threshold de seguridad (evita falsos positivos)
+    if (!best || best.score < 0.25) {
+      setContentNotAvailable(true);
+      return;
+    }
+
+    const bestMatch = best.item;
+
+    const info = await getAnime1VInfo(bestMatch.url);
+
+    if (!info || !info.episodes?.length) {
+      setContentNotAvailable(true);
+      return;
+    }
+
+    setAnime1VInfo(info);
+
+    // 🔥 5. seleccionar episodio inicial seguro
+    const initialIndex =
+      userProgress > 0 && userProgress <= info.episodes.length
+        ? userProgress - 1
+        : 0;
+
+    const episode = info.episodes[initialIndex];
+
+    if (episode) {
+      handleEpisodeSelect(episode);
+    }
+
+  } catch (error) {
+    console.error('Error loading Anime1V data:', error);
+    setContentNotAvailable(true);
+  }
+};
+
+  const handleEpisodeSelect = async (episode: Anime1VEpisode) => {
+    setCurrentEpisode(episode);
+    setLoadingStream(true);
+    setStreamUrl(null);
+    
+    try {
+      // Sincronizar progreso con la lista del usuario
+      if (anime && userStatus) {
+        await updateAnimeProgress(anime.id, episode.number);
+        setUserProgress(episode.number);
+      }
+
+      const links = await getAnime1VEpisodeLinks(episode.url);
+      if (links && links.streamLinks.SUB && links.streamLinks.SUB.length > 0) {
+        // Preferir servidor HLS o el primero disponible
+        const hlsServer = links.streamLinks.SUB.find(s => s.server === 'HLS');
+        setStreamUrl(hlsServer ? hlsServer.url : links.streamLinks.SUB[0].url);
+      }
+    } catch (error) {
+      console.error('Error fetching stream links:', error);
+    } finally {
+      setLoadingStream(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -309,6 +471,25 @@ export function AnimeDetailsPage() {
 
             <CharacterList characters={anime.characters} />
 
+            {contentNotAvailable ? (
+              <View style={styles.notAvailableContainer}>
+                <Ionicons name="videocam-off-outline" size={32} color="#64748b" />
+                <Text style={styles.notAvailableText}>Este contenido no está disponible actualmente.</Text>
+              </View>
+            ) : anime1VInfo && (
+              <View style={styles.playerSection}>
+                <Text style={styles.sectionHeader}>
+                  {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Reproductor'}
+                </Text>
+                <EpisodePlayer url={streamUrl} />
+                <EpisodePicker
+                  episodes={anime1VInfo.episodes}
+                  currentEpisodeNumber={currentEpisode?.number || null}
+                  onEpisodePress={handleEpisodeSelect}
+                />
+              </View>
+            )}
+
             <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
 
             <TechnicalSpecs anime={anime} />
@@ -415,5 +596,28 @@ const styles = StyleSheet.create({
   synopsisLoadingText: {
     color: '#94a3b8',
     fontSize: 14,
+  },
+  playerSection: {
+    marginBottom: 24,
+  },
+  streamLoader: {
+    marginVertical: 10,
+  },
+  notAvailableContainer: {
+    backgroundColor: '#1e293b',
+    marginHorizontal: 16,
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  notAvailableText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

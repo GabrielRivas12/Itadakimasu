@@ -15,12 +15,6 @@ import { UserListItem } from './animeList';
 
 const LIST_COLLECTION = 'userLists';
 
-/**
- * REFACTORIZACIÓN MODULAR:
- * No llamamos a getFirestore() en el scope global para evitar el error 
- * de 'No Firebase App created' durante la carga del módulo.
- */
-
 export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
   const user = auth().currentUser;
   if (!user) return;

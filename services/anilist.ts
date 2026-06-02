@@ -46,6 +46,7 @@ export interface Anime {
   episodes: number | null;
   genres: string[];
   type: string;
+  isAdult?: boolean;
   description?: string;
   status?: string;
   startDate?: {
@@ -55,6 +56,11 @@ export interface Anime {
   };
   studios?: {
     nodes: Array<{ name: string }>;
+  };
+  nextAiringEpisode?: {
+    airingAt: number;
+    timeUntilAiring: number;
+    episode: number;
   };
   characters?: {
     edges: CharacterEdge[];
@@ -102,6 +108,7 @@ export async function fetchTrendingAnime(page = 1, perPage = 10): Promise<Anime[
           episodes
           genres
           type
+          isAdult
           description
         }
       }
@@ -150,6 +157,7 @@ export async function fetchPopularAnime(page = 1, perPage = 10): Promise<Anime[]
           episodes
           genres
           type
+          isAdult
           description
         }
       }
@@ -217,6 +225,7 @@ export async function searchAnime(
           episodes
           genres
           type
+          isAdult
           description
         }
       }
@@ -270,6 +279,7 @@ export async function fetchAnimeDetails(id: number): Promise<Anime | null> {
         episodes
         status
         genres
+        isAdult
         description
         type
         startDate {
@@ -349,5 +359,59 @@ export async function fetchAnimeDetails(id: number): Promise<Anime | null> {
   } catch (error) {
     console.error('Error fetching anime details:', error);
     return null;
+  }
+}
+
+export async function fetchAiringAnime(page = 1, perPage = 20, isAdult = false): Promise<Anime[]> {
+  const query = `
+    query ($page: Int, $perPage: Int, $isAdult: Boolean) {
+      Page(page: $page, perPage: $perPage) {
+        media(status: RELEASING, type: ANIME, sort: TRENDING_DESC, isAdult: $isAdult) {
+          id
+          idMal
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            large
+            medium
+          }
+          bannerImage
+          averageScore
+          episodes
+          nextAiringEpisode {
+            airingAt
+            timeUntilAiring
+            episode
+          }
+          genres
+          type
+          isAdult
+          description
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { page, perPage, isAdult },
+      }),
+    });
+
+    const json = await response.json();
+    return json?.data?.Page?.media || [];
+  } catch (error) {
+    console.error('Error fetching airing anime:', error);
+    return [];
   }
 }

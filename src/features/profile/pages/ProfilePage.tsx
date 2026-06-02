@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getUserList, UserListItem, UserListStatus, removeAnimeFromList } from '../../../../services/animeList';
+import { getUserList, UserListItem, UserListStatus, removeAnimeFromList, animeListEvents } from '../../../../services/animeList';
 import { UserHeader } from '../components/UserHeader';
 import { StatsCard } from '../components/StatsCard';
 import { StatusTabs } from '../components/StatusTabs';
@@ -68,6 +68,19 @@ export const ProfilePage = memo(function ProfilePage() {
   useEffect(() => {
     loadList();
   }, [user]);
+
+  // Listen for list updates in the background
+  useEffect(() => {
+    const handleListUpdate = (updatedList: UserListItem[]) => {
+      sessionProfileList = updatedList;
+      setList(updatedList);
+    };
+
+    animeListEvents.on('listUpdated', handleListUpdate);
+    return () => {
+      animeListEvents.off('listUpdated', handleListUpdate);
+    };
+  }, []);
 
   // We keep loadList available for manual actions, but remove useFocusEffect
   // to prevent re-fetching every time the tab is swiped into view.
@@ -127,6 +140,10 @@ export const ProfilePage = memo(function ProfilePage() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Mi Perfil</Text>
+        <Text style={styles.headerSubtitle}>Gestiona tu colección</Text>
+      </View>
       {user ? (
         <View style={styles.headerContainer}>
           <UserHeader
@@ -199,6 +216,22 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     padding: 8,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 45,
+    paddingBottom: 15,
+    backgroundColor: '#0b0f19',
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  headerSubtitle: {
+    color: '#94a3b8',
+    fontSize: 14,
+    marginTop: 4,
   },
   listContent: {
     paddingHorizontal: 16,
