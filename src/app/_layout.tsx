@@ -1,4 +1,9 @@
-import '../../services/firebase'; // Inicialización modular
+if (typeof global.setImmediate === 'undefined') {
+  // @ts-ignore
+  global.setImmediate = (fn: (...args: any[]) => void, ...args: any[]) => setTimeout(fn, 0, ...args);
+}
+
+// 2. Tus importaciones se quedan tal cual abajo
 import { Stack } from 'expo-router';
 import '../../services/auth'; 
 import { SystemBars } from 'react-native-edge-to-edge';

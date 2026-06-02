@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native'; 
 import { useRouter } from 'expo-router';
 import { 
   getUserList, 
@@ -83,38 +83,58 @@ export const useProfile = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que deseas cerrar tu sesión de Google?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            await signOutGoogle();
+    // Confirmación nativa en Web para evitar crasheos
+    if (Platform.OS === 'web') {
+      const confirmar = window.confirm('¿Estás seguro de que deseas cerrar tu sesión de Google?');
+      if (confirmar) {
+        signOutGoogle();
+      }
+    } else {
+      // Alerta nativa para Android / iOS
+      Alert.alert(
+        'Cerrar Sesión',
+        '¿Estás seguro de que deseas cerrar tu sesión de Google?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Cerrar Sesión',
+            style: 'destructive',
+            onPress: async () => {
+              await signOutGoogle();
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleRemove = (animeId: number, title: string) => {
-    Alert.alert(
-      'Quitar de la lista',
-      `¿Estás seguro de que deseas quitar "${title}" de tu lista personal?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Quitar',
-          style: 'destructive',
-          onPress: async () => {
-            const updated = await removeAnimeFromList(animeId);
-            setList(updated);
+    //  Confirmación nativa en Web para evitar crasheos
+    if (Platform.OS === 'web') {
+      const confirmar = window.confirm(`¿Estás seguro de que deseas quitar "${title}" de tu lista personal?`);
+      if (confirmar) {
+        removeAnimeFromList(animeId).then((updated) => {
+          setList(updated);
+        });
+      }
+    } else {
+      //  Alerta nativa para Android / iOS
+      Alert.alert(
+        'Quitar de la lista',
+        `¿Estás seguro de que deseas quitar "${title}" de tu lista personal?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Quitar',
+            style: 'destructive',
+            onPress: async () => {
+              const updated = await removeAnimeFromList(animeId);
+              setList(updated);
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleAnimePress = (id: number) => {

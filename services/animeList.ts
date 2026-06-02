@@ -1,13 +1,14 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { Anime } from './anilist';
-import { cacheAnimeDetails } from './cache';
 import { 
   syncAnimeToFirestore,   
   fetchUserListFromFirestore, 
   removeFromFirestore, 
   updateProgressInFirestore 
 } from './firestore';
-import auth from '@react-native-firebase/auth';
+
+// 🔄 Importamos tu servicio de autenticación seguro
+import { getCurrentUser } from './auth'; 
 import { EventEmitter } from 'eventemitter3';
 
 export const animeListEvents = new EventEmitter();
@@ -24,27 +25,37 @@ export interface UserListItem {
 
 const GUEST_STORAGE_KEY = '@AnimeLT:guest_list';
 
-// Generamos una clave de almacenamiento única por usuario
-const getStorageKey = () => {
-  const user = auth().currentUser;
-  return user ? `@AnimeLT:user_list:${user.uid}` : GUEST_STORAGE_KEY;
+// Helper para obtener la clave de AsyncStorage (Solo se usa en Móvil)
+const getStorageKey = (currentUser: any) => {
+  return currentUser ? `@AnimeLT:user_list:${currentUser.uid}` : GUEST_STORAGE_KEY;
 };
 
 export async function getUserList(): Promise<UserListItem[]> {
   try {
-    const user = auth().currentUser;
-    const currentKey = getStorageKey();
+    const user = getCurrentUser(); 
+
+    // 🌐 ESTRATEGIA PARA WEB: Llamada directa a Firebase sin usar AsyncStorage
+    if (Platform.OS === 'web') {
+      if (user) {
+        console.log(`🌐 [Web] Obteniendo lista directamente de Firestore para: ${user.uid}`);
+        return await fetchUserListFromFirestore();
+      }
+      return []; // Si no hay usuario logueado en Web, retorna lista vacía
+    }
+
+    // 📱 ESTRATEGIA PARA MÓVIL: Persistencia local con AsyncStorage mediante require dinámico
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const currentKey = getStorageKey(user);
     
-    // 1. Intentar obtener de Caché local específico del usuario
     const jsonValue = await AsyncStorage.getItem(currentKey);
     let localList: UserListItem[] = jsonValue != null ? JSON.parse(jsonValue) : [];
 
-    // 2. Si el usuario está logueado y el caché local está vacío, sincronizar con Firestore
+    // Si el móvil no tiene caché pero el usuario está logueado, descarga de Firestore
     if (user && localList.length === 0) {
-      console.log(`Cache vacío para ${user.uid}, sincronizando desde Firestore...`);
+      console.log(`📱 [Móvil] Caché vacío para ${user.uid}, sincronizando desde Firestore...`);
       const remoteList = await fetchUserListFromFirestore();
       if (remoteList.length > 0) {
-        await saveUserListLocally(remoteList);
+        await saveUserListLocally(remoteList, user);
         return remoteList;
       }
     }
@@ -56,9 +67,14 @@ export async function getUserList(): Promise<UserListItem[]> {
   }
 }
 
-async function saveUserListLocally(list: UserListItem[]) {
+// Guarda en caché local (Solo ejecutable en Móvil)
+async function saveUserListLocally(list: UserListItem[], customUser?: any) {
+  if (Platform.OS === 'web') return; // En la web ignoramos por completo el almacenamiento local
+  
   try {
-    const currentKey = getStorageKey();
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const user = customUser !== undefined ? customUser : getCurrentUser();
+    const currentKey = getStorageKey(user);
     const jsonValue = JSON.stringify(list);
     await AsyncStorage.setItem(currentKey, jsonValue);
   } catch (e) {
@@ -67,11 +83,13 @@ async function saveUserListLocally(list: UserListItem[]) {
 }
 
 /**
- * Migración: Pasa los datos de la lista de invitado a la cuenta de usuario logueado
+ * Migración: Pasa los datos de la lista de invitado a la cuenta de usuario (Solo Móvil)
  */
 export async function mergeGuestListIntoUser(userUid: string) {
+  if (Platform.OS === 'web') return; // Desactivado en Web
+
   try {
-    // 1. Obtener lista de invitado
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     const guestJson = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
     if (!guestJson) return;
 
@@ -83,13 +101,10 @@ export async function mergeGuestListIntoUser(userUid: string) {
 
     console.log(`Migrando ${guestList.length} items de la lista de invitado...`);
 
-    // 2. Obtener lista actual de Firestore del usuario
     const remoteList = await fetchUserListFromFirestore();
     const remoteIds = new Set(remoteList.map(item => item.anime.id));
-
     const mergedList = [...remoteList];
 
-    // 3. Comparar y subir lo que falte
     for (const item of guestList) {
       if (!remoteIds.has(item.anime.id)) {
         await syncAnimeToFirestore(item);
@@ -97,7 +112,6 @@ export async function mergeGuestListIntoUser(userUid: string) {
       }
     }
 
-    // 4. Guardar lista combinada en el caché del usuario y borrar el de invitado
     const userKey = `@AnimeLT:user_list:${userUid}`;
     await AsyncStorage.setItem(userKey, JSON.stringify(mergedList));
     await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
@@ -109,11 +123,15 @@ export async function mergeGuestListIntoUser(userUid: string) {
 }
 
 /**
- * Limpia el caché local del usuario actual (útil para logout)
+ * Limpia el caché local del usuario actual (Solo Móvil)
  */
 export async function clearLocalList() {
+  if (Platform.OS === 'web') return; // Desactivado en Web
+
   try {
-    const currentKey = getStorageKey();
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const user = getCurrentUser();
+    const currentKey = getStorageKey(user);
     await AsyncStorage.removeItem(currentKey);
     console.log(`Cache local eliminado para la clave: ${currentKey}`);
   } catch (e) {
@@ -122,7 +140,7 @@ export async function clearLocalList() {
 }
 
 /**
- * Métodos para AnimeDetailsPage y otras vistas
+ * Métodos para componentes y vistas
  */
 
 export async function getAnimeStatus(animeId: number): Promise<UserListStatus | null> {
@@ -155,14 +173,18 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
     currentList.push(newItem);
   }
 
-  await saveUserListLocally(currentList);
+  const user = getCurrentUser();
   
-  if (auth().currentUser) {
+  // Guardamos localmente solo si no es entorno Web
+  if (Platform.OS !== 'web') {
+    await saveUserListLocally(currentList, user);
+  }
+  
+  if (user) { 
     await syncAnimeToFirestore(newItem);
   }
 
   animeListEvents.emit('listUpdated', currentList);
-
   return currentList;
 }
 
@@ -170,14 +192,17 @@ export async function removeAnimeFromList(animeId: number): Promise<UserListItem
   const currentList = await getUserList();
   const updatedList = currentList.filter(item => item.anime.id !== animeId);
 
-  await saveUserListLocally(updatedList);
+  const user = getCurrentUser();
+  
+  if (Platform.OS !== 'web') {
+    await saveUserListLocally(updatedList, user);
+  }
 
-  if (auth().currentUser) {
+  if (user) { 
     await removeFromFirestore(animeId);
   }
 
   animeListEvents.emit('listUpdated', updatedList);
-
   return updatedList;
 }
 
@@ -189,13 +214,15 @@ export async function updateAnimeProgress(animeId: number, progress: number): Pr
     currentList[existingIndex].progress = progress;
     currentList[existingIndex].updatedAt = new Date().toISOString();
     
-    await saveUserListLocally(currentList);
-
-    if (auth().currentUser) {
-      await updateProgressInFirestore(animeId, progress);
+    const user = getCurrentUser();
+    
+    if (Platform.OS !== 'web') {
+      await saveUserListLocally(currentList, user);
     }
 
-    animeListEvents.emit('listUpdated', currentList);
+    if (user) { 
+      await updateProgressInFirestore(animeId, progress);
+    }
   }
 
   return currentList;
