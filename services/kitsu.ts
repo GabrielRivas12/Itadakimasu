@@ -51,7 +51,7 @@ export function extractSourceAttribution(text: string): { cleanText: string; sou
 
 export async function fetchSpanishSynopsisFromJikan(malId: number): Promise<{ synopsis: string; source: string | null } | null> {
   try {
-    console.log(`🔍 Obteniendo sinopsis para MAL ID: ${malId}`);
+    console.log(` Obteniendo sinopsis para MAL ID: ${malId}`);
     
     const response = await fetch(`https://api.jikan.moe/v4/anime/${malId}`);
     
@@ -66,14 +66,14 @@ export async function fetchSpanishSynopsisFromJikan(malId: number): Promise<{ sy
     if (synopsis && synopsis.trim()) {
       const cleanedSynopsis = cleanHtmlText(synopsis);
       const { cleanText, source } = extractSourceAttribution(cleanedSynopsis);
-      console.log(`📖 Sinopsis obtenida, traduciendo sinopsis sin fuente...`);
+      console.log(` Sinopsis obtenida, traduciendo sinopsis sin fuente...`);
       
       const translatedSynopsis = await translateToSpanish(cleanText);
-      console.log(`✅ Sinopsis traducida al español`);
+      console.log(` Sinopsis traducida al español`);
       return { synopsis: translatedSynopsis, source };
     }
     
-    console.log(`⚠️ No se encontró sinopsis para MAL ID: ${malId}`);
+    console.log(`No se encontró sinopsis para MAL ID: ${malId}`);
     return null;
   } catch (error) {
     console.error(`Error fetching Jikan synopsis for MAL ID ${malId}:`, error);

@@ -16,6 +16,7 @@
     "@react-native-firebase/firestore": "^24.0.0",
     "@react-native-google-signin/google-signin": "^13.1.0",
     "@types/react": "~19.2.10",
+    "eventemitter3": "^5.0.4",
     "expo": "~55.0.26",
     "expo-constants": "~55.0.16",
     "expo-font": "~55.0.8",
@@ -23,15 +24,20 @@
     "expo-modules-core": "~55.0.25",
     "expo-router": "~55.0.16",
     "expo-status-bar": "~55.0.6",
+    "expo-system-ui": "~55.0.18",
     "fast-mlkit-translate-text": "^1.0.3",
     "firebase": "^12.14.0",
+    "install": "^0.13.0",
+    "npm": "^11.16.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.6",
+    "react-native-edge-to-edge": "^1.8.1",
+    "react-native-pager-view": "8.0.0",
     "react-native-safe-area-context": "5.6.2",
     "react-native-screens": "4.23.0",
-    "typescript": "~5.9.2",
-    "react-native-pager-view": "8.0.0"
+    "react-native-webview": "13.16.0",
+    "typescript": "~5.9.2"
   },
   "private": true
 }

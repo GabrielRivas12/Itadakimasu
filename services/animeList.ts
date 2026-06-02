@@ -8,6 +8,9 @@ import {
   updateProgressInFirestore 
 } from './firestore';
 import auth from '@react-native-firebase/auth';
+import { EventEmitter } from 'eventemitter3';
+
+export const animeListEvents = new EventEmitter();
 
 export type UserListStatus = 'En Proceso' | 'Terminado' | 'Por Ver';
 
@@ -161,6 +164,8 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
     await syncAnimeToFirestore(newItem);
   }
 
+  animeListEvents.emit('listUpdated', currentList);
+
   return currentList;
 }
 
@@ -173,6 +178,8 @@ export async function removeAnimeFromList(animeId: number): Promise<UserListItem
   if (auth().currentUser) {
     await removeFromFirestore(animeId);
   }
+
+  animeListEvents.emit('listUpdated', updatedList);
 
   return updatedList;
 }
@@ -190,6 +197,8 @@ export async function updateAnimeProgress(animeId: number, progress: number): Pr
     if (auth().currentUser) {
       await updateProgressInFirestore(animeId, progress);
     }
+
+    animeListEvents.emit('listUpdated', currentList);
   }
 
   return currentList;

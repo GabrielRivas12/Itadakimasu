@@ -1,12 +1,5 @@
 import { initializeApp, getApps } from '@react-native-firebase/app';
 
-/**
- * REFACTORIZACIÓN FINAL PURA (Firebase v22)
- * 
- * Para eliminar el warning de 'getApp()', NO debemos llamar a getApp()
- * ni devolver el objeto 'firebase'. Simplemente inicializamos si es necesario.
- */
-
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
