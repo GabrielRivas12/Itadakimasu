@@ -1,17 +1,35 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { Anime } from '../../../../services/anilist';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface AnimeHeaderProps {
   anime: Anime;
 }
 
 export function AnimeHeader({ anime }: AnimeHeaderProps) {
-  // Prioritize Romaji as the single main title
+  const { isWeb } = useResponsive();
   const displayTitle = anime.title.romaji || anime.title.english || anime.title.native || 'Detalles';
   const studioName = anime.studios?.nodes && anime.studios.nodes.length > 0 
     ? anime.studios.nodes[0].name 
     : null;
+
+  if (isWeb) {
+    return (
+      <View style={styles.webHeaderInfo}>
+        <Image 
+          source={{ uri: anime.coverImage.extraLarge || anime.coverImage.large }} 
+          style={styles.webCoverImage} 
+        />
+        <View style={styles.webTitleContainer}>
+          <Text style={styles.webAnimeTitle}>{displayTitle}</Text>
+          {studioName && (
+            <Text style={styles.webStudioText}>{studioName}</Text>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -44,6 +62,7 @@ export function AnimeHeader({ anime }: AnimeHeaderProps) {
 }
 
 const styles = StyleSheet.create({
+  // Mobile styles
   bannerContainer: {
     height: 240,
     position: 'relative',
@@ -93,5 +112,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     marginTop: 6,
+  },
+  // Web styles
+  webHeaderInfo: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  webCoverImage: {
+    width: 220,
+    height: 320,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+  },
+  webTitleContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  webAnimeTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  webStudioText: {
+    color: '#8b5cf6',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

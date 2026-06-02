@@ -8,6 +8,7 @@ import {
   Share,
   Platform,
   Animated,
+  Image,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +21,7 @@ import { ProgressModal } from '../components/ProgressModal';
 import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
-import { EpisodePlayer } from '../components/EpisodePlayer';
+import { EpisodePlayer } from '../components/EpisodePlayer'; // ¡Expo elegirá .web.tsx automáticamente en PC!
 import { EpisodePicker } from '../components/EpisodePicker';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
@@ -29,7 +30,11 @@ import { useResponsive } from '../../../hooks/useResponsive';
 
 export function AnimeDetailsPage() {
   const router = useRouter();
-  const { isWeb, getContentWidth } = useResponsive();
+  const { isWeb, getContentWidth, width } = useResponsive();
+  
+  // Calcular margen dinámico para alinear con el contenido centrado en web
+  const contentWidth = typeof getContentWidth() === 'number' ? (getContentWidth() as number) : width;
+  const horizontalMargin = isWeb ? Math.max(24, (width - contentWidth) / 2 + 40) : 10;
   
   const {
     anime,
@@ -87,17 +92,29 @@ export function AnimeDetailsPage() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          headerShown: true,
+          headerShown: !isWeb,
           title: loading ? 'Cargando...' : (anime?.title.romaji || anime?.title.english || 'Detalles'),
           headerTransparent: true,
           headerTintColor: '#ffffff',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerIconButton}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/');
+                }
+              }} 
+              style={styles.headerIconButton}
+            >
               <Ionicons name="arrow-back" size={24} color="#ffffff" />
             </TouchableOpacity>
           ),
           headerRight: () => (!loading && anime) ? (
-            <TouchableOpacity onPress={handleShare} style={styles.headerIconButton}>
+            <TouchableOpacity 
+              onPress={handleShare} 
+              style={styles.headerIconButton}
+            >
               <Ionicons name="share-social" size={22} color="#ffffff" />
             </TouchableOpacity>
           ) : null,
@@ -118,33 +135,47 @@ export function AnimeDetailsPage() {
         </View>
       ) : (
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <ResponsiveContainer contentContainerStyle={styles.scrollContent}>
-            <View style={isWeb && styles.webDetailsContainer}>
-              <View style={isWeb && styles.webSidebar}>
+          {isWeb && anime && (
+            <View style={styles.webHeroContainer}>
+              <Image 
+                source={{ uri: anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large }} 
+                style={styles.webHeroImage}
+                resizeMode="cover"
+              />
+              <View style={styles.webHeroOverlay} />
+            </View>
+          )}
+          
+          {/* MODIFICADO: Agregamos StyleSheet.flatten para limpiar arrays de estilos en Web */}
+          <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent])}>
+            <View style={StyleSheet.flatten(isWeb ? styles.webDetailsContainer : {})}>
+              <View style={StyleSheet.flatten(isWeb ? styles.webSidebar : {})}>
                 <AnimeHeader anime={anime} />
                 
-                <StatusSelector
-                  userStatus={userStatus}
-                  userProgress={userProgress}
-                  totalEpisodes={anime.episodes}
-                  showStatusSelector={showStatusSelector}
-                  setShowStatusSelector={setShowStatusSelector}
-                  onUpdateStatus={handleUpdateStatus}
-                  onUpdateProgress={handleUpdateProgress}
-                  onRemove={handleRemove}
-                />
+                <View style={StyleSheet.flatten(isWeb ? styles.webSidebarActions : {})}>
+                  <StatusSelector
+                    userStatus={userStatus}
+                    userProgress={userProgress}
+                    totalEpisodes={anime.episodes}
+                    showStatusSelector={showStatusSelector}
+                    setShowStatusSelector={setShowStatusSelector}
+                    onUpdateStatus={handleUpdateStatus}
+                    onUpdateProgress={handleUpdateProgress}
+                    onRemove={handleRemove}
+                  />
 
-                <QuickStats
-                  averageScore={anime.averageScore}
-                  episodes={anime.episodes}
-                  status={anime.status || 'UNKNOWN'}
-                />
+                  <QuickStats
+                    averageScore={anime.averageScore}
+                    episodes={anime.episodes}
+                    status={anime.status || 'UNKNOWN'}
+                  />
 
-                <TechnicalSpecs anime={anime} />
+                  <TechnicalSpecs anime={anime} />
+                </View>
               </View>
 
-              <View style={isWeb && styles.webMainContent}>
-                <View style={styles.sectionContainer}>
+              <View style={StyleSheet.flatten(isWeb ? styles.webMainContent : { flex: 1 })}>
+                <View style={StyleSheet.flatten([styles.sectionContainer, isWeb && styles.webSectionContainer])}>
                   <Text style={styles.sectionHeader}>Sinopsis</Text>
                   {loadingSpanishSynopsis ? (
                     <View style={styles.synopsisLoading}>
@@ -161,7 +192,9 @@ export function AnimeDetailsPage() {
                   )}
                 </View>
 
-                <CharacterList characters={anime.characters} />
+                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : {})}>
+                  <CharacterList characters={anime.characters} />
+                </View>
 
                 {contentNotAvailable ? (
                   <View style={styles.notAvailableContainer}>
@@ -169,7 +202,7 @@ export function AnimeDetailsPage() {
                     <Text style={styles.notAvailableText}>Este contenido no está disponible actualmente.</Text>
                   </View>
                 ) : anime1VInfo && displayedEpisodes.length > 0 ? (
-                  <View style={styles.playerSection}>
+                  <View style={StyleSheet.flatten([styles.playerSection, isWeb && styles.webSectionWrapper])}>
                     <Text style={styles.sectionHeader}>
                       {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Reproductor'}
                     </Text>
@@ -185,7 +218,9 @@ export function AnimeDetailsPage() {
                   </View>
                 ) : null}
 
-                <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
+                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : {})}>
+                  <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
+                </View>
               </View>
             </View>
           </ResponsiveContainer>
@@ -324,5 +359,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  webHeroContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 400,
+    width: '100%',
+    zIndex: -1,
+  },
+  webHeroImage: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.4,
+  },
+  webHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0b0f19',
+    opacity: 0.6,
+  },
+  webScrollContent: {
+    paddingTop: 40,
+  },
+  webDetailsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 40,
+  },
+  webSidebar: {
+    width: 280,
+    alignItems: 'center',
+  },
+  webSidebarActions: {
+    width: '100%',
+    marginTop: 20,
+  },
+  webMainContent: {
+    flex: 1,
+    paddingTop: 10,
+  },
+  webSectionContainer: {
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
+    paddingVertical: 0,
+    borderRadius: 0,
+    borderWidth: 0,
+  },
+  webSectionWrapper: {
+    marginTop: 32,
   },
 });

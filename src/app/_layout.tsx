@@ -10,11 +10,9 @@ export default function RootLayout() {
   const { isWeb, isMobile } = useResponsive();
 
   return (
-    // Aplicamos StyleSheet.flatten para limpiar cualquier conflicto de estilos en Web
-    <View style={StyleSheet.flatten(styles.container)}>
+    <View style={styles.container}>
       <SystemBars style="light" />
       {isWeb && !isMobile && <WebHeader />}
-      
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
       </Stack>
