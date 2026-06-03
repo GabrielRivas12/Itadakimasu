@@ -8,11 +8,20 @@ import { Stack } from 'expo-router';
 import '../../services/auth'; 
 import { SystemBars } from 'react-native-edge-to-edge';
 import { View, StyleSheet } from 'react-native';
+import { useFonts } from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 import { useResponsive } from '../hooks/useResponsive';
 import { WebHeader } from '../components/common/WebHeader';
 
 export default function RootLayout() {
   const { isWeb, isMobile } = useResponsive();
+  const [fontsLoaded] = useFonts({
+    ...Ionicons.font,
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
