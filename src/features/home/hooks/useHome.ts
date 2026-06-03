@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
 import { useRouter } from 'expo-router';
-import { fetchTrendingAnime, fetchPopularAnime, Anime } from '../../../../services/anilist';
+import { fetchTrendingAnime, Anime } from '../../../../services/anilist';
 import { 
   getUserList, 
   UserListItem, 
@@ -13,11 +13,9 @@ import {
   cacheTrendingBanner, 
   cacheTrendingList 
 } from '../../../../services/cache';
-import { ContinueAnime } from '../types/home';
 
 // Module-level cache to persist data across remounts during the session
 let sessionTrending: Anime[] = [];
-let sessionPopular: ContinueAnime[] = [];
 let sessionFeatured: Anime[] = [];
 let sessionContinueWatching: UserListItem[] = [];
 let homeInitialized = false;
@@ -25,7 +23,6 @@ let homeInitialized = false;
 export const useHome = () => {
   const router = useRouter();
   const [trending, setTrending] = useState<Anime[]>(sessionTrending);
-  const [popular, setPopular] = useState<ContinueAnime[]>(sessionPopular);
   const [continueWatching, setContinueWatching] = useState<UserListItem[]>(sessionContinueWatching);
   const [featured, setFeatured] = useState<Anime[]>(sessionFeatured);
   const [loading, setLoading] = useState(!homeInitialized);
@@ -66,9 +63,8 @@ export const useHome = () => {
       }
 
       // 2. Fetch from network and local list
-      const [trendingData, popularData, userList] = await Promise.all([
+      const [trendingData, userList] = await Promise.all([
         fetchTrendingAnime(1, 10),
-        fetchPopularAnime(1, 10),
         getUserList(),
       ]);
 
@@ -94,19 +90,6 @@ export const useHome = () => {
       sessionContinueWatching = inProcessList;
       setContinueWatching(inProcessList);
 
-      const popularWithProgress: ContinueAnime[] = popularData.slice(0, 5).map((item, index) => {
-        const progressValues = [0.75, 0.4, 0.95, 0.2, 0.6];
-        const episodeValues = ['Episodio 4', 'Episodio 21', 'Episodio 2', 'Episodio 8', 'Episodio 12'];
-        return {
-          ...item,
-          mockProgress: progressValues[index % progressValues.length],
-          mockEpisode: episodeValues[index % episodeValues.length],
-        };
-      });
-      
-      sessionPopular = popularWithProgress;
-      setPopular(popularWithProgress);
-      
       homeInitialized = true;
     } catch (error) {
       console.error('Error loading AnimeLT home data:', error);
@@ -182,7 +165,6 @@ export const useHome = () => {
 
   return {
     trending,
-    popular,
     continueWatching,
     featured,
     loading,

@@ -42,7 +42,7 @@ export async function cacheTrendingList(list: Anime[]): Promise<void> {
     const detailPairs: [string, string][] = [];
     
     for (const anime of list) {
-      // Solo cacheamos si es necesario o para asegurar que tenemos la data básica
+      // Guardamos el objeto completo para asegurar que la página de detalles tenga toda la info
       detailPairs.push([cacheKeys.ANIME_DETAILS(anime.id), JSON.stringify(anime)]);
     }
     

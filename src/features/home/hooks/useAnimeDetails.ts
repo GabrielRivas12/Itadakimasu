@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchAnimeDetails, Anime } from '../../../../services/anilist';
 import { translateDescription } from '../../../../services/kitsu';
 import {
+  getUserList,
   getAnimeStatus,
   addOrUpdateAnimeInList,
   removeAnimeFromList,
@@ -97,34 +98,67 @@ export const useAnimeDetails = () => {
 
   const loadDetails = async (id: number) => {
     try {
+      console.log(`[DEBUG] loadDetails START para id: ${id}`);
       setLoading(true);
       
-      const [cachedAnime, status, progress] = await Promise.all([
+      // Llamamos a getUserList una sola vez para eficiencia
+      const [cachedAnime, userList] = await Promise.all([
         getCachedAnimeDetails(id),
-        getAnimeStatus(id),
-        getAnimeProgress(id),
+        getUserList(),
       ]);
+
+      console.log(`[DEBUG] userList cargada, tamaño: ${userList?.length || 0}`);
+
+      // Buscar el item en la lista del usuario (usando comparación robusta de strings)
+      const userItem = userList?.find(item => String(item.anime?.id) === String(id));
+      
+      if (userItem) {
+        console.log(`[DEBUG] Encontrado item en la lista del usuario: status=${userItem.status}, progress=${userItem.progress}`);
+      } else {
+        console.log(`[DEBUG] No se encontró el id ${id} en la lista del usuario`);
+      }
+
+      const status = userItem ? userItem.status : null;
+      const progress = userItem ? userItem.progress : 0;
 
       let currentAnime = cachedAnime;
 
+      // FALLBACK: Si no hay cache de detalles pero está en la lista del usuario, 
+      // usamos ese objeto para que la búsqueda de episodios inicie ya mismo.
+      if (!currentAnime && userItem?.anime) {
+        console.log(`[DEBUG] Usando anime de userItem como fallback para búsqueda de episodios`);
+        setAnime(userItem.anime);
+        currentAnime = userItem.anime;
+      }
+
       if (cachedAnime) {
+        console.log(`[DEBUG] Usando cachedAnime para la vista inicial`);
         setAnime(cachedAnime);
-        if (cachedAnime.characters?.edges && cachedAnime.relations?.edges) {
-          setLoading(false);
-        }
+        // Quitamos loading si ya tenemos cache (evita parpadeo de Skeleton)
+        setLoading(false);
       }
       
       setUserStatus(status);
       setUserProgress(progress);
 
-      if (!cachedAnime || !cachedAnime.characters || !cachedAnime.relations) {
+      // Si no tenemos la info completa (personajes/relaciones), la buscamos
+      if (!currentAnime || !currentAnime.characters || !currentAnime.relations) {
+        console.log(`[DEBUG] Buscando detalles completos en AniList...`);
         const details = await fetchAnimeDetails(id);
         
         if (details) {
+          console.log(`[DEBUG] Detalles de AniList obtenidos con éxito: ${details.title?.romaji}`);
           setAnime(details);
           currentAnime = details;
           await cacheAnimeDetails(id, details);
+        } else {
+          console.log(`[DEBUG] No se pudieron obtener detalles de AniList`);
         }
+      }
+
+      // Asegurarnos de que el loading se quite
+      if (currentAnime) {
+        setLoading(false);
       }
 
       if (currentAnime?.description) {
@@ -136,18 +170,17 @@ export const useAnimeDetails = () => {
             setSynopsisSource(result.source);
           }
         } catch (error) {
-          console.error('Error translating synopsis:', error);
+          console.error('[DEBUG] Error traduciendo sinopsis:', error);
         } finally {
           setLoadingSpanishSynopsis(false);
         }
       }
     } catch (error) {
-      console.error('Error loading anime details:', error);
+      console.error('[DEBUG] Error en loadDetails:', error);
     } finally {
       setLoading(false);
     }
   };
-
 
   const loadMoreEpisodes = async () => {
     if (!anime1VInfo || !hasMoreEpisodes || isLoadingMore) return;
@@ -177,79 +210,97 @@ export const useAnimeDetails = () => {
   };
 
   const searchAndLoadAnime1V = async () => {
-    if (!anime) return;
+    if (!anime || matchingAttempted) return;
     
+    console.log(`[DEBUG] searchAndLoadAnime1V START para: ${anime.title?.romaji}`);
     setMatchingAttempted(true);
 
     try {
       setContentNotAvailable(false);
 
       const domain = anime.isAdult ? "hentaila" : undefined;
-
-      // Usar Romaji como prioridad máxima para el matching
-      const mainTitle = anime.title.romaji || anime.title.english || '';
-      const animeNormalized = normalizeTitleStrict(mainTitle);
+      const mainTitle = anime.title?.romaji || anime.title?.english || anime.title?.native || '';
       
-      if (animeNormalized.significantWords.length === 0 && mainTitle.length < 3) {
+      if (mainTitle.length < 2) {
+        console.log(`[DEBUG] Título demasiado corto para buscar: "${mainTitle}"`);
         setContentNotAvailable(true);
         return;
       }
-      
+
+      const animeNormalized = normalizeTitleStrict(mainTitle);
       const queries = buildSearchQueriesStrict(anime);
+      console.log(`[DEBUG] Queries de búsqueda: ${JSON.stringify(queries)}`);
       
       let bestMatch: SearchResult | null = null;
       let bestMatchInfo: Anime1VInfo | null = null;
 
-      for (const query of queries) {
-        // Evitar queries que puedan romper el backend (muy cortas o vacías)
-        if (!query || query.trim().length < 3) continue;
+      // Limitamos el tiempo total de búsqueda para no quedarnos pegados
+      const searchStartTime = Date.now();
+      const MAX_SEARCH_TIME = 20000; // 20 segundos máximo para el debug
 
+      for (const query of queries) {
+        if (Date.now() - searchStartTime > MAX_SEARCH_TIME) {
+          console.log(`[DEBUG] Timeout de búsqueda alcanzado (${MAX_SEARCH_TIME}ms)`);
+          break;
+        }
+        if (!query || query.trim().length < 2) continue;
+
+        console.log(`[DEBUG] Ejecutando búsqueda API para: "${query}"`);
         const results = await searchAnime1V(query, domain);
         
         if (results && results.length > 0) {
+          console.log(`[DEBUG] API retornó ${results.length} resultados para "${query}"`);
+          
           for (const result of results) {
             const resultNormalized = normalizeTitleStrict(result.title);
             const matchResult = calculateMatchScoreStrict(animeNormalized, resultNormalized);
             
-            if (matchResult.matched) {
-              // Si es un match aceptable, verificamos info detallada
-              const info = await getAnime1VInfo(result.url, 999);
+            console.log(`[DEBUG] Comparando: "${result.title}" | Score: ${matchResult.score.toFixed(3)} | Matched: ${matchResult.matched}`);
+
+            if (matchResult.matched || matchResult.score > 0.1) {
+              // Usamos un límite razonable basado en los episodios que conocemos de AniList
+              const limitHint = anime.episodes ? Math.max(anime.episodes + 10, 50) : 500;
+              console.log(`[DEBUG] Obteniendo info de episodios para "${result.title}" (limit: ${limitHint})`);
+              const info = await getAnime1VInfo(result.url, limitHint);
               
               if (info && info.episodes && info.episodes.length > 0) {
                 const infoNormalized = normalizeTitleStrict(info.title);
                 const finalMatch = calculateMatchScoreStrict(animeNormalized, infoNormalized);
                 
-                // Umbral más permisivo (0.5) para asegurar que encontramos el contenido
-                if (finalMatch.matched && finalMatch.score >= 0.5) {
-                  const candidateScore = finalMatch.score;
-                  
-                  if (!bestMatch || candidateScore > bestMatch.score) {
+                console.log(`[DEBUG] Score final con info detallada: ${finalMatch.score.toFixed(3)}`);
+
+                if (finalMatch.matched && finalMatch.score >= 0.25) {
+                  if (!bestMatch || finalMatch.score > bestMatch.score) {
                     bestMatch = {
                       item: result,
-                      score: candidateScore,
+                      score: finalMatch.score,
                       matchType: finalMatch.matchType
                     };
                     bestMatchInfo = info;
+                    console.log(`[DEBUG] Nuevo mejor match encontrado: "${info.title}"`);
                   }
+                  // Si es casi perfecto, paramos de buscar en este query
+                  if (finalMatch.score >= 0.9) break;
                 }
+              } else {
+                console.log(`[DEBUG] Info de episodes vacía o nula para "${result.title}"`);
               }
             }
           }
-          
-          // Si encontramos un match muy bueno (exacto o casi exacto), no seguimos buscando
-          if (bestMatch && bestMatch.score >= 0.85) {
-            break;
-          }
+          // Si encontramos algo muy bueno, no probamos más queries
+          if (bestMatch && bestMatch.score >= 0.8) break;
+        } else {
+          console.log(`[DEBUG] Sin resultados para query "${query}"`);
         }
       }
 
-      // Validar si encontramos algo con un mínimo de confianza
-      if (!bestMatch || !bestMatchInfo || bestMatch.score < 0.45) {
-        console.log(`No valid match found for: ${mainTitle}`);
+      if (!bestMatch || !bestMatchInfo) {
+        console.log(`[DEBUG] searchAndLoadAnime1V END: No se encontró match`);
         setContentNotAvailable(true);
         return;
       }
 
+      console.log(`[DEBUG] Match final aceptado: "${bestMatchInfo.title}" (Score: ${bestMatch.score.toFixed(3)})`);
       setAnime1VInfo(bestMatchInfo);
 
       const initialIndex = userProgress > 0 && userProgress <= bestMatchInfo.episodes.length
@@ -258,37 +309,54 @@ export const useAnimeDetails = () => {
 
       const episode = bestMatchInfo.episodes[initialIndex];
       if (episode) {
+        console.log(`[DEBUG] Seleccionando episodio inicial: ${episode.number}`);
         handleEpisodeSelect(episode);
       }
       
     } catch (error) {
-      console.error("Error loading Anime1V data:", error);
+      console.error("[DEBUG] Error en searchAndLoadAnime1V flow:", error);
       setContentNotAvailable(true);
     }
   };
 
   const handleEpisodeSelect = async (episode: Anime1VEpisode) => {
-    setCurrentEpisode(episode);
-    setLoadingStream(true);
-    setStreamUrl(null);
-    
-    try {
-      if (anime && userStatus) {
-        await updateAnimeProgress(anime.id, episode.number);
-        setUserProgress(episode.number);
-      }
-
-      const links = await getAnime1VEpisodeLinks(episode.url);
-      if (links && links.streamLinks.SUB && links.streamLinks.SUB.length > 0) {
-        const hlsServer = links.streamLinks.SUB.find(s => s.server === 'HLS');
-        setStreamUrl(hlsServer ? hlsServer.url : links.streamLinks.SUB[0].url);
-      }
-    } catch (error) {
-      console.error('Error fetching stream links:', error);
-    } finally {
-      setLoadingStream(false);
+  setCurrentEpisode(episode);
+  setLoadingStream(true);
+  setStreamUrl(null);
+  
+  try {
+    // 1. Quitamos el await de aquí para que Firebase corra en segundo plano
+    // y cambie el estado local inmediatamente sin esperar a la red cloud.
+    if (anime && userStatus) {
+      updateAnimeProgress(anime.id, episode.number).catch(err => 
+        console.error("Error actualizando progreso en segundo plano:", err)
+      );
+      setUserProgress(episode.number);
     }
-  };
+
+    // 2. Esto se ejecuta inmediatamente sin esperar a Firebase
+    const links = await getAnime1VEpisodeLinks(episode.url);
+    if (links?.streamLinks) {
+      const subServers  = links.streamLinks.SUB  ?? [];
+      const dubServers  = links.streamLinks.DUB  ?? [];
+      const allServers  = [...subServers, ...dubServers];
+
+      const preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish')) 
+                     ?? allServers.find(s => s.server === 'HLS')
+                     ?? allServers[0];
+
+      if (preferred?.url) {
+        setStreamUrl(preferred.url);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching stream links:', error);
+  } finally {
+    setLoadingStream(false);
+  }
+};
+
+
 
   const saveProgress = async (progress: number, isUpdate: boolean = false) => {
     if (!anime) return;

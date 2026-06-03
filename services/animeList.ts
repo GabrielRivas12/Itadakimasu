@@ -157,19 +157,19 @@ export async function clearLocalList() {
 
 export async function getAnimeStatus(animeId: number): Promise<UserListStatus | null> {
   const list = await getUserList();
-  const item = list.find(item => item.anime.id === animeId);
+  const item = list.find(item => String(item.anime.id) === String(animeId));
   return item ? item.status : null;
 }
 
 export async function getAnimeProgress(animeId: number): Promise<number> {
   const list = await getUserList();
-  const item = list.find(item => item.anime.id === animeId);
+  const item = list.find(item => String(item.anime.id) === String(animeId));
   return item ? item.progress : 0;
 }
 
 export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatus, progress: number = 0): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const existingIndex = currentList.findIndex(item => item.anime.id === anime.id);
+  const existingIndex = currentList.findIndex(item => String(item.anime.id) === String(anime.id));
 
   const newItem: UserListItem = {
     anime,
@@ -202,7 +202,7 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
 
 export async function removeAnimeFromList(animeId: number): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const updatedList = currentList.filter(item => item.anime.id !== animeId);
+  const updatedList = currentList.filter(item => String(item.anime.id) !== String(animeId));
 
   const user = getCurrentUser();
   
@@ -220,7 +220,7 @@ export async function removeAnimeFromList(animeId: number): Promise<UserListItem
 
 export async function updateAnimeProgress(animeId: number, progress: number): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const existingIndex = currentList.findIndex(item => item.anime.id === animeId);
+  const existingIndex = currentList.findIndex(item => String(item.anime.id) === String(animeId));
 
   if (existingIndex > -1) {
     currentList[existingIndex].progress = progress;
