@@ -52,18 +52,24 @@ export const useProfile = () => {
     }
 
     const unsubscribe = onAuthStateChanged((currentUser) => {
-      if (currentUser?.id !== user?.id) {
+      if (!currentUser || currentUser.uid !== user?.uid) {
+        // Al cerrar sesión o cambiar de usuario, reseteamos todo
         profileInitialized = false;
+        sessionProfileList = [];
+        setList([]);
       }
       setUser(currentUser);
       setIsLoading(false);
     });
 
     return unsubscribe;
-  }, [user?.id]);
+  }, [user?.uid]);
 
   useEffect(() => {
-    loadList();
+    if (user) {
+      console.log('🔄 [useProfile] Cargando lista para el usuario:', user.uid);
+      loadList();
+    }
   }, [user, loadList]);
 
   useEffect(() => {

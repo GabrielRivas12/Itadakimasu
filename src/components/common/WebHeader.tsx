@@ -26,7 +26,7 @@ export function WebHeader() {
               <View style={styles.logoIcon}>
                 <Ionicons name="play" size={20} color="#ffffff" />
               </View>
-              <Text style={styles.logoText}>AnimeLT</Text>
+              <Text style={styles.logoText}>Itadakimasu</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -48,18 +48,8 @@ export function WebHeader() {
           })}
         </View>
 
-        <View style={styles.rightSection}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="notifications-outline" size={22} color="#94a3b8" />
-          </TouchableOpacity>
-          <Link href="/profile" asChild>
-            <TouchableOpacity style={styles.profileButton}>
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={18} color="#ffffff" />
-              </View>
-            </TouchableOpacity>
-          </Link>
-        </View>
+        {/* Espaciador para mantener el logo a la izquierda y nav centrado si es necesario, o simplemente remover la sección derecha */}
+        <View style={{ width: 150, opacity: 0 }} pointerEvents="none" />
       </View>
     </View>
   );

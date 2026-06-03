@@ -1,37 +1,12 @@
 import { Platform } from 'react-native';
 import { clearLocalList, mergeGuestListIntoUser } from './animeList';
+import { asegurarFirebaseApp } from './firebaseConfig';
 
 export interface UserInfo {
   uid: string;
   name: string | null;
   email: string | null;
   photo: string | null;
-}
-
-// --- CONFIGURACIÓN E INICIALIZACIÓN (Multiplataforma) ---
-const getFirebaseConfig = () => ({
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-});
-
-export function asegurarFirebaseApp() {
-  const config = getFirebaseConfig();
-  
-  if (Platform.OS === 'web') {
-    const { initializeApp, getApps } = require('firebase/app');
-    if (getApps().length === 0) {
-      initializeApp(config);
-    }
-  } else {
-    const { initializeApp, getApps } = require('@react-native-firebase/app');
-    if (getApps().length === 0) {
-      initializeApp(config);
-    }
-  }
 }
 
 // --- CONFIGURACIÓN E INICIALIZACIÓN WEB (Lazy/Retrasada) ---
@@ -41,7 +16,7 @@ let googleProviderWeb: any = null;
 // Función para obtener la instancia web de forma segura
 function getWebAuth() {
   if (Platform.OS === 'web' && !webAuth) {
-    asegurarFirebaseApp(); // 🔥 ASEGURAMOS INICIALIZACIÓN AQUÍ
+    asegurarFirebaseApp(); //  ASEGURAMOS INICIALIZACIÓN AQUÍ
     const { getAuth, GoogleAuthProvider } = require('firebase/auth');
     webAuth = getAuth();
     googleProviderWeb = new GoogleAuthProvider();
@@ -65,7 +40,7 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
   try {
     let user: any = null;
 
-    // 🌐 MUNDO WEB
+    //  WEB
     if (Platform.OS === 'web') {
       const { signInWithPopup } = require('firebase/auth');
       const { webAuth: authInstance, googleProviderWeb: provider } = getWebAuth();
@@ -77,7 +52,7 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
       const result = await signInWithPopup(authInstance, provider);
       user = result.user;
     } 
-    // 📱 MUNDO MÓVIL
+    //  MÓVIL
     else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
       const authMobile = require('@react-native-firebase/auth').default;
@@ -118,25 +93,51 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
  */
 export async function signOutGoogle(): Promise<void> {
   try {
-    // 1. Limpiar el caché local del usuario (Común)
-    await clearLocalList();
+    console.log('Iniciando proceso de cierre de sesión...');
+    
+    // 1. Limpiar el caché local del usuario (Común para móvil)
+    if (Platform.OS !== 'web') {
+      try {
+        await clearLocalList();
+      } catch (e) {
+        console.warn('No se pudo limpiar el caché local durante el logout:', e);
+      }
+    }
 
     // 2. Cerrar sesión según plataforma
     if (Platform.OS === 'web') {
       const { signOut } = require('firebase/auth');
       const { webAuth: authInstance } = getWebAuth();
-      await signOut(authInstance);
+      if (authInstance && authInstance.currentUser) {
+        await signOut(authInstance);
+      }
     } else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
       const authMobile = require('@react-native-firebase/auth').default;
       
-      await GoogleSignin.signOut();
-      await authMobile().signOut();
+      // Intentar cerrar sesión de Google (puede fallar si no hay sesión activa de Google)
+      try {
+        const isSignedIn = await GoogleSignin.isSignedIn();
+        if (isSignedIn) {
+          await GoogleSignin.signOut();
+        }
+      } catch (e) {
+        console.warn('Error al cerrar sesión en Google Sign-In:', e);
+      }
+
+      // Cerrar sesión en Firebase solo si hay un usuario activo
+      try {
+        if (authMobile().currentUser) {
+          await authMobile().signOut();
+        }
+      } catch (e) {
+        console.error('Error al cerrar sesión en Firebase Auth Móvil:', e);
+      }
     }
     
-    console.log('Sesión cerrada y caché local limpio');
+    console.log('Sesión cerrada correctamente');
   } catch (error) {
-    console.error('Error en signOutGoogle:', error);
+    console.error('Error general en signOutGoogle:', error);
   }
 }
 

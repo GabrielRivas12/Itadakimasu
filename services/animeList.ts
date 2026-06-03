@@ -34,29 +34,41 @@ export async function getUserList(): Promise<UserListItem[]> {
   try {
     const user = getCurrentUser(); 
 
-    // 🌐 ESTRATEGIA PARA WEB: Llamada directa a Firebase sin usar AsyncStorage
+    // 🌐 ESTRATEGIA PARA WEB: Sin caché local, siempre tiempo real
     if (Platform.OS === 'web') {
-      if (user) {
-        console.log(`🌐 [Web] Obteniendo lista directamente de Firestore para: ${user.uid}`);
-        return await fetchUserListFromFirestore();
-      }
-      return []; // Si no hay usuario logueado en Web, retorna lista vacía
+      if (user) return await fetchUserListFromFirestore();
+      return []; 
     }
 
-    // 📱 ESTRATEGIA PARA MÓVIL: Persistencia local con AsyncStorage mediante require dinámico
+    // 📱 ESTRATEGIA PARA MÓVIL: Stale-While-Revalidate (Caché primero, luego red)
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     const currentKey = getStorageKey(user);
     
+    // 1. Obtener lo que hay en caché local inmediatamente
     const jsonValue = await AsyncStorage.getItem(currentKey);
-    let localList: UserListItem[] = jsonValue != null ? JSON.parse(jsonValue) : [];
+    const localList: UserListItem[] = jsonValue != null ? JSON.parse(jsonValue) : [];
 
-    // Si el móvil no tiene caché pero el usuario está logueado, descarga de Firestore
-    if (user && localList.length === 0) {
-      console.log(`📱 [Móvil] Caché vacío para ${user.uid}, sincronizando desde Firestore...`);
-      const remoteList = await fetchUserListFromFirestore();
-      if (remoteList.length > 0) {
+    // 2. Si el usuario está logueado, sincronizamos con Firestore en segundo plano
+    if (user) {
+      // Si el caché está vacío, esperamos a la red obligatoriamente para la primera carga
+      if (localList.length === 0) {
+        console.log(`📱 [Móvil] Cache vacío para ${user.uid}, esperando a Firestore...`);
+        const remoteList = await fetchUserListFromFirestore();
         await saveUserListLocally(remoteList, user);
         return remoteList;
+      } else {
+        // Sincronización silenciosa: disparamos y retornamos el caché actual
+        fetchUserListFromFirestore().then(async (remoteList) => {
+          const localCompare = JSON.stringify(localList);
+          const remoteCompare = JSON.stringify(remoteList);
+          
+          if (localCompare !== remoteCompare) {
+            console.log(`📱 [Móvil] Sincronización completa: Se detectaron cambios en la nube.`);
+            await saveUserListLocally(remoteList, user);
+            // Notificamos a los componentes (como useProfile) para que se refresquen
+            animeListEvents.emit('listUpdated', remoteList);
+          }
+        }).catch(err => console.error('Error en sincronización de fondo:', err));
       }
     }
 

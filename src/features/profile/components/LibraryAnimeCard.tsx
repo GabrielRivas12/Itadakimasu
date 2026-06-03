@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   webCard: {
-    marginHorizontal: 5,
+    marginHorizontal: 0,
   },
   cardImage: {
     width: 70,

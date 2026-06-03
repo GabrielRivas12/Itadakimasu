@@ -14,9 +14,9 @@ export const TrendingGrid = memo(function TrendingGrid({ trending, onPress }: Tr
 
   return (
     <View style={styles.trendingGrid}>
-      {trending.map((item) => (
+      {trending.map((item, index) => (
         <TouchableOpacity
-          key={item.id}
+          key={`${item.id}-${index}`}
           style={[styles.trendingCard, { width: `${100 / columns - 2}%` }]}
           onPress={() => onPress(item.id)}
         >
