@@ -1,18 +1,20 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
 import { Anime } from '../../../../services/anilist';
-
-const { width } = Dimensions.get('window');
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface AnimeGridCardProps {
   item: Anime;
   onPress: (id: number) => void;
+  width?: number | string;
 }
 
-export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress }: AnimeGridCardProps) {
+export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress, width }: AnimeGridCardProps) {
+  const { isWeb } = useResponsive();
+  
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, width ? { width } : null]}
       onPress={() => onPress(item.id)}
     >
       <Image source={{ uri: item.coverImage.large }} style={styles.cardImage} />
@@ -42,10 +44,9 @@ export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress }: Anim
 
 const styles = StyleSheet.create({
   card: {
-    width: (width - 32 - 10) / 2,
     backgroundColor: '#1e293b',
     borderRadius: 12,
-    marginHorizontal: 5,
+    marginHorizontal: '1%',
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
@@ -54,7 +55,7 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    height: 190,
+    height: 240,
   },
   cardBadge: {
     position: 'absolute',

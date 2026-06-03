@@ -2,9 +2,14 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useResponsive } from '../../hooks/useResponsive';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { isWeb, isMobile } = useResponsive();
+  
+  // En web, si no es móvil (tablet/desktop), ocultamos la barra de pestañas inferior
+  const showBottomTabs = !isWeb || isMobile;
 
   return (
     <Tabs
@@ -24,14 +29,14 @@ export default function TabLayout() {
         headerTintColor: '#f8fafc',
         tabBarActiveTintColor: '#8b5cf6',
         tabBarInactiveTintColor: '#94a3b8',
-        tabBarStyle: {
+        tabBarStyle: showBottomTabs ? {
           backgroundColor: '#0f172a',
           borderTopWidth: 1,
           borderTopColor: '#1e293b',
           height: Platform.OS === 'ios' ? 88 : 64 + insets.bottom,
           paddingBottom: Platform.OS === 'ios' ? 28 : (insets.bottom > 0 ? insets.bottom : 10),
           paddingTop: 10,
-        },
+        } : { display: 'none' },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',

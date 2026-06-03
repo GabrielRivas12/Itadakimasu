@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface UserHeaderProps {
   name: string;
@@ -8,8 +9,10 @@ interface UserHeaderProps {
 }
 
 export function UserHeader({ name, role, avatarUrl }: UserHeaderProps) {
+  const { isWeb } = useResponsive();
+
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, isWeb && styles.webHeader]}>
       <Image
         source={{ uri: avatarUrl }}
         style={styles.avatar}
@@ -26,9 +29,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     paddingTop: 16,
     paddingBottom: 20,
+  },
+  webHeader: {
+    paddingHorizontal: 0,
   },
   avatar: {
     width: 60,

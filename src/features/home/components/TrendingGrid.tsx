@@ -1,8 +1,7 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
 import { Anime } from '../../../../services/anilist';
-
-const { width } = Dimensions.get('window');
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface TrendingGridProps {
   trending: Anime[];
@@ -10,12 +9,15 @@ interface TrendingGridProps {
 }
 
 export const TrendingGrid = memo(function TrendingGrid({ trending, onPress }: TrendingGridProps) {
+  const { getColumns } = useResponsive();
+  const columns = getColumns(2, 3, 4, 5);
+
   return (
     <View style={styles.trendingGrid}>
-      {trending.map((item) => (
+      {trending.map((item, index) => (
         <TouchableOpacity
-          key={item.id}
-          style={styles.trendingCard}
+          key={`${item.id}-${index}`}
+          style={[styles.trendingCard, { width: `${100 / columns - 2}%` }]}
           onPress={() => onPress(item.id)}
         >
           <Image source={{ uri: item.coverImage.large }} style={styles.trendingImage} />
@@ -43,13 +45,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 10,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   trendingCard: {
-    width: (width - 32 - 10) / 2,
     backgroundColor: '#1e293b',
     borderRadius: 12,
-    marginHorizontal: 5,
+    marginHorizontal: '1%',
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
   },
   trendingImage: {
     width: '100%',
-    height: 200,
+    height: 240,
   },
   ratingBadge: {
     position: 'absolute',

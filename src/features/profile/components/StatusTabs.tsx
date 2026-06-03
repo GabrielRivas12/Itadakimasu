@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserListStatus } from '../../../../services/animeList';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface StatusTabsProps {
   activeTab: UserListStatus;
@@ -9,8 +10,10 @@ interface StatusTabsProps {
 }
 
 export function StatusTabs({ activeTab, onTabChange }: StatusTabsProps) {
+  const { isWeb } = useResponsive();
+
   return (
-    <View style={styles.tabContainer}>
+    <View style={[styles.tabContainer, isWeb && styles.webTabContainer]}>
       <TouchableOpacity
         style={[styles.tabButton, activeTab === 'En Proceso' && styles.tabButtonActive]}
         onPress={() => onTabChange('En Proceso')}
@@ -49,11 +52,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#1e293b',
     borderRadius: 12,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     padding: 4,
     borderWidth: 1,
     borderColor: '#334155',
     marginBottom: 16,
+  },
+  webTabContainer: {
+    marginHorizontal: 0,
   },
   tabButton: {
     flex: 1,

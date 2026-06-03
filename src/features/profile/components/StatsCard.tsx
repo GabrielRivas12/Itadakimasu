@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface StatBoxProps {
   value: number;
@@ -22,8 +23,10 @@ interface StatsCardProps {
 }
 
 export function StatsCard({ inProcess, completed, planToWatch }: StatsCardProps) {
+  const { isWeb } = useResponsive();
+
   return (
-    <View style={styles.statsCard}>
+    <View style={[styles.statsCard, isWeb && styles.webStatsCard]}>
       <StatBox value={inProcess} label="En Proceso" />
       <View style={styles.statDivider} />
       <StatBox value={completed} label="Terminados" />
@@ -38,11 +41,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#1e293b',
     borderRadius: 16,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     paddingVertical: 16,
     borderWidth: 1,
     borderColor: '#334155',
     marginBottom: 20,
+  },
+  webStatsCard: {
+    marginHorizontal: 0,
+    marginTop: 10,
   },
   statBox: {
     flex: 1,

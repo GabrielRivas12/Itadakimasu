@@ -1,16 +1,21 @@
 import React from 'react';
-import { StyleSheet, View, Dimensions } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { StyleSheet, View } from 'react-native';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 export function HomeSkeleton() {
+  const { getColumns } = useResponsive();
+  const columns = getColumns(2, 3, 4, 5);
+
   return (
     <View style={styles.skeletonContainer}>
       <View style={styles.skeletonBanner} />
       <View style={styles.skeletonTitle} />
       <View style={styles.skeletonGrid}>
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <View key={i} style={styles.skeletonCard} />
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+          <View 
+            key={i} 
+            style={[styles.skeletonCard, { width: `${100 / columns - 2}%` }]} 
+          />
         ))}
       </View>
     </View>
@@ -23,7 +28,7 @@ const styles = StyleSheet.create({
   },
   skeletonBanner: {
     width: '100%',
-    height: 450,
+    height: 350,
     backgroundColor: '#1e293b',
   },
   skeletonTitle: {
@@ -38,15 +43,14 @@ const styles = StyleSheet.create({
   skeletonGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 8,
-    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    justifyContent: 'flex-start',
   },
   skeletonCard: {
-    width: (width - 48) / 3,
-    height: 180,
+    height: 200,
     backgroundColor: '#1e293b',
-    borderRadius: 8,
-    marginHorizontal: 8,
+    borderRadius: 12,
+    marginHorizontal: '1%',
     marginBottom: 16,
   },
 });
