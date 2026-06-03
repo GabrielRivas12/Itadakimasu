@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { FeaturedBanner } from '../components/FeaturedBanner';
+import { ContinueWatching } from '../components/ContinueWatching';
 import { TrendingGrid } from '../components/TrendingGrid';
 import { HomeSkeleton } from '../components/HomeSkeleton';
 import { useHome } from '../hooks/useHome';
@@ -17,6 +18,7 @@ import { useResponsive } from '../../../hooks/useResponsive';
 export function HomePage() {
   const {
     trending,
+    continueWatching,
     featured,
     loading,
     refreshing,
@@ -52,6 +54,7 @@ export function HomePage() {
             {featured && (
               <FeaturedBanner featured={featured} onPress={handleAnimePress} />
             )}
+            <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
             <Text style={styles.sectionTitle}>Tendencias ahora</Text>
             <TrendingGrid trending={trending} onPress={handleAnimePress} />
             {loadingMoreState && (

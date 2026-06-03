@@ -67,7 +67,6 @@ export const useProfile = () => {
 
   useEffect(() => {
     if (user) {
-      console.log('🔄 [useProfile] Cargando lista para el usuario:', user.uid);
       loadList();
     }
   }, [user, loadList]);

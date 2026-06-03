@@ -47,6 +47,15 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
 
   const renderEpisodeItem = (item: Anime1VEpisode) => {
     const isSelected = item.number === currentEpisodeNumber;
+    
+    // Si el título ya contiene el número de episodio o la palabra "Episodio", lo usamos tal cual.
+    // De lo contrario, formateamos como "Episodio X: Título"
+    const displayTitle = item.title && (
+      item.title.toLowerCase().includes('episodio') || 
+      item.title.toLowerCase().includes('capítulo') ||
+      item.title.includes(String(item.number))
+    ) ? item.title : `Episodio ${item.number}${item.title ? `: ${item.title}` : ''}`;
+
     return (
       <TouchableOpacity
         key={item.id.toString()}
@@ -55,15 +64,13 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
         activeOpacity={0.7}
       >
         <View style={styles.episodeInfo}>
-          <Text style={[styles.episodeText, isSelected && styles.selectedText]}>
-            Episodio {item.number}
+          <Text 
+            style={[styles.episodeText, isSelected && styles.selectedText]} 
+            numberOfLines={1}
+          >
+            {displayTitle}
           </Text>
-          {item.title && (
-            <Text style={styles.episodeTitle} numberOfLines={1}>
-              {item.title}
-            </Text>
-          )}
-          {isSelected && <Ionicons name="play" size={16} color="#ffffff" />}
+          {isSelected && <Ionicons name="play" size={14} color="#ffffff" style={{ marginLeft: 8 }} />}
         </View>
         <Ionicons name="chevron-forward" size={16} color={isSelected ? "#ffffff" : "#475569"} />
       </TouchableOpacity>
@@ -84,7 +91,7 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
       return (
         <View style={styles.endMessage}>
           <Text style={styles.endMessageText}>
-            📺 Total: {episodes.length} episodios
+            Total: {episodes.length} episodios
           </Text>
         </View>
       );

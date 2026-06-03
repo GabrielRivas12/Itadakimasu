@@ -6,18 +6,34 @@ interface TechnicalSpecsProps {
   anime: Anime;
 }
 
-const getStatusInSpanish = (status: string): string => {
-  const statusMap: Record<string, string> = {
-    'FINISHED': 'Finalizado',
-    'RELEASING': 'En emisión',
-    'NOT_YET_RELEASED': 'Próximamente',
-    'CANCELLED': 'Cancelado',
-    'HIATUS': 'En pausa',
+const getSeasonInSpanish = (season: string | undefined): string => {
+  if (!season) return '';
+  const seasonMap: Record<string, string> = {
+    'WINTER': 'Invierno',
+    'SPRING': 'Primavera',
+    'SUMMER': 'Verano',
+    'FALL': 'Otoño',
   };
-  return statusMap[status] || status;
+  return seasonMap[season] || season;
 };
 
-const formatDate = (date: { year?: number; month?: number; day?: number } | undefined): string => {
+const getSourceInSpanish = (source: string | undefined): string => {
+  if (!source) return 'Desconocido';
+  const sourceMap: Record<string, string> = {
+    'ORIGINAL': 'Original',
+    'MANGA': 'Manga',
+    'LIGHT_NOVEL': 'Novela Ligera',
+    'VISUAL_NOVEL': 'Novela Visual',
+    'VIDEO_GAME': 'Videojuego',
+    'OTHER': 'Otro',
+    'NOVEL': 'Novela',
+    'DOUJINSHI': 'Doujinshi',
+    'ANIME': 'Anime',
+  };
+  return sourceMap[source] || source;
+};
+
+const formatDate = (date: { year: number | null; month: number | null; day: number | null } | undefined): string => {
   if (!date || !date.year) return 'Desconocida';
   
   const day = date.day || 1;
@@ -28,6 +44,8 @@ const formatDate = (date: { year?: number; month?: number; day?: number } | unde
 };
 
 export function TechnicalSpecs({ anime }: TechnicalSpecsProps) {
+  const seasonText = anime.season ? `${getSeasonInSpanish(anime.season)} ${anime.seasonYear || ''}` : 'N/A';
+
   return (
     <>
       <View style={styles.divider} />
@@ -41,13 +59,18 @@ export function TechnicalSpecs({ anime }: TechnicalSpecsProps) {
           </View>
           
           <View style={styles.specRow}>
-            <Text style={styles.specLabel}>Episodios</Text>
-            <Text style={styles.specValue}>{anime.episodes || '??'}</Text>
+            <Text style={styles.specLabel}>Temporada</Text>
+            <Text style={styles.specValue}>{seasonText}</Text>
           </View>
-          
+
           <View style={styles.specRow}>
-            <Text style={styles.specLabel}>Estado</Text>
-            <Text style={styles.specValue}>{getStatusInSpanish(anime.status || 'UNKNOWN')}</Text>
+            <Text style={styles.specLabel}>Duración</Text>
+            <Text style={styles.specValue}>{anime.duration ? `${anime.duration} min por ep.` : 'N/A'}</Text>
+          </View>
+
+          <View style={styles.specRow}>
+            <Text style={styles.specLabel}>Origen</Text>
+            <Text style={styles.specValue}>{getSourceInSpanish(anime.source)}</Text>
           </View>
 
           <View style={styles.specRow}>
@@ -61,13 +84,6 @@ export function TechnicalSpecs({ anime }: TechnicalSpecsProps) {
               {anime.genres?.length ? anime.genres.join(', ') : 'No especificados'}
             </Text>
           </View>
-
-          {anime.format && (
-            <View style={styles.specRow}>
-              <Text style={styles.specLabel}>Formato</Text>
-              <Text style={styles.specValue}>{anime.format}</Text>
-            </View>
-          )}
         </View>
       </View>
     </>

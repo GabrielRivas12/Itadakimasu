@@ -196,27 +196,45 @@ export function AnimeDetailsPage() {
                   <CharacterList characters={anime.characters} />
                 </View>
 
-                {contentNotAvailable ? (
-                  <View style={styles.notAvailableContainer}>
-                    <Ionicons name="videocam-off-outline" size={32} color="#64748b" />
-                    <Text style={styles.notAvailableText}>Este contenido no está disponible actualmente.</Text>
-                  </View>
-                ) : anime1VInfo && displayedEpisodes.length > 0 ? (
-                  <View style={StyleSheet.flatten([styles.playerSection, isWeb && styles.webSectionWrapper])}>
-                    <Text style={styles.sectionHeader}>
-                      {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Reproductor'}
-                    </Text>
-                    <EpisodePlayer url={streamUrl} />
-                    <EpisodePicker
-                      episodes={displayedEpisodes}
-                      currentEpisodeNumber={currentEpisode?.number || null}
-                      onEpisodePress={handleEpisodeSelect}
-                      onLoadMore={loadMoreEpisodes}
-                      hasMore={hasMoreEpisodes}
-                      isLoadingMore={isLoadingMore}
-                    />
-                  </View>
-                ) : null}
+                {/* Sección de Episodios con Loading State */}
+                <View style={StyleSheet.flatten([styles.playerSection, isWeb && styles.webSectionWrapper])}>
+                  <Text style={styles.sectionHeader}>
+                    {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Episodios'}
+                  </Text>
+
+                  {loading ? ( // O podrías usar un flag específico para episodios si lo tuvieras
+                    <View style={styles.episodesLoadingContainer}>
+                      <ActivityIndicator size="large" color="#8b5cf6" />
+                      <Text style={styles.loadingTextSmall}>Buscando capítulos disponibles...</Text>
+                    </View>
+                  ) : contentNotAvailable ? (
+                    <View style={styles.notAvailableContainer}>
+                      <Ionicons name="videocam-off-outline" size={32} color="#64748b" />
+                      <Text style={styles.notAvailableText}>Este contenido no está disponible actualmente.</Text>
+                    </View>
+                  ) : !anime1VInfo ? (
+                    <View style={styles.episodesLoadingContainer}>
+                      <ActivityIndicator size="large" color="#8b5cf6" />
+                      <Text style={styles.loadingTextSmall}>Cargando lista de reproducción...</Text>
+                    </View>
+                  ) : displayedEpisodes.length > 0 ? (
+                    <>
+                      <EpisodePlayer url={streamUrl} />
+                      <EpisodePicker
+                        episodes={displayedEpisodes}
+                        currentEpisodeNumber={currentEpisode?.number || null}
+                        onEpisodePress={handleEpisodeSelect}
+                        onLoadMore={loadMoreEpisodes}
+                        hasMore={hasMoreEpisodes}
+                        isLoadingMore={isLoadingMore}
+                      />
+                    </>
+                  ) : (
+                    <View style={styles.notAvailableContainer}>
+                      <Text style={styles.notAvailableText}>No se encontraron episodios para este anime.</Text>
+                    </View>
+                  )}
+                </View>
 
                 <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : {})}>
                   <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
@@ -408,5 +426,21 @@ const styles = StyleSheet.create({
   },
   webSectionWrapper: {
     marginTop: 32,
+  },
+  episodesLoadingContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#161b2c',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    marginVertical: 10,
+    gap: 12,
+  },
+  loadingTextSmall: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

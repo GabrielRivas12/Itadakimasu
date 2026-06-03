@@ -1,41 +1,95 @@
-import React from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, Image, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { Anime } from '../../../../services/anilist';
 
 interface FeaturedBannerProps {
-  featured: Anime;
+  featured: Anime[];
   onPress: (id: number) => void;
 }
 
 export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Si no hay datos, no renderizar nada
+  if (!featured || featured.length === 0) return null;
+
+  const currentAnime = featured[currentIndex];
+
+  useEffect(() => {
+    if (featured.length <= 1) return;
+
+    const timer = setInterval(() => {
+      // Animación de salida (Fade out)
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        // Cambiar al siguiente index
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % featured.length);
+        
+        // Animación de entrada (Fade in)
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 6000); // Cambia cada 6 segundos
+
+    return () => clearInterval(timer);
+  }, [featured.length]);
+
   return (
     <View style={styles.bannerContainer}>
-      <Image
-        source={{
-          uri: featured.bannerImage || featured.coverImage.large,
-        }}
-        style={styles.bannerImage}
-        resizeMode="cover"
-      />
-      <View style={styles.bannerOverlay}>
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>TENDENCIA HOY</Text>
+      <Animated.View style={[styles.innerContainer, { opacity: fadeAnim }]}>
+        <Image
+          source={{
+            uri: currentAnime.bannerImage || currentAnime.coverImage.extraLarge || currentAnime.coverImage.large,
+          }}
+          style={styles.bannerImage}
+          resizeMode="cover"
+        />
+        <View style={styles.bannerOverlay}>
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>TENDENCIA HOY</Text>
+          </View>
+          
+          <Text style={styles.bannerTitle} numberOfLines={1}>
+            {currentAnime.title.romaji || currentAnime.title.english}
+          </Text>
+          
+          <Text style={styles.bannerSubtitle} numberOfLines={2}>
+            {currentAnime.description
+              ? currentAnime.description.replace(/<[^>]*>/g, '')
+              : 'Una producción imperdible disponible ahora en AnimeLT.'}
+          </Text>
+          
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.bannerButton}
+              onPress={() => onPress(currentAnime.id)}
+            >
+              <Text style={styles.bannerButtonText}>Ver Ahora</Text>
+            </TouchableOpacity>
+
+            {/* Indicadores de posición (Dots) */}
+            <View style={styles.dotsContainer}>
+              {featured.map((_, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.dot, 
+                    currentIndex === index ? styles.activeDot : styles.inactiveDot
+                  ]} 
+                />
+              ))}
+            </View>
+          </View>
         </View>
-        <Text style={styles.bannerTitle} numberOfLines={1}>
-          {featured.title.romaji || featured.title.english}
-        </Text>
-        <Text style={styles.bannerSubtitle} numberOfLines={2}>
-          {featured.description
-            ? featured.description.replace(/<[^>]*>/g, '')
-            : 'Una producción imperdible disponible ahora en AnimeLT.'}
-        </Text>
-        <TouchableOpacity
-          style={styles.bannerButton}
-          onPress={() => onPress(featured.id)}
-        >
-          <Text style={styles.bannerButtonText}>Ver Ahora</Text>
-        </TouchableOpacity>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -54,13 +108,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
+  innerContainer: {
+    flex: 1,
+  },
   bannerImage: {
     width: '100%',
     height: '100%',
   },
   bannerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     padding: 16,
     justifyContent: 'flex-end',
   },
@@ -89,16 +146,36 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     lineHeight: 16,
   },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   bannerButton: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    alignSelf: 'flex-start',
   },
   bannerButtonText: {
     color: '#0f172a',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  activeDot: {
+    width: 20,
+    backgroundColor: '#8b5cf6',
+  },
+  inactiveDot: {
+    width: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
 });

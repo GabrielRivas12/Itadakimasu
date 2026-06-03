@@ -57,6 +57,10 @@ export interface Anime {
   studios?: {
     nodes: Array<{ name: string }>;
   };
+  season?: string;
+  seasonYear?: number;
+  duration?: number;
+  source?: string;
   nextAiringEpisode?: {
     airingAt: number;
     timeUntilAiring: number;
@@ -282,6 +286,10 @@ export async function fetchAnimeDetails(id: number): Promise<Anime | null> {
         isAdult
         description
         type
+        season
+        seasonYear
+        duration
+        source
         startDate {
           year
           month
