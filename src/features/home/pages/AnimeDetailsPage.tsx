@@ -73,7 +73,7 @@ export function AnimeDetailsPage() {
     if (!anime) return;
     try {
       await Share.share({
-        message: `¡Mira este anime en AnimeLT! ${anime.title.romaji || anime.title.english}\nhttps://anilist.co/anime/${anime.id}`,
+        message: `¡Mira este anime en Itadakimasu! ${anime.title.romaji || anime.title.english}\nhttps://anilist.co/anime/${anime.id}`,
       });
     } catch (error) {
       console.error('Error sharing anime:', error);

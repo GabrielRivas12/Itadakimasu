@@ -344,9 +344,20 @@ export const useAnimeDetails = () => {
         const dubServers  = links.streamLinks.DUB  ?? [];
         const allServers  = [...subServers, ...dubServers];
 
-        const preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish')) 
-                       ?? allServers.find(s => s.server === 'HLS')
-                       ?? allServers[0];
+        let preferred;
+        
+        if (anime?.isAdult) {
+          // Lógica para adultos: mp4upload > StreamTape > StreamWish
+          preferred = allServers.find(s => s.server.toLowerCase().includes('mp4upload'))
+                   ?? allServers.find(s => s.server.toLowerCase().includes('streamtape'))
+                   ?? allServers.find(s => s.server.toLowerCase().includes('streamwish'))
+                   ?? allServers[0];
+        } else {
+          // Lógica normal: StreamWish > HLS > primero disponible
+          preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish')) 
+                   ?? allServers.find(s => s.server === 'HLS')
+                   ?? allServers[0];
+        }
 
         if (preferred?.url) {
           setStreamUrl(preferred.url);
