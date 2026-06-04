@@ -47,22 +47,32 @@ export async function getUserList(): Promise<UserListItem[]> {
       if (localList.length === 0) {
         console.log(`[Cache] Cache vacío para ${user.uid}, esperando a Firestore...`);
         const remoteList = await fetchUserListFromFirestore();
-        await saveUserListLocally(remoteList, user);
-        return remoteList;
+        if (remoteList) {
+          await saveUserListLocally(remoteList, user);
+          return remoteList;
+        }
       } else {
         // Sincronización inteligente en segundo plano:
-        // No sobreescribimos a ciegas, intentamos fusionar o actualizar solo si hay cambios reales
         fetchUserListFromFirestore().then(async (remoteList) => {
-          // Obtener la versión MÁS reciente del cache justo antes de comparar
-          // (porque pudo haber cambiado mientras fetchUserListFromFirestore corría)
+          if (!remoteList) return; // Si hubo error en red, no tocamos nada
+
           const latestJson = await AsyncStorage.getItem(currentKey);
           const currentLocalList: UserListItem[] = latestJson != null ? JSON.parse(latestJson) : [];
           
           const localMap = new Map(currentLocalList.map(item => [String(item.anime.id), item]));
+          const remoteIds = new Set(remoteList.map(item => String(item.anime.id)));
           let hasChanges = false;
 
-          // Fusionar: Si Firestore tiene algo que no tenemos, lo agregamos.
-          // Si Firestore tiene una versión más nueva (basado en updatedAt), actualizamos.
+          // 1. Detectar eliminaciones: Si está local pero NO en remoto, se borró en otro dispositivo
+          for (const animeId of localMap.keys()) {
+            if (!remoteIds.has(animeId)) {
+              console.log(`[Sync] Detectada eliminación remota de anime ID: ${animeId}`);
+              localMap.delete(animeId);
+              hasChanges = true;
+            }
+          }
+
+          // 2. Fusionar cambios: Agregar nuevos o actualizar existentes
           remoteList.forEach(remoteItem => {
             const animeId = String(remoteItem.anime.id);
             const localItem = localMap.get(animeId);
@@ -71,7 +81,6 @@ export async function getUserList(): Promise<UserListItem[]> {
               localMap.set(animeId, remoteItem);
               hasChanges = true;
             } else {
-              // Comparar fechas de actualización para decidir cuál es más reciente
               const remoteDate = new Date(remoteItem.updatedAt || 0).getTime();
               const localDate = new Date(localItem.updatedAt || 0).getTime();
 
@@ -84,7 +93,7 @@ export async function getUserList(): Promise<UserListItem[]> {
 
           if (hasChanges) {
             const mergedList = Array.from(localMap.values());
-            console.log(`[Cache] Sincronización completa: Se integraron cambios desde la nube.`);
+            console.log(`[Cache] Sincronización completa: Se aplicaron cambios y eliminaciones desde la nube.`);
             await saveUserListLocally(mergedList, user);
             animeListEvents.emit('listUpdated', mergedList);
           }

@@ -152,8 +152,8 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
       });
     }
   } catch (error) {
-    console.error('Error fetching from Firestore:', error);
-    return [];
+    console.error('❌ [Firestore] Error obteniendo lista:', error);
+    return null;
   }
 }
 
