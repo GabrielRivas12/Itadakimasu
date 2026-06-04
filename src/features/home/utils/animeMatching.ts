@@ -182,20 +182,36 @@ export const normalizeTitleStrict = (title: string): NormalizedTitle => {
   let clean = title.toLowerCase().normalize("NFD").replace(RX_NFD, "");
   clean = clean.replace(RX_NAKAGURO, ' ');
   clean = standardizeSeasons(clean);
-  clean = clean
-    .replace(RX_DOUBLE_AA, 'a')
-    .replace(RX_DOUBLE_EE, 'e')
-    .replace(RX_DOUBLE_OO, 'o')
-    .replace(RX_DOUBLE_UU, 'u')
-    .replace(RX_OU, 'o');
-  clean = clean.replace(RX_NON_ALNUM, " ").replace(RX_MULTI_SP, " ").trim();
-
+  
+  // ✅ Verificar si es un título especial ANTES de aplicar reducciones vocálicas
+  let isSpecialArc = false;
   for (const arcKey in SPECIAL_ARCS_MAP) {
     if (clean.includes(arcKey)) {
       clean += ` ${SPECIAL_ARCS_MAP[arcKey]}`;
+      isSpecialArc = true;
       break;
     }
   }
+  
+  // ✅ Para "Koori no Jouheki" y similares, mantener las vocales dobles originales
+  // Verificar si el título contiene palabras japonesas conocidas con vocales dobles
+  const hasJapaneseLongVowels = /\b(koori|jouheki|toukyou|kyouto|shoujo|shounen|juujutsu)\b/i.test(clean);
+  
+  if (!hasJapaneseLongVowels && !isSpecialArc) {
+    // Solo aplicar reducciones de vocales si NO es japonés fonéticamente importante
+    clean = clean
+      .replace(RX_DOUBLE_AA, 'a')
+      .replace(RX_DOUBLE_EE, 'e')
+      .replace(RX_DOUBLE_OO, 'o')
+      .replace(RX_DOUBLE_UU, 'u')
+      .replace(RX_OU, 'o');
+  } else {
+    // Para títulos japoneses, solo reducir 'ou' a 'o' (más común en romanización)
+    // pero mantener 'oo', 'aa', 'ee', 'uu'
+    clean = clean.replace(RX_OU, 'o');
+  }
+  
+  clean = clean.replace(RX_NON_ALNUM, " ").replace(RX_MULTI_SP, " ").trim();
 
   const words = clean.split(" ").filter(w => w.length > 0);
   const isLongTitle = words.length >= 6;
@@ -207,9 +223,6 @@ export const normalizeTitleStrict = (title: string): NormalizedTitle => {
     const w = words[i];
     const isStop = STOP_WORDS_ENG.has(w) || STOP_WORDS_ANIME.has(w) || STOP_WORDS_ROMAJI.has(w);
 
-    // ─────────────────────────────────────────────
-    // Si es número entero, no importa que sea de 1 dígito (como 4 o 0)
-    // ─────────────────────────────────────────────
     if (!isStop && (w.length > 1 || /^\d+$/.test(w))) {
       significantWords.push(w);
     }
