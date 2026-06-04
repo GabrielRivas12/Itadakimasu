@@ -254,12 +254,27 @@ export const calculateMatchScoreStrict = (
       }
     }
 
-    // 4. Intersección de palabras significativas (Para títulos complejos/largos)
+// 4. Intersección de palabras significativas (Para títulos complejos/largos)
     const set2 = new Set(title2.significantWords);
     const intersection = title1.significantWords.filter(w => set2.has(w));
 
     if (intersection.length > 0) {
       const set1Size = title1.significantWords.length;
+
+      // ─────────────────────────────────────────────
+      // INICIO DEL PARCHE: Tolerancia a truncamiento en títulos extra largos
+      // ─────────────────────────────────────────────
+      if (title1.isLongTitle || title2.isLongTitle) {
+        const minSetSize = Math.min(set1Size, set2.size);
+        if (intersection.length >= 3 && (intersection.length / minSetSize) >= 0.80) {
+          finalResult = { matched: true, score: 0.85, matchType: 'partial' };
+          break runValidation;
+        }
+      }
+      // ─────────────────────────────────────────────
+      // FIN DEL PARCHE
+      // ─────────────────────────────────────────────
+
       const score = (intersection.length * 2) / (set1Size + set2.size);
 
       if (score >= 0.55 || (intersection.length >= 2 && score >= 0.45)) {

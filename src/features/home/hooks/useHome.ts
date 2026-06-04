@@ -7,11 +7,14 @@ import {
   UserListItem, 
   animeListEvents 
 } from '../../../../services/animeList';
+import { onAuthStateChangedCallback } from '../../../../services/auth';
 import { 
   getCachedTrendingBanner, 
   getCachedTrendingList, 
+  getCachedContinueWatching,
   cacheTrendingBanner, 
-  cacheTrendingList 
+  cacheTrendingList,
+  cacheContinueWatching
 } from '../../../../services/cache';
 
 // Module-level cache to persist data across remounts during the session
@@ -45,8 +48,11 @@ export const useHome = () => {
     try {
       // 1. Load from AsyncStorage cache only if not initialized and no session data
       if (!forceRefresh && !homeInitialized && sessionTrending.length === 0) {
-        const cachedList = await getCachedTrendingList();
-        const cachedBanner = await getCachedTrendingBanner();
+        const [cachedList, cachedBanner, cachedContinue] = await Promise.all([
+          getCachedTrendingList(),
+          getCachedTrendingBanner(),
+          getCachedContinueWatching()
+        ]);
         
         if (cachedList && cachedList.length > 0) {
           sessionTrending = cachedList;
@@ -57,7 +63,15 @@ export const useHome = () => {
           const featuredItems = cachedList.slice(0, 5);
           sessionFeatured = featuredItems;
           setFeatured(featuredItems);
-          
+        }
+
+        if (cachedContinue && cachedContinue.length > 0) {
+          sessionContinueWatching = cachedContinue;
+          setContinueWatching(cachedContinue);
+        }
+
+        // Only stop loading if we have at least the trending list (main content)
+        if (cachedList && cachedList.length > 0) {
           setLoading(false);
         }
       }
@@ -89,6 +103,9 @@ export const useHome = () => {
       const inProcessList = userList.filter(item => item.status === 'En Proceso');
       sessionContinueWatching = inProcessList;
       setContinueWatching(inProcessList);
+      
+      // Update Continue Watching cache
+      await cacheContinueWatching(inProcessList);
 
       homeInitialized = true;
     } catch (error) {
@@ -109,9 +126,22 @@ export const useHome = () => {
       setContinueWatching(inProcessList);
     };
 
+    // Re-fetch user list when auth state changes (crucial for first load on web)
+    // Firebase Auth on web takes a few seconds to initialize
+    const unsubscribeAuth = onAuthStateChangedCallback(async (user) => {
+      if (user) {
+        console.log(`[useHome] Auth confirmed: ${user.uid}. Refreshing list...`);
+        const userList = await getUserList();
+        const inProcessList = userList.filter(item => item.status === 'En Proceso');
+        sessionContinueWatching = inProcessList;
+        setContinueWatching(inProcessList);
+      }
+    });
+
     animeListEvents.on('listUpdated', handleListUpdate);
     return () => {
       animeListEvents.off('listUpdated', handleListUpdate);
+      if (unsubscribeAuth) unsubscribeAuth();
     };
   }, []);
 

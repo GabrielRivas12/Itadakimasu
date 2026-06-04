@@ -9,9 +9,18 @@ export function HomeSkeleton() {
   return (
     <View style={styles.skeletonContainer}>
       <View style={styles.skeletonBanner} />
+      
+      {/* Continue Watching Skeleton */}
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonScroll}>
+        {[1, 2, 3].map((i) => (
+          <View key={i} style={styles.skeletonSmallCard} />
+        ))}
+      </View>
+
       <View style={styles.skeletonTitle} />
       <View style={styles.skeletonGrid}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
           <View 
             key={i} 
             style={[styles.skeletonCard, { width: `${100 / columns - 2}%` }]} 
@@ -39,6 +48,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 24,
     marginBottom: 16,
+  },
+  skeletonScroll: {
+    flexDirection: 'row',
+    paddingLeft: 16,
+    marginBottom: 8,
+  },
+  skeletonSmallCard: {
+    width: 120,
+    height: 170,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    marginRight: 16,
   },
   skeletonGrid: {
     flexDirection: 'row',

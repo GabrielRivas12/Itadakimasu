@@ -30,15 +30,21 @@ const getStorageKey = (currentUser: any) => {
   return currentUser ? `@AnimeLT:user_list:${currentUser.uid}` : GUEST_STORAGE_KEY;
 };
 
+// Helper para obtener AsyncStorage de forma segura en todas las plataformas
+const getAsyncStorage = () => {
+  const storage = require('@react-native-async-storage/async-storage');
+  return storage.default || storage;
+};
+
 export async function getUserList(): Promise<UserListItem[]> {
   try {
     const user = getCurrentUser(); 
 
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const storage = getAsyncStorage();
     const currentKey = getStorageKey(user);
     
     // 1. Obtener lo que hay en caché local inmediatamente
-    const jsonValue = await AsyncStorage.getItem(currentKey);
+    const jsonValue = await storage.getItem(currentKey);
     const localList: UserListItem[] = jsonValue != null ? JSON.parse(jsonValue) : [];
 
     // 2. Si el usuario está logueado, sincronizamos con Firestore en segundo plano
@@ -56,7 +62,7 @@ export async function getUserList(): Promise<UserListItem[]> {
         fetchUserListFromFirestore().then(async (remoteList) => {
           if (!remoteList) return; // Si hubo error en red, no tocamos nada
 
-          const latestJson = await AsyncStorage.getItem(currentKey);
+          const latestJson = await storage.getItem(currentKey);
           const currentLocalList: UserListItem[] = latestJson != null ? JSON.parse(latestJson) : [];
           
           const localMap = new Map(currentLocalList.map(item => [String(item.anime.id), item]));
@@ -111,11 +117,11 @@ export async function getUserList(): Promise<UserListItem[]> {
 // Guarda en caché local
 async function saveUserListLocally(list: UserListItem[], customUser?: any) {
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const storage = getAsyncStorage();
     const user = customUser !== undefined ? customUser : getCurrentUser();
     const currentKey = getStorageKey(user);
     const jsonValue = JSON.stringify(list);
-    await AsyncStorage.setItem(currentKey, jsonValue);
+    await storage.setItem(currentKey, jsonValue);
   } catch (e) {
     console.error('Error al guardar la lista localmente:', e);
   }
@@ -126,13 +132,13 @@ async function saveUserListLocally(list: UserListItem[], customUser?: any) {
  */
 export async function mergeGuestListIntoUser(userUid: string) {
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    const guestJson = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
+    const storage = getAsyncStorage();
+    const guestJson = await storage.getItem(GUEST_STORAGE_KEY);
     if (!guestJson) return;
 
     const guestList: UserListItem[] = JSON.parse(guestJson);
     if (guestList.length === 0) {
-      await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+      await storage.removeItem(GUEST_STORAGE_KEY);
       return;
     }
 
@@ -150,8 +156,8 @@ export async function mergeGuestListIntoUser(userUid: string) {
     }
 
     const userKey = `@AnimeLT:user_list:${userUid}`;
-    await AsyncStorage.setItem(userKey, JSON.stringify(mergedList));
-    await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+    await storage.setItem(userKey, JSON.stringify(mergedList));
+    await storage.removeItem(GUEST_STORAGE_KEY);
     
     console.log('Migración completada con éxito');
   } catch (error) {
@@ -164,10 +170,10 @@ export async function mergeGuestListIntoUser(userUid: string) {
  */
 export async function clearLocalList() {
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const storage = getAsyncStorage();
     const user = getCurrentUser();
     const currentKey = getStorageKey(user);
-    await AsyncStorage.removeItem(currentKey);
+    await storage.removeItem(currentKey);
     console.log(`Cache local eliminado para la clave: ${currentKey}`);
   } catch (e) {
     console.error('Error al limpiar el caché local:', e);
