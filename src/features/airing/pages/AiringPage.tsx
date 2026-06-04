@@ -25,12 +25,16 @@ export const AiringPage = memo(function AiringPage() {
     handleAnimePress,
   } = useAiring();
 
-  const { getColumns, isWeb, getContentWidth } = useResponsive();
+  const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }]}>
+      <View style={[
+        styles.header, 
+        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+      ]}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.headerTitle}>En Emisión</Text>
@@ -65,7 +69,8 @@ export const AiringPage = memo(function AiringPage() {
             numColumns={columns}
             contentContainerStyle={[
               styles.gridContent,
-              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }
+              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+              isWeb && isMobile && { paddingHorizontal: 8 }
             ]}
             columnWrapperStyle={styles.gridRow}
             showsVerticalScrollIndicator={false}

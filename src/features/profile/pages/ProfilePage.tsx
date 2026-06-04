@@ -41,7 +41,7 @@ export const ProfilePage = memo(function ProfilePage() {
     }, [loadList])
   );
 
-  const { isWeb, getContentWidth, getColumns } = useResponsive();
+  const { isWeb, getContentWidth, getColumns, isMobile } = useResponsive();
   const columns = getColumns(1, 1, 2, 2);
 
   if (isLoading) {
@@ -59,13 +59,18 @@ export const ProfilePage = memo(function ProfilePage() {
         numColumns={columns}
         contentContainerStyle={[
           styles.listContent,
-          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' }
+          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+          isWeb && isMobile && { paddingHorizontal: 16 }
         ]}
         columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={isWeb && { width: '100%', marginBottom: 10 }}>
-            <View style={[styles.header, isWeb && { paddingHorizontal: 0 }]}>
+            <View style={[
+              styles.header, 
+              isWeb && { paddingHorizontal: 0 },
+              isWeb && isMobile && { paddingTop: 20 }
+            ]}>
               <Text style={styles.headerTitle}>Mi Perfil</Text>
               <Text style={styles.headerSubtitle}>Gestiona tu colección</Text>
             </View>

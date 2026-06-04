@@ -31,17 +31,24 @@ export const ExplorePage = memo(function ExplorePage() {
     handleAnimePress,
   } = useExplore();
 
-  const { getColumns, isWeb, getContentWidth } = useResponsive();
+  const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }]}>
+      <View style={[
+        styles.header, 
+        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+      ]}>
         <Text style={styles.headerTitle}>Explorar</Text>
         <Text style={styles.headerSubtitle}>Busca tus animes favoritos</Text>
       </View>
       
-      <View style={isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }}>
+      <View style={[
+        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingHorizontal: 16 }
+      ]}>
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -71,7 +78,8 @@ export const ExplorePage = memo(function ExplorePage() {
             numColumns={columns}
             contentContainerStyle={[
               styles.gridContent,
-              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }
+              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+              isWeb && isMobile && { paddingHorizontal: 8 }
             ]}
             columnWrapperStyle={styles.gridRow}
             showsVerticalScrollIndicator={false}

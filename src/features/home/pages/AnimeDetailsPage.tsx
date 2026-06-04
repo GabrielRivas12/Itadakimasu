@@ -29,11 +29,10 @@ import { useResponsive } from '../../../hooks/useResponsive';
 
 export function AnimeDetailsPage() {
   const router = useRouter();
-  const { isWeb, getContentWidth, width } = useResponsive();
+  const { isWeb, getContentWidth, width, isMobile, isWebDesktop } = useResponsive();
   
   // Calcular margen dinámico para alinear con el contenido centrado en web
   const contentWidth = typeof getContentWidth() === 'number' ? (getContentWidth() as number) : width;
-  const horizontalMargin = isWeb ? Math.max(24, (width - contentWidth) / 2 + 40) : 10;
   
   const {
     anime,
@@ -88,6 +87,8 @@ export function AnimeDetailsPage() {
   const displaySynopsis = spanishSynopsis || cleanDescriptionObj.cleanText;
   const displaySource = spanishSynopsis ? synopsisSource : cleanDescriptionObj.source;
 
+  const showWebLayout = isWeb && !isMobile;
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -136,7 +137,7 @@ export function AnimeDetailsPage() {
       ) : (
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           {isWeb && anime && (
-            <View style={styles.webHeroContainer}>
+            <View style={[styles.webHeroContainer, isMobile && { height: 300 }]}>
               <Image 
                 source={{ uri: anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large }} 
                 style={styles.webHeroImage}
@@ -146,13 +147,12 @@ export function AnimeDetailsPage() {
             </View>
           )}
           
-          {/* MODIFICADO: Agregamos StyleSheet.flatten para limpiar arrays de estilos en Web */}
-          <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent])}>
-            <View style={StyleSheet.flatten(isWeb ? styles.webDetailsContainer : {})}>
-              <View style={StyleSheet.flatten(isWeb ? styles.webSidebar : {})}>
+          <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent, isMobile && { paddingTop: 20 }])}>
+            <View style={StyleSheet.flatten(showWebLayout ? styles.webDetailsContainer : { paddingHorizontal: 16 })}>
+              <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebar : { width: '100%' })}>
                 <AnimeHeader anime={anime} />
                 
-                <View style={StyleSheet.flatten(isWeb ? styles.webSidebarActions : {})}>
+                <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebarActions : { width: '100%', marginTop: 20 })}>
                   <StatusSelector
                     userStatus={userStatus}
                     userProgress={userProgress}
@@ -170,7 +170,7 @@ export function AnimeDetailsPage() {
                     status={anime.status || 'UNKNOWN'}
                   />
 
-                  {!isWeb && (
+                  {(!isWeb || isMobile) && (
                     <View style={styles.sectionContainer}>
                       <Text style={styles.sectionHeader}>Sinopsis</Text>
                       {loadingSpanishSynopsis ? (
@@ -193,8 +193,8 @@ export function AnimeDetailsPage() {
                 </View>
               </View>
 
-              <View style={StyleSheet.flatten(isWeb ? styles.webMainContent : { flex: 1 })}>
-                {isWeb && (
+              <View style={StyleSheet.flatten(showWebLayout ? styles.webMainContent : { flex: 1, marginTop: 24 })}>
+                {showWebLayout && (
                   <View style={styles.webSectionContainer}>
                     <Text style={styles.sectionHeader}>Sinopsis</Text>
                     {loadingSpanishSynopsis ? (
@@ -213,17 +213,17 @@ export function AnimeDetailsPage() {
                   </View>
                 )}
 
-                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : { marginTop: 0 })}>
+                <View style={StyleSheet.flatten(showWebLayout ? styles.webSectionWrapper : { marginTop: 0 })}>
                   <CharacterList characters={anime.characters} />
                 </View>
 
                 {/* Sección de Episodios con Loading State */}
-                <View style={StyleSheet.flatten([styles.playerSection, isWeb && styles.webSectionWrapper])}>
+                <View style={StyleSheet.flatten([styles.playerSection, showWebLayout && styles.webSectionWrapper])}>
                   <Text style={styles.sectionHeader}>
                     {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Episodios'}
                   </Text>
 
-                  {loading ? ( // O podrías usar un flag específico para episodios si lo tuvieras
+                  {loading ? ( 
                     <View style={styles.episodesLoadingContainer}>
                       <ActivityIndicator size="large" color="#8b5cf6" />
                       <Text style={styles.loadingTextSmall}>Buscando capítulos disponibles...</Text>
@@ -257,7 +257,7 @@ export function AnimeDetailsPage() {
                   )}
                 </View>
 
-                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : {})}>
+                <View style={StyleSheet.flatten(showWebLayout ? styles.webSectionWrapper : {})}>
                   <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
                 </View>
               </View>

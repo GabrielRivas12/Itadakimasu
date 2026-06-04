@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { Anime } from '../../../../services/anilist';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface FeaturedBannerProps {
   featured: Anime[];
@@ -8,6 +9,7 @@ interface FeaturedBannerProps {
 }
 
 export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
+  const { isMobile } = useResponsive();
   const [currentIndex, setCurrentIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -43,7 +45,7 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
   }, [featured.length]);
 
   return (
-    <View style={styles.bannerContainer}>
+    <View style={[styles.bannerContainer, isMobile && { height: 180, margin: 12 }]}>
       <Animated.View style={[styles.innerContainer, { opacity: fadeAnim }]}>
         <Image
           source={{
@@ -52,16 +54,16 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
           style={styles.bannerImage}
           resizeMode="cover"
         />
-        <View style={styles.bannerOverlay}>
+        <View style={[styles.bannerOverlay, isMobile && { padding: 12 }]}>
           <View style={styles.tag}>
             <Text style={styles.tagText}>TENDENCIA HOY</Text>
           </View>
           
-          <Text style={styles.bannerTitle} numberOfLines={1}>
+          <Text style={[styles.bannerTitle, isMobile && { fontSize: 18 }]} numberOfLines={1}>
             {currentAnime.title.romaji || currentAnime.title.english}
           </Text>
           
-          <Text style={styles.bannerSubtitle} numberOfLines={2}>
+          <Text style={[styles.bannerSubtitle, isMobile && { fontSize: 11, marginBottom: 8 }]} numberOfLines={2}>
             {currentAnime.description
               ? currentAnime.description.replace(/<[^>]*>/g, '')
               : 'Una producción imperdible disponible ahora en AnimeLT.'}
@@ -69,10 +71,10 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
           
           <View style={styles.footer}>
             <TouchableOpacity
-              style={styles.bannerButton}
+              style={[styles.bannerButton, isMobile && { paddingHorizontal: 12, paddingVertical: 6 }]}
               onPress={() => onPress(currentAnime.id)}
             >
-              <Text style={styles.bannerButtonText}>Ver Ahora</Text>
+              <Text style={[styles.bannerButtonText, isMobile && { fontSize: 12 }]}>Ver Ahora</Text>
             </TouchableOpacity>
 
             {/* Indicadores de posición (Dots) */}

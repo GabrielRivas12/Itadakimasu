@@ -10,14 +10,17 @@ interface AnimeGridCardProps {
 }
 
 export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress, width }: AnimeGridCardProps) {
-  const { isWeb } = useResponsive();
+  const { isWeb, isMobile } = useResponsive();
   
   return (
     <TouchableOpacity
       style={[styles.card, width ? { width } : null]}
       onPress={() => onPress(item.id)}
     >
-      <Image source={{ uri: item.coverImage.large }} style={styles.cardImage} />
+      <Image 
+        source={{ uri: item.coverImage.large }} 
+        style={[styles.cardImage, isMobile && { height: 180 }]} 
+      />
       <View style={styles.cardBadge}>
         <Text style={styles.cardBadgeText}>{item.type}</Text>
       </View>

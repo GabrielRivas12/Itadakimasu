@@ -16,6 +16,10 @@ export function useResponsive() {
   const isTablet = width >= BREAKPOINTS.md && width < BREAKPOINTS.lg;
   const isDesktop = width >= BREAKPOINTS.lg;
 
+  const isWebMobile = isWeb && isMobile;
+  const isWebTablet = isWeb && isTablet;
+  const isWebDesktop = isWeb && isDesktop;
+
   const getColumns = (mobile = 2, tablet = 3, desktop = 4, largeDesktop = 6) => {
     if (width >= BREAKPOINTS.xl) return largeDesktop;
     if (width >= BREAKPOINTS.lg) return desktop;
@@ -36,6 +40,9 @@ export function useResponsive() {
     isMobile,
     isTablet,
     isDesktop,
+    isWebMobile,
+    isWebTablet,
+    isWebDesktop,
     getColumns,
     getContentWidth,
     breakpoints: BREAKPOINTS,
