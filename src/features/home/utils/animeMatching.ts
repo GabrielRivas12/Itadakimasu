@@ -24,30 +24,38 @@ export const STOP_WORDS_ROMAJI = new Set([
 const SPECIAL_ARCS_MAP: Record<string, string> = {
   'kaigyoku gyokusetsu': 'hidden inventory premature death s2',
   'hidden inventory premature death': 'kaigyoku gyokusetsu s2',
-  'jujutsu kaisen 0': 'jujutsu kaisen zero'
+  'jujutsu kaisen 0': 'jujutsu kaisen zero',
+  'jujutsu kaisen: kaigyoku・gyokusetsu': 'jujutsu kaisen 2nd season',
+  'koori no Jouheki': 'koori no Jouheki',
+  'boku no hero academia 2': 'my hero academia 7',
+  'boku no hero academia 3': 'my hero academia 7',
+  'boku no hero academia 4': 'my hero academia 7',
+  'boku no hero academia 5': 'my hero academia 7',
+  'boku no hero academia 6': 'my hero academia 7',
+  'boku no hero academia 7': 'my hero academia 7',
 };
 
 // ─────────────────────────────────────────────
 // OPT 1: Regex precompiladas — Evita recompilar en cada llamada
 // ─────────────────────────────────────────────
-const RX_NFD        = /[\u0300-\u036f]/g;
-const RX_NAKAGURO   = /・/g;
-const RX_DOUBLE_AA  = /aa/g;
-const RX_DOUBLE_EE  = /ee/g;
-const RX_DOUBLE_OO  = /oo/g;
-const RX_DOUBLE_UU  = /uu/g;
-const RX_OU         = /ou/g;
-const RX_NON_ALNUM  = /[^a-z0-9\s]/g;
-const RX_MULTI_SP   = /\s+/g;
-const RX_SPACE      = /\s/g;
+const RX_NFD = /[\u0300-\u036f]/g;
+const RX_NAKAGURO = /・/g;
+const RX_DOUBLE_AA = /aa/g;
+const RX_DOUBLE_EE = /ee/g;
+const RX_DOUBLE_OO = /oo/g;
+const RX_DOUBLE_UU = /uu/g;
+const RX_OU = /ou/g;
+const RX_NON_ALNUM = /[^a-z0-9\s]/g;
+const RX_MULTI_SP = /\s+/g;
+const RX_SPACE = /\s/g;
 
-const RX_S1  = /\b(?:1st|first|i)\s*season\b|\bseason\s*(?:1st|first|i)\b/g;
-const RX_S2  = /\b(?:2nd|second|ii)\s*season\b|\bseason\s*(?:2nd|second|ii)\b/g;
-const RX_S3  = /\b(?:3rd|third|iii)\s*season\b|\bseason\s*(?:3rd|third|iii)\b/g;
-const RX_S4  = /\b(?:4th|fourth|iv)\s*season\b|\bseason\s*(?:4th|fourth|iv)\b/g;
-const RX_S5  = /\b(?:5th|fifth|v)\s*season\b|\bseason\s*(?:5th|fifth|v)\b/g;
-const RX_SN  = /\bseason\s+(\d+)\b/g;
-const RX_NS  = /\b(\d+)\s*season\b/g;
+const RX_S1 = /\b(?:1st|first|i)\s*season\b|\bseason\s*(?:1st|first|i)\b/g;
+const RX_S2 = /\b(?:2nd|second|ii)\s*season\b|\bseason\s*(?:2nd|second|ii)\b/g;
+const RX_S3 = /\b(?:3rd|third|iii)\s*season\b|\bseason\s*(?:3rd|third|iii)\b/g;
+const RX_S4 = /\b(?:4th|fourth|iv)\s*season\b|\bseason\s*(?:4th|fourth|iv)\b/g;
+const RX_S5 = /\b(?:5th|fifth|v)\s*season\b|\bseason\s*(?:5th|fifth|v)\b/g;
+const RX_SN = /\bseason\s+(\d+)\b/g;
+const RX_NS = /\b(\d+)\s*season\b/g;
 const RX_END_NUM = /\s+([1-9])$/;
 
 const standardizeSeasons = (text: string): string => {
@@ -70,7 +78,7 @@ const standardizeSeasons = (text: string): string => {
 // ─────────────────────────────────────────────
 class LRUCache<K, V> {
   private map = new Map<K, V>();
-  constructor(private max: number) {}
+  constructor(private max: number) { }
 
   get(key: K): V | undefined {
     if (!this.map.has(key)) return undefined;
@@ -197,8 +205,8 @@ export const normalizeTitleStrict = (title: string): NormalizedTitle => {
 
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
- const isStop = STOP_WORDS_ENG.has(w) || STOP_WORDS_ANIME.has(w) || STOP_WORDS_ROMAJI.has(w);
-    
+    const isStop = STOP_WORDS_ENG.has(w) || STOP_WORDS_ANIME.has(w) || STOP_WORDS_ROMAJI.has(w);
+
     // ─────────────────────────────────────────────
     // Si es número entero, no importa que sea de 1 dígito (como 4 o 0)
     // ─────────────────────────────────────────────
@@ -243,7 +251,7 @@ export const calculateMatchScoreStrict = (
     // 2. Contención total
     if (title1.clean.includes(title2.clean) || title2.clean.includes(title1.clean)) {
       const ratio = Math.min(title1.clean.length, title2.clean.length) /
-                    Math.max(title1.clean.length, title2.clean.length);
+        Math.max(title1.clean.length, title2.clean.length);
       if (ratio > 0.60) {
         finalResult = { matched: true, score: 0.95, matchType: 'strong' };
         break runValidation;
@@ -255,14 +263,14 @@ export const calculateMatchScoreStrict = (
     const noSpaces2 = title2.clean.replace(RX_SPACE, '');
     if (noSpaces1 === noSpaces2 || noSpaces1.includes(noSpaces2) || noSpaces2.includes(noSpaces1)) {
       const r = Math.min(noSpaces1.length, noSpaces2.length) /
-                Math.max(noSpaces1.length, noSpaces2.length);
+        Math.max(noSpaces1.length, noSpaces2.length);
       if (r > 0.75) {
         finalResult = { matched: true, score: 0.90, matchType: 'strong' };
         break runValidation;
       }
     }
 
-// 4. Intersección de palabras significativas (Para títulos complejos/largos)
+    // 4. Intersección de palabras significativas (Para títulos complejos/largos)
     const set2 = new Set(title2.significantWords);
     const intersection = title1.significantWords.filter(w => set2.has(w));
 
@@ -337,9 +345,9 @@ export const verifyCrossLanguageMatch = async (localAnime: any, remoteAnime: any
   // Recoger títulos locales (deduplicados inline)
   const lt = localAnime.title;
   const localRaw: string[] = [];
-  if (lt?.romaji)  localRaw.push(lt.romaji);
+  if (lt?.romaji) localRaw.push(lt.romaji);
   if (lt?.english && lt.english !== lt.romaji) localRaw.push(lt.english);
-  if (lt?.native  && lt.native  !== lt.romaji && lt.native !== lt.english) localRaw.push(lt.native);
+  if (lt?.native && lt.native !== lt.romaji && lt.native !== lt.english) localRaw.push(lt.native);
 
   if (localRaw.length === 0) return false;
 
@@ -365,7 +373,7 @@ export const verifyCrossLanguageMatch = async (localAnime: any, remoteAnime: any
   for (let i = 0; i < remoteTitles.length; i++) {
     const normRemote = normalizeTitleStrict(remoteTitles[i]);
     for (let j = 0; j < normalizedLocals.length; j++) {
-      
+
       // CONTROLADOR DE BATCHING: Cada 12 comparaciones profundas, rompemos el bucle
       // síncrono inyectando una microtarea al Event Loop de JavaScript.
       // Esto da tiempo al reproductor y animaciones de carga para renderizar sin interrupciones.
@@ -404,8 +412,8 @@ export const buildSearchQueriesStrict = (anime: any): string[] => {
     }
   };
 
-  if (anime.title?.romaji)   addQuery(anime.title.romaji);
-  if (anime.title?.english)  addQuery(anime.title.english);
+  if (anime.title?.romaji) addQuery(anime.title.romaji);
+  if (anime.title?.english) addQuery(anime.title.english);
   if (!anime.title?.romaji && anime.title?.native) addQuery(anime.title.native);
 
   const romajiNorm = normalizeTitleStrict(anime.title?.romaji || '');

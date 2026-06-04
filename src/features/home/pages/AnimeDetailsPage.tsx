@@ -153,7 +153,7 @@ export function AnimeDetailsPage() {
           )}
           
           <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent, isMobile && { paddingTop: 0 }])}>
-            <View style={StyleSheet.flatten(showWebLayout ? styles.webDetailsContainer : { paddingHorizontal: 16 })}>
+            <View style={StyleSheet.flatten(showWebLayout ? styles.webDetailsContainer : { width: '100%' })}>
               <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebar : { width: '100%' })}>
                 <AnimeHeader anime={anime} />
                 

@@ -7,27 +7,30 @@ interface EpisodePlayerProps {
   url: string | null;
 }
 
-// Servidores conocidos y cómo manejarlos
-const getPlayerConfig = (url: string): { userAgent: string; injectedJS: string } => {
-  const isZilla   = url.includes('zilla-networks.com');
-  const isSWish   = url.includes('streamwish.com') || url.includes('strw.com') || url.includes('awish.pro');
-
-  // User-agent de Chrome desktop — la mayoría de players embebidos
-  // bloquean WebView por el UA de Android/iOS
+const getPlayerConfig = (): { userAgent: string; injectedJS: string } => {
+  // Mantener User-Agent de escritorio para evitar que los servidores bloqueen la carga en móviles
   const desktopUA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
     'AppleWebKit/537.36 (KHTML, like Gecko) ' +
     'Chrome/124.0.0.0 Safari/537.36';
 
-  // JS inyectado al cargar la página:
-  // 1. Asegura que los controles estén visibles y quita el autoplay del tag
-  // 2. Elimina overlays/banners que bloqueen el player
   const commonJS = `
     (function() {
+      // ── 1. ANTIPOPUP / ADS PARCHE EXTREMO ──
+      window.open = function() { return null; };
+      Object.defineProperty(window, 'open', { value: function() { return null; }, writable: false });
+      
+      window.alert = function() { return true; };
+      window.confirm = function() { return true; };
+
+      // ── 2. PREPARACIÓN BÁSICA DEL VIDEO (Sin forzar controles) ──
       function prepareVideo(video) {
         video.autoplay = false;
         video.playsInline = true;
-        video.controls = true;
+        // Quitamos la línea de "video.controls = true/false" y alteración de zIndex 
+        // para dejar que la interfaz por defecto del servidor tome el control.
+        video.style.width = "100%";
+        video.style.height = "100%";
       }
 
       function processVideos() {
@@ -42,7 +45,13 @@ const getPlayerConfig = (url: string): { userAgent: string; injectedJS: string }
         subtree: true,
       });
 
-      const blockers = ['#overlay', '.overlay', '.ad-container', '[id*="vast"]', '[class*="blocker"]'];
+      // ── 3. LIMPIEZA DE BANNERS / OVERLAYS EXTERNOS ──
+      const blockers = [
+        '#overlay', '.overlay', '.ad-container', '[id*="vast"]', 
+        '[class*="blocker"]', '#popunder', 'iframe[src*="ads"]',
+        'div[style*="position: absolute"][style*="z-index: 2147483647"]'
+      ];
+      
       blockers.forEach(sel => {
         document.querySelectorAll(sel).forEach(el => el.remove());
       });
@@ -59,7 +68,7 @@ const getPlayerConfig = (url: string): { userAgent: string; injectedJS: string }
 export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
-  const [key, setKey]         = useState(0); // para forzar re-mount en retry
+  const [key, setKey]         = useState(0); 
   const webViewRef = useRef<WebView>(null);
 
   if (!url) {
@@ -70,7 +79,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     );
   }
 
-  const { userAgent, injectedJS } = getPlayerConfig(url);
+  const { userAgent, injectedJS } = getPlayerConfig();
 
   const handleRetry = () => {
     setError(false);
@@ -85,33 +94,35 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         ref={webViewRef}
         source={{ uri: url }}
         style={styles.webview}
-        // ── Reproducción ──────────────────────────────
         allowsFullscreenVideo
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={true}
-        // ── Compatibilidad con players embebidos ──────
         userAgent={userAgent}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled
-        mixedContentMode="always"          // Android: permite http dentro de https
+        mixedContentMode="always"
         injectedJavaScript={injectedJS}
-        // ── Manejo de navegación ──────────────────────
-        // Evita que el player te saque del WebView al abrir links externos
         onShouldStartLoadWithRequest={(req) => {
-          // Permitir solo la URL del player y sus recursos
-          const allowed =
-            req.url === url ||
+          const isTargetUrl = req.url === url || req.mainDocumentURL === url;
+          
+          const isAllowedDomain =
             req.url.includes('zilla-networks.com') ||
             req.url.includes('streamwish.com') ||
             req.url.includes('strw.com') ||
             req.url.includes('awish.pro') ||
+            req.url.includes('mp4upload.com') || 
             req.url.startsWith('blob:') ||
-            req.url.startsWith('data:') ||
-            req.mainDocumentURL === url;
-          return allowed;
+            req.url.startsWith('data:');
+
+          // El escudo contra redirecciones maliciosas sigue activo protegiendo el entorno
+          if (!isTargetUrl && !isAllowedDomain) {
+            console.log(`[AD BLOCK] Bloqueada redirección maliciosa a: ${req.url}`);
+            return false; 
+          }
+
+          return true;
         }}
-        // ── Estados de carga ──────────────────────────
         onLoadStart={() => { setLoading(true); setError(false); }}
         onLoadEnd={()   => setLoading(false)}
         onError={()     => { setLoading(false); setError(true); }}
@@ -123,14 +134,12 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         startInLoadingState
       />
 
-      {/* Spinner mientras carga (encima del WebView) */}
       {loading && !error && (
         <View style={[styles.overlay, styles.centered]} pointerEvents="none">
           <ActivityIndicator size="large" color="#8b5cf6" />
         </View>
       )}
 
-      {/* Error con opción de retry */}
       {error && (
         <View style={[styles.overlay, styles.centered]}>
           <Ionicons name="alert-circle-outline" size={40} color="#f43f5e" />
