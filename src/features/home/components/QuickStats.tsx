@@ -7,6 +7,20 @@ interface QuickStatsProps {
   status: string;
 }
 
+const getStatusLabel = (status: string | undefined): string => {
+  if (!status) return '...';
+  
+  const statusMap: Record<string, string> = {
+    'FINISHED': 'Finalizado',
+    'RELEASING': 'En Emisión',
+    'NOT_YET_RELEASED': 'Próximamente',
+    'CANCELLED': 'Cancelado',
+    'HIATUS': 'En Pausa',
+  };
+  
+  return statusMap[status] || 'Desconocido';
+};
+
 export function QuickStats({ averageScore, episodes, status }: QuickStatsProps) {
   return (
     <View style={styles.statsRow}>
@@ -25,7 +39,7 @@ export function QuickStats({ averageScore, episodes, status }: QuickStatsProps) 
       <View style={styles.statBox}>
         <Text style={styles.statLabel}>Estado</Text>
         <Text style={styles.statValue} numberOfLines={1}>
-          {status === 'FINISHED' ? 'Finalizado' : status === 'RELEASING' ? 'En Emisión' : 'Próximo'}
+          {getStatusLabel(status)}
         </Text>
       </View>
     </View>

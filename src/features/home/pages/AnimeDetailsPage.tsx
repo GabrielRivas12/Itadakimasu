@@ -167,7 +167,7 @@ export function AnimeDetailsPage() {
                   <QuickStats
                     averageScore={anime.averageScore}
                     episodes={anime.episodes}
-                    status={anime.status || 'UNKNOWN'}
+                    status={anime.status || ''}
                   />
 
                   {(!isWeb || isMobile) && (
