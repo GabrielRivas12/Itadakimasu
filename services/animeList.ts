@@ -50,16 +50,43 @@ export async function getUserList(): Promise<UserListItem[]> {
         await saveUserListLocally(remoteList, user);
         return remoteList;
       } else {
-        // Sincronización silenciosa: disparamos y retornamos el caché actual
+        // Sincronización inteligente en segundo plano:
+        // No sobreescribimos a ciegas, intentamos fusionar o actualizar solo si hay cambios reales
         fetchUserListFromFirestore().then(async (remoteList) => {
-          const localCompare = JSON.stringify(localList);
-          const remoteCompare = JSON.stringify(remoteList);
+          // Obtener la versión MÁS reciente del cache justo antes de comparar
+          // (porque pudo haber cambiado mientras fetchUserListFromFirestore corría)
+          const latestJson = await AsyncStorage.getItem(currentKey);
+          const currentLocalList: UserListItem[] = latestJson != null ? JSON.parse(latestJson) : [];
           
-          if (localCompare !== remoteCompare) {
-            console.log(`[Cache] Sincronización completa: Se detectaron cambios en la nube.`);
-            await saveUserListLocally(remoteList, user);
-            // Notificamos a los componentes (como useProfile) para que se refresquen
-            animeListEvents.emit('listUpdated', remoteList);
+          const localMap = new Map(currentLocalList.map(item => [String(item.anime.id), item]));
+          let hasChanges = false;
+
+          // Fusionar: Si Firestore tiene algo que no tenemos, lo agregamos.
+          // Si Firestore tiene una versión más nueva (basado en updatedAt), actualizamos.
+          remoteList.forEach(remoteItem => {
+            const animeId = String(remoteItem.anime.id);
+            const localItem = localMap.get(animeId);
+
+            if (!localItem) {
+              localMap.set(animeId, remoteItem);
+              hasChanges = true;
+            } else {
+              // Comparar fechas de actualización para decidir cuál es más reciente
+              const remoteDate = new Date(remoteItem.updatedAt || 0).getTime();
+              const localDate = new Date(localItem.updatedAt || 0).getTime();
+
+              if (remoteDate > localDate) {
+                localMap.set(animeId, remoteItem);
+                hasChanges = true;
+              }
+            }
+          });
+
+          if (hasChanges) {
+            const mergedList = Array.from(localMap.values());
+            console.log(`[Cache] Sincronización completa: Se integraron cambios desde la nube.`);
+            await saveUserListLocally(mergedList, user);
+            animeListEvents.emit('listUpdated', mergedList);
           }
         }).catch(err => console.error('Error en sincronización de fondo:', err));
       }
