@@ -34,13 +34,6 @@ export async function getUserList(): Promise<UserListItem[]> {
   try {
     const user = getCurrentUser(); 
 
-    // 🌐 ESTRATEGIA PARA WEB: Sin caché local, siempre tiempo real
-    if (Platform.OS === 'web') {
-      if (user) return await fetchUserListFromFirestore();
-      return []; 
-    }
-
-    // 📱 ESTRATEGIA PARA MÓVIL: Stale-While-Revalidate (Caché primero, luego red)
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     const currentKey = getStorageKey(user);
     
@@ -52,7 +45,7 @@ export async function getUserList(): Promise<UserListItem[]> {
     if (user) {
       // Si el caché está vacío, esperamos a la red obligatoriamente para la primera carga
       if (localList.length === 0) {
-        console.log(`📱 [Móvil] Cache vacío para ${user.uid}, esperando a Firestore...`);
+        console.log(`[Cache] Cache vacío para ${user.uid}, esperando a Firestore...`);
         const remoteList = await fetchUserListFromFirestore();
         await saveUserListLocally(remoteList, user);
         return remoteList;
@@ -63,7 +56,7 @@ export async function getUserList(): Promise<UserListItem[]> {
           const remoteCompare = JSON.stringify(remoteList);
           
           if (localCompare !== remoteCompare) {
-            console.log(`📱 [Móvil] Sincronización completa: Se detectaron cambios en la nube.`);
+            console.log(`[Cache] Sincronización completa: Se detectaron cambios en la nube.`);
             await saveUserListLocally(remoteList, user);
             // Notificamos a los componentes (como useProfile) para que se refresquen
             animeListEvents.emit('listUpdated', remoteList);
@@ -79,10 +72,8 @@ export async function getUserList(): Promise<UserListItem[]> {
   }
 }
 
-// Guarda en caché local (Solo ejecutable en Móvil)
+// Guarda en caché local
 async function saveUserListLocally(list: UserListItem[], customUser?: any) {
-  if (Platform.OS === 'web') return; // En la web ignoramos por completo el almacenamiento local
-  
   try {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     const user = customUser !== undefined ? customUser : getCurrentUser();
@@ -95,11 +86,9 @@ async function saveUserListLocally(list: UserListItem[], customUser?: any) {
 }
 
 /**
- * Migración: Pasa los datos de la lista de invitado a la cuenta de usuario (Solo Móvil)
+ * Migración: Pasa los datos de la lista de invitado a la cuenta de usuario
  */
 export async function mergeGuestListIntoUser(userUid: string) {
-  if (Platform.OS === 'web') return; // Desactivado en Web
-
   try {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     const guestJson = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
@@ -135,11 +124,9 @@ export async function mergeGuestListIntoUser(userUid: string) {
 }
 
 /**
- * Limpia el caché local del usuario actual (Solo Móvil)
+ * Limpia el caché local del usuario actual
  */
 export async function clearLocalList() {
-  if (Platform.OS === 'web') return; // Desactivado en Web
-
   try {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     const user = getCurrentUser();
@@ -187,14 +174,14 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
 
   const user = getCurrentUser();
   
-  // Guardamos localmente solo si no es entorno Web
-  if (Platform.OS !== 'web') {
-    await saveUserListLocally(currentList, user);
+  // Guardamos al mismo tiempo en cache y firestore
+  const promises: Promise<any>[] = [];
+  promises.push(saveUserListLocally(currentList, user));
+  if (user) {
+    promises.push(syncAnimeToFirestore(newItem));
   }
   
-  if (user) { 
-    await syncAnimeToFirestore(newItem);
-  }
+  await Promise.all(promises);
 
   animeListEvents.emit('listUpdated', currentList);
   return currentList;
@@ -206,13 +193,13 @@ export async function removeAnimeFromList(animeId: number): Promise<UserListItem
 
   const user = getCurrentUser();
   
-  if (Platform.OS !== 'web') {
-    await saveUserListLocally(updatedList, user);
-  }
-
+  const promises: Promise<any>[] = [];
+  promises.push(saveUserListLocally(updatedList, user));
   if (user) { 
-    await removeFromFirestore(animeId);
+    promises.push(removeFromFirestore(animeId));
   }
+  
+  await Promise.all(promises);
 
   animeListEvents.emit('listUpdated', updatedList);
   return updatedList;
@@ -228,13 +215,13 @@ export async function updateAnimeProgress(animeId: number, progress: number): Pr
     
     const user = getCurrentUser();
     
-    if (Platform.OS !== 'web') {
-      await saveUserListLocally(currentList, user);
-    }
-
+    const promises: Promise<any>[] = [];
+    promises.push(saveUserListLocally(currentList, user));
     if (user) { 
-      await updateProgressInFirestore(animeId, progress);
+      promises.push(updateProgressInFirestore(animeId, progress));
     }
+    
+    await Promise.all(promises);
   }
 
   return currentList;

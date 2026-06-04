@@ -42,6 +42,7 @@ export const useAnimeDetails = () => {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<UserListStatus | null>(null);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Anime1V states
   const [anime1VInfo, setAnime1VInfo] = useState<Anime1VInfo | null>(null);
@@ -310,7 +311,7 @@ export const useAnimeDetails = () => {
       const episode = bestMatchInfo.episodes[initialIndex];
       if (episode) {
         console.log(`[DEBUG] Seleccionando episodio inicial: ${episode.number}`);
-        handleEpisodeSelect(episode);
+        handleEpisodeSelect(episode, false);
       }
       
     } catch (error) {
@@ -319,95 +320,76 @@ export const useAnimeDetails = () => {
     }
   };
 
-  const handleEpisodeSelect = async (episode: Anime1VEpisode) => {
-  setCurrentEpisode(episode);
-  setLoadingStream(true);
-  setStreamUrl(null);
-  
-  try {
-    // 1. Quitamos el await de aquí para que Firebase corra en segundo plano
-    // y cambie el estado local inmediatamente sin esperar a la red cloud.
-    if (anime && userStatus) {
-      updateAnimeProgress(anime.id, episode.number).catch(err => 
-        console.error("Error actualizando progreso en segundo plano:", err)
-      );
-      setUserProgress(episode.number);
-    }
-
-    // 2. Esto se ejecuta inmediatamente sin esperar a Firebase
-    const links = await getAnime1VEpisodeLinks(episode.url);
-    if (links?.streamLinks) {
-      const subServers  = links.streamLinks.SUB  ?? [];
-      const dubServers  = links.streamLinks.DUB  ?? [];
-      const allServers  = [...subServers, ...dubServers];
-
-      const preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish')) 
-                     ?? allServers.find(s => s.server === 'HLS')
-                     ?? allServers[0];
-
-      if (preferred?.url) {
-        setStreamUrl(preferred.url);
+  const handleEpisodeSelect = async (episode: Anime1VEpisode, isManual = false) => {
+    setCurrentEpisode(episode);
+    setLoadingStream(true);
+    setStreamUrl(null);
+    
+    try {
+      if (anime && (isManual || userStatus)) {
+        const isLastEpisode = anime.episodes ? episode.number >= anime.episodes : (anime1VInfo?.episodes?.length ? episode.number >= anime1VInfo.episodes.length : false);
+        const newStatus = isLastEpisode ? 'Terminado' : (userStatus || 'En Proceso');
+        
+        addOrUpdateAnimeInList(anime, newStatus, episode.number).catch(err => 
+          console.error("Error actualizando progreso al seleccionar episodio:", err)
+        );
+        setUserStatus(newStatus);
+        setUserProgress(episode.number);
       }
+
+      // 2. Esto se ejecuta inmediatamente sin esperar a Firebase
+      const links = await getAnime1VEpisodeLinks(episode.url);
+      if (links?.streamLinks) {
+        const subServers  = links.streamLinks.SUB  ?? [];
+        const dubServers  = links.streamLinks.DUB  ?? [];
+        const allServers  = [...subServers, ...dubServers];
+
+        const preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish')) 
+                       ?? allServers.find(s => s.server === 'HLS')
+                       ?? allServers[0];
+
+        if (preferred?.url) {
+          setStreamUrl(preferred.url);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stream links:', error);
+    } finally {
+      setLoadingStream(false);
     }
-  } catch (error) {
-    console.error('Error fetching stream links:', error);
-  } finally {
-    setLoadingStream(false);
-  }
-};
-
-
+  };
 
   const saveProgress = async (progress: number, isUpdate: boolean = false) => {
-    if (!anime) return;
-    
-    let finalProgress = progress;
-    if (selectedStatus === 'Terminado' && anime.episodes) {
-      finalProgress = anime.episodes;
-    }
-    
-    if (anime.episodes && finalProgress > anime.episodes) {
-      finalProgress = anime.episodes;
-    }
-    
-    if (isUpdate) {
-      await updateAnimeProgress(anime.id, finalProgress);
-      setUserProgress(finalProgress);
-      Alert.alert('¡Éxito!', `Progreso actualizado a ${finalProgress}/${anime.episodes || '??'} episodios`);
-    } else {
-      await addOrUpdateAnimeInList(anime, selectedStatus!, finalProgress);
-      setUserStatus(selectedStatus);
-      setUserProgress(finalProgress);
-      Alert.alert('¡Éxito!', `Anime agregado a tu lista como "${selectedStatus}" con ${finalProgress}/${anime.episodes || '??'} episodios`);
-    }
-    
-    setShowProgressModal(false);
-    setSelectedStatus(null);
-    setShowStatusSelector(false);
-    setIsUpdatingProgress(false);
+    // Keep for backward compatibility / no-op
   };
 
   const handleUpdateStatus = async (status: UserListStatus) => {
     if (!anime) return;
     
-    if (status === 'En Proceso' || status === 'Terminado') {
-      setSelectedStatus(status);
-      setIsUpdatingProgress(false);
-      setShowProgressModal(true);
-    } else {
-      await addOrUpdateAnimeInList(anime, status, 0);
+    let progress = userProgress;
+    if (status === 'Terminado') {
+      progress = anime.episodes || (anime1VInfo?.episodes?.length) || 0;
+    } else if (status === 'Por Ver') {
+      progress = 0;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      await addOrUpdateAnimeInList(anime, status, progress);
       setUserStatus(status);
-      setUserProgress(0);
+      setUserProgress(progress);
       setShowStatusSelector(false);
-      Alert.alert('¡Éxito!', `Anime agregado a tu lista como "${status}"`);
+      Alert.alert('¡Éxito!', `Anime actualizado a "${status}" con progreso ${progress}`);
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'No se pudo actualizar el estado del anime');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
   const handleUpdateProgress = async () => {
-    if (!anime || !userStatus) return;
-    setSelectedStatus(userStatus);
-    setIsUpdatingProgress(true);
-    setShowProgressModal(true);
+    // No-op
   };
 
   const handleRemove = async () => {
@@ -416,6 +398,8 @@ export const useAnimeDetails = () => {
       await removeAnimeFromList(animeId);
       setUserStatus(null);
       setUserProgress(0);
+      setCurrentEpisode(null);
+      setStreamUrl(null);
       setShowStatusSelector(false);
       Alert.alert('¡Eliminado!', 'Anime quitado de tu lista personal');
     } catch (e) {
@@ -454,5 +438,6 @@ export const useAnimeDetails = () => {
     handleUpdateStatus,
     handleUpdateProgress,
     handleRemove,
+    isUpdatingStatus,
   };
 };

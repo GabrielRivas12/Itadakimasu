@@ -17,7 +17,6 @@ import { AnimeHeader } from '../components/AnimeHeader';
 import { StatusSelector } from '../components/StatusSelector';
 import { QuickStats } from '../components/QuickStats';
 import { RelatedAnime } from '../components/RelatedAnime';
-import { ProgressModal } from '../components/ProgressModal';
 import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
@@ -64,6 +63,7 @@ export function AnimeDetailsPage() {
     handleUpdateStatus,
     handleUpdateProgress,
     handleRemove,
+    isUpdatingStatus,
   } = useAnimeDetails();
 
   const handleAnimePress = (targetId: number) => {
@@ -160,8 +160,8 @@ export function AnimeDetailsPage() {
                     showStatusSelector={showStatusSelector}
                     setShowStatusSelector={setShowStatusSelector}
                     onUpdateStatus={handleUpdateStatus}
-                    onUpdateProgress={handleUpdateProgress}
                     onRemove={handleRemove}
+                    isUpdating={isUpdatingStatus}
                   />
 
                   <QuickStats
@@ -223,7 +223,7 @@ export function AnimeDetailsPage() {
                       <EpisodePicker
                         episodes={displayedEpisodes}
                         currentEpisodeNumber={currentEpisode?.number || null}
-                        onEpisodePress={handleEpisodeSelect}
+                        onEpisodePress={(episode) => handleEpisodeSelect(episode, true)}
                         onLoadMore={loadMoreEpisodes}
                         hasMore={hasMoreEpisodes}
                         isLoadingMore={isLoadingMore}
@@ -243,23 +243,6 @@ export function AnimeDetailsPage() {
             </View>
           </ResponsiveContainer>
         </Animated.View>
-      )}
-
-      {anime && (
-        <ProgressModal
-          visible={showProgressModal}
-          animeTitle={anime.title.english || anime.title.romaji || ''}
-          initialProgress={userProgress}
-          totalEpisodes={anime.episodes || null}
-          selectedStatus={selectedStatus}
-          isUpdatingProgress={isUpdatingProgress}
-          onClose={() => {
-            setShowProgressModal(false);
-          }}
-          onConfirm={(progress) => {
-            saveProgress(progress, isUpdatingProgress);
-          }}
-        />
       )}
     </View>
   );

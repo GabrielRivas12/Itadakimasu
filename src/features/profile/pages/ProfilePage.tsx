@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useCallback } from 'react';
 import {
   StyleSheet,
   FlatList,
@@ -6,7 +6,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { UserHeader } from '../components/UserHeader';
 import { StatsCard } from '../components/StatsCard';
@@ -32,7 +32,14 @@ export const ProfilePage = memo(function ProfilePage() {
     handleLogout,
     handleRemove,
     handleAnimePress,
+    loadList,
   } = useProfile();
+
+  useFocusEffect(
+    useCallback(() => {
+      loadList(true);
+    }, [loadList])
+  );
 
   const { isWeb, getContentWidth, getColumns } = useResponsive();
   const columns = getColumns(1, 1, 2, 2);
