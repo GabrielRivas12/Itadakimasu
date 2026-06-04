@@ -170,29 +170,50 @@ export function AnimeDetailsPage() {
                     status={anime.status || 'UNKNOWN'}
                   />
 
+                  {!isWeb && (
+                    <View style={styles.sectionContainer}>
+                      <Text style={styles.sectionHeader}>Sinopsis</Text>
+                      {loadingSpanishSynopsis ? (
+                        <View style={styles.synopsisLoading}>
+                          <ActivityIndicator size="small" color="#8b5cf6" />
+                          <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <Text style={styles.synopsisText}>{displaySynopsis}</Text>
+                          {displaySource && (
+                            <Text style={styles.synopsisSourceText}>{displaySource}</Text>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  )}
+
                   <TechnicalSpecs anime={anime} />
                 </View>
               </View>
 
               <View style={StyleSheet.flatten(isWeb ? styles.webMainContent : { flex: 1 })}>
-                <View style={StyleSheet.flatten([styles.sectionContainer, isWeb && styles.webSectionContainer])}>
-                  <Text style={styles.sectionHeader}>Sinopsis</Text>
-                  {loadingSpanishSynopsis ? (
-                    <View style={styles.synopsisLoading}>
-                      <ActivityIndicator size="small" color="#8b5cf6" />
-                      <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <Text style={styles.synopsisText}>{displaySynopsis}</Text>
-                      {displaySource && (
-                        <Text style={styles.synopsisSourceText}>{displaySource}</Text>
-                      )}
-                    </>
-                  )}
-                </View>
+                {isWeb && (
+                  <View style={styles.webSectionContainer}>
+                    <Text style={styles.sectionHeader}>Sinopsis</Text>
+                    {loadingSpanishSynopsis ? (
+                      <View style={styles.synopsisLoading}>
+                        <ActivityIndicator size="small" color="#8b5cf6" />
+                        <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Text style={styles.synopsisText}>{displaySynopsis}</Text>
+                        {displaySource && (
+                          <Text style={styles.synopsisSourceText}>{displaySource}</Text>
+                        )}
+                      </>
+                    )}
+                  </View>
+                )}
 
-                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : {})}>
+                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : { marginTop: 0 })}>
                   <CharacterList characters={anime.characters} />
                 </View>
 
