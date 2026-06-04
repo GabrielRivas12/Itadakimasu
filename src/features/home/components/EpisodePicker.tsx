@@ -45,24 +45,23 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
     if (isNearBottom) handleLoadMore();
   };
 
-  const renderEpisodeItem = (item: Anime1VEpisode) => {
-    const isSelected = item.number === currentEpisodeNumber;
-    
-    // Si el título ya contiene el número de episodio o la palabra "Episodio", lo usamos tal cual.
-    // De lo contrario, formateamos como "Episodio X: Título"
-    const displayTitle = item.title && (
-      item.title.toLowerCase().includes('episodio') || 
-      item.title.toLowerCase().includes('capítulo') ||
-      item.title.includes(String(item.number))
-    ) ? item.title : `Episodio ${item.number}${item.title ? `: ${item.title}` : ''}`;
+const renderEpisodeItem = (item: Anime1VEpisode, index: number) => {
+  const isSelected = item.number === currentEpisodeNumber;
+  
+  const displayTitle = item.title && (
+    item.title.toLowerCase().includes('episodio') || 
+    item.title.toLowerCase().includes('capítulo') ||
+    item.title.includes(String(item.number))
+  ) ? item.title : `Episodio ${item.number}${item.title ? `: ${item.title}` : ''}`;
 
-    return (
-      <TouchableOpacity
-        key={item.id.toString()}
-        style={[styles.episodeItem, isSelected && styles.selectedItem]}
-        onPress={() => handleEpisodeSelect(item)}
-        activeOpacity={0.7}
-      >
+  return (
+    <TouchableOpacity
+      // 🛡️ SOLUCIÓN: Si id es null, usa el número de episodio o el index del array
+      key={item.id?.toString() ?? `ep-${item.number}-${index}`}
+      style={[styles.episodeItem, isSelected && styles.selectedItem]}
+      onPress={() => handleEpisodeSelect(item)}
+      activeOpacity={0.7}
+    >
         <View style={styles.episodeInfo}>
           <Text 
             style={[styles.episodeText, isSelected && styles.selectedText]} 
@@ -137,7 +136,7 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
             onScroll={handleScroll}
             scrollEventThrottle={16}
           >
-            {episodes.map((item) => renderEpisodeItem(item))}
+            {episodes.map((item, index) => renderEpisodeItem(item, index))}
             {renderFooter()}
           </ScrollView>
         </View>

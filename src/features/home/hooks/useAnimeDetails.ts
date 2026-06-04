@@ -355,7 +355,7 @@ export const useAnimeDetails = () => {
         } else {
           // Lógica normal: StreamWish > HLS > primero disponible
           preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish')) 
-                   ?? allServers.find(s => s.server === 'HLS')
+                   ?? allServers.find(s => s.server === 'mp4upload')
                    ?? allServers[0];
         }
 

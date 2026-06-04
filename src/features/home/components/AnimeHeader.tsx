@@ -10,8 +10,8 @@ interface AnimeHeaderProps {
 export function AnimeHeader({ anime }: AnimeHeaderProps) {
   const { isWeb } = useResponsive();
   const displayTitle = anime.title.romaji || anime.title.english || anime.title.native || 'Detalles';
-  const studioName = anime.studios?.nodes && anime.studios.nodes.length > 0 
-    ? anime.studios.nodes[0].name 
+  const studioName = anime.studios?.nodes && anime.studios.nodes.length > 0
+    ? anime.studios.nodes[0].name
     : null;
 
   // Pre-calcular las URIs para evitar cambios durante el render
@@ -22,8 +22,8 @@ export function AnimeHeader({ anime }: AnimeHeaderProps) {
     return (
       <View style={styles.webHeaderInfo}>
         <View style={styles.webCoverContainer}>
-          <Image 
-            source={{ uri: coverUri }} 
+          <Image
+            source={{ uri: coverUri }}
             style={styles.webCoverImage}
             fadeDuration={300}
           />
@@ -56,18 +56,18 @@ export function AnimeHeader({ anime }: AnimeHeaderProps) {
 
       <View style={styles.detailsHeader}>
         <View style={styles.coverImageContainer}>
-          <Image 
-            source={{ uri: coverUri }} 
+          <Image
+            source={{ uri: coverUri }}
             style={styles.coverImage}
             fadeDuration={300}
           />
         </View>
-        
+
         <View style={styles.titleContainer}>
           <Text style={styles.animeTitle} numberOfLines={3}>
             {displayTitle}
           </Text>
-          
+
           <View style={styles.studioPlaceholder}>
             {studioName ? (
               <Text style={styles.studioText}>
@@ -87,8 +87,8 @@ const styles = StyleSheet.create({
   // Mobile styles
   bannerContainer: {
     height: 240,
-    position: 'relative',
-    width: '100%',
+    marginHorizontal: -16,
+    width: 'auto',
     backgroundColor: '#1e293b', // Fondo sólido mientras carga
   },
   bannerImage: {
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#1e293b',
-    backgroundColor: '#1e293b', // Fondo sólido para evitar parpadeo
+    backgroundColor: '#1e293b',
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

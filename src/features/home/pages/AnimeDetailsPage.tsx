@@ -72,8 +72,13 @@ export function AnimeDetailsPage() {
   const handleShare = async () => {
     if (!anime) return;
     try {
+      const shareUrl = `https://itadakimasu-f61d8.web.app/anime/${anime.id}`;
+      const title = anime.title.romaji || anime.title.english;
+      
       await Share.share({
-        message: `¡Mira este anime en Itadakimasu! ${anime.title.romaji || anime.title.english}\nhttps://anilist.co/anime/${anime.id}`,
+        message: `¡Mira ${title} en Itadakimasu!\n${shareUrl}`,
+        url: shareUrl,
+        title: title,
       });
     } catch (error) {
       console.error('Error sharing anime:', error);
@@ -147,7 +152,7 @@ export function AnimeDetailsPage() {
             </View>
           )}
           
-          <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent, isMobile && { paddingTop: 20 }])}>
+          <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent, isMobile && { paddingTop: 0 }])}>
             <View style={StyleSheet.flatten(showWebLayout ? styles.webDetailsContainer : { paddingHorizontal: 16 })}>
               <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebar : { width: '100%' })}>
                 <AnimeHeader anime={anime} />

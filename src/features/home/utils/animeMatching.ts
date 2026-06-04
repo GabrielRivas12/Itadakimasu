@@ -23,7 +23,8 @@ export const STOP_WORDS_ROMAJI = new Set([
 
 const SPECIAL_ARCS_MAP: Record<string, string> = {
   'kaigyoku gyokusetsu': 'hidden inventory premature death s2',
-  'hidden inventory premature death': 'kaigyoku gyokusetsu s2'
+  'hidden inventory premature death': 'kaigyoku gyokusetsu s2',
+  'jujutsu kaisen 0': 'jujutsu kaisen zero'
 };
 
 // ─────────────────────────────────────────────
@@ -196,8 +197,15 @@ export const normalizeTitleStrict = (title: string): NormalizedTitle => {
 
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
-    const isStop = STOP_WORDS_ENG.has(w) || STOP_WORDS_ANIME.has(w) || STOP_WORDS_ROMAJI.has(w);
-    if (!isStop && w.length > 1) significantWords.push(w);
+ const isStop = STOP_WORDS_ENG.has(w) || STOP_WORDS_ANIME.has(w) || STOP_WORDS_ROMAJI.has(w);
+    
+    // ─────────────────────────────────────────────
+    // Si es número entero, no importa que sea de 1 dígito (como 4 o 0)
+    // ─────────────────────────────────────────────
+    if (!isStop && (w.length > 1 || /^\d+$/.test(w))) {
+      significantWords.push(w);
+    }
+
     if (w.length >= 4 || /^\d+$/.test(w) || /^s\d+$/.test(w)) uniqueIdentifiers.push(w);
   }
 
