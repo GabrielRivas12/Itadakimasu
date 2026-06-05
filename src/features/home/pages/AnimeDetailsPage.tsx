@@ -17,11 +17,10 @@ import { AnimeHeader } from '../components/AnimeHeader';
 import { StatusSelector } from '../components/StatusSelector';
 import { QuickStats } from '../components/QuickStats';
 import { RelatedAnime } from '../components/RelatedAnime';
-import { ProgressModal } from '../components/ProgressModal';
 import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
-import { EpisodePlayer } from '../components/EpisodePlayer'; // ¡Expo elegirá .web.tsx automáticamente en PC!
+import { EpisodePlayer } from '../components/EpisodePlayer'; 
 import { EpisodePicker } from '../components/EpisodePicker';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
@@ -30,11 +29,10 @@ import { useResponsive } from '../../../hooks/useResponsive';
 
 export function AnimeDetailsPage() {
   const router = useRouter();
-  const { isWeb, getContentWidth, width } = useResponsive();
+  const { isWeb, getContentWidth, width, isMobile, isWebDesktop } = useResponsive();
   
   // Calcular margen dinámico para alinear con el contenido centrado en web
   const contentWidth = typeof getContentWidth() === 'number' ? (getContentWidth() as number) : width;
-  const horizontalMargin = isWeb ? Math.max(24, (width - contentWidth) / 2 + 40) : 10;
   
   const {
     anime,
@@ -64,6 +62,7 @@ export function AnimeDetailsPage() {
     handleUpdateStatus,
     handleUpdateProgress,
     handleRemove,
+    isUpdatingStatus,
   } = useAnimeDetails();
 
   const handleAnimePress = (targetId: number) => {
@@ -73,8 +72,13 @@ export function AnimeDetailsPage() {
   const handleShare = async () => {
     if (!anime) return;
     try {
+      const shareUrl = `https://itadakimasu.online/anime/${anime.id}`;
+      const title = anime.title.romaji || anime.title.english;
+      
       await Share.share({
-        message: `¡Mira este anime en AnimeLT! ${anime.title.romaji || anime.title.english}\nhttps://anilist.co/anime/${anime.id}`,
+        message: `¡Mira ${title} en Itadakimasu!\n${shareUrl}`,
+        url: shareUrl,
+        title: title,
       });
     } catch (error) {
       console.error('Error sharing anime:', error);
@@ -87,6 +91,8 @@ export function AnimeDetailsPage() {
 
   const displaySynopsis = spanishSynopsis || cleanDescriptionObj.cleanText;
   const displaySource = spanishSynopsis ? synopsisSource : cleanDescriptionObj.source;
+
+  const showWebLayout = isWeb && !isMobile;
 
   return (
     <View style={styles.container}>
@@ -136,7 +142,7 @@ export function AnimeDetailsPage() {
       ) : (
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           {isWeb && anime && (
-            <View style={styles.webHeroContainer}>
+            <View style={[styles.webHeroContainer, isMobile && { height: 300 }]}>
               <Image 
                 source={{ uri: anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large }} 
                 style={styles.webHeroImage}
@@ -146,13 +152,12 @@ export function AnimeDetailsPage() {
             </View>
           )}
           
-          {/* MODIFICADO: Agregamos StyleSheet.flatten para limpiar arrays de estilos en Web */}
-          <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent])}>
-            <View style={StyleSheet.flatten(isWeb ? styles.webDetailsContainer : {})}>
-              <View style={StyleSheet.flatten(isWeb ? styles.webSidebar : {})}>
+          <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent, isMobile && { paddingTop: 0 }])}>
+            <View style={StyleSheet.flatten(showWebLayout ? styles.webDetailsContainer : { width: '100%' })}>
+              <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebar : { width: '100%' })}>
                 <AnimeHeader anime={anime} />
                 
-                <View style={StyleSheet.flatten(isWeb ? styles.webSidebarActions : {})}>
+                <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebarActions : { width: '100%', marginTop: 20 })}>
                   <StatusSelector
                     userStatus={userStatus}
                     userProgress={userProgress}
@@ -160,49 +165,70 @@ export function AnimeDetailsPage() {
                     showStatusSelector={showStatusSelector}
                     setShowStatusSelector={setShowStatusSelector}
                     onUpdateStatus={handleUpdateStatus}
-                    onUpdateProgress={handleUpdateProgress}
                     onRemove={handleRemove}
+                    isUpdating={isUpdatingStatus}
                   />
 
                   <QuickStats
                     averageScore={anime.averageScore}
                     episodes={anime.episodes}
-                    status={anime.status || 'UNKNOWN'}
+                    status={anime.status || ''}
                   />
+
+                  {(!isWeb || isMobile) && (
+                    <View style={styles.sectionContainer}>
+                      <Text style={styles.sectionHeader}>Sinopsis</Text>
+                      {loadingSpanishSynopsis ? (
+                        <View style={styles.synopsisLoading}>
+                          <ActivityIndicator size="small" color="#8b5cf6" />
+                          <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <Text style={styles.synopsisText}>{displaySynopsis}</Text>
+                          {displaySource && (
+                            <Text style={styles.synopsisSourceText}>{displaySource}</Text>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  )}
 
                   <TechnicalSpecs anime={anime} />
                 </View>
               </View>
 
-              <View style={StyleSheet.flatten(isWeb ? styles.webMainContent : { flex: 1 })}>
-                <View style={StyleSheet.flatten([styles.sectionContainer, isWeb && styles.webSectionContainer])}>
-                  <Text style={styles.sectionHeader}>Sinopsis</Text>
-                  {loadingSpanishSynopsis ? (
-                    <View style={styles.synopsisLoading}>
-                      <ActivityIndicator size="small" color="#8b5cf6" />
-                      <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <Text style={styles.synopsisText}>{displaySynopsis}</Text>
-                      {displaySource && (
-                        <Text style={styles.synopsisSourceText}>{displaySource}</Text>
-                      )}
-                    </>
-                  )}
-                </View>
+              <View style={StyleSheet.flatten(showWebLayout ? styles.webMainContent : { flex: 1, marginTop: 24 })}>
+                {showWebLayout && (
+                  <View style={styles.webSectionContainer}>
+                    <Text style={styles.sectionHeader}>Sinopsis</Text>
+                    {loadingSpanishSynopsis ? (
+                      <View style={styles.synopsisLoading}>
+                        <ActivityIndicator size="small" color="#8b5cf6" />
+                        <Text style={styles.synopsisLoadingText}>Cargando sinopsis...</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <Text style={styles.synopsisText}>{displaySynopsis}</Text>
+                        {displaySource && (
+                          <Text style={styles.synopsisSourceText}>{displaySource}</Text>
+                        )}
+                      </>
+                    )}
+                  </View>
+                )}
 
-                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : {})}>
+                <View style={StyleSheet.flatten(showWebLayout ? styles.webSectionWrapper : { marginTop: 0 })}>
                   <CharacterList characters={anime.characters} />
                 </View>
 
                 {/* Sección de Episodios con Loading State */}
-                <View style={StyleSheet.flatten([styles.playerSection, isWeb && styles.webSectionWrapper])}>
+                <View style={StyleSheet.flatten([styles.playerSection, showWebLayout && styles.webSectionWrapper])}>
                   <Text style={styles.sectionHeader}>
                     {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Episodios'}
                   </Text>
 
-                  {loading ? ( // O podrías usar un flag específico para episodios si lo tuvieras
+                  {loading ? ( 
                     <View style={styles.episodesLoadingContainer}>
                       <ActivityIndicator size="large" color="#8b5cf6" />
                       <Text style={styles.loadingTextSmall}>Buscando capítulos disponibles...</Text>
@@ -223,7 +249,7 @@ export function AnimeDetailsPage() {
                       <EpisodePicker
                         episodes={displayedEpisodes}
                         currentEpisodeNumber={currentEpisode?.number || null}
-                        onEpisodePress={handleEpisodeSelect}
+                        onEpisodePress={(episode) => handleEpisodeSelect(episode, true)}
                         onLoadMore={loadMoreEpisodes}
                         hasMore={hasMoreEpisodes}
                         isLoadingMore={isLoadingMore}
@@ -236,30 +262,13 @@ export function AnimeDetailsPage() {
                   )}
                 </View>
 
-                <View style={StyleSheet.flatten(isWeb ? styles.webSectionWrapper : {})}>
+                <View style={StyleSheet.flatten(showWebLayout ? styles.webSectionWrapper : {})}>
                   <RelatedAnime relations={anime.relations} onPress={handleAnimePress} />
                 </View>
               </View>
             </View>
           </ResponsiveContainer>
         </Animated.View>
-      )}
-
-      {anime && (
-        <ProgressModal
-          visible={showProgressModal}
-          animeTitle={anime.title.english || anime.title.romaji || ''}
-          initialProgress={userProgress}
-          totalEpisodes={anime.episodes || null}
-          selectedStatus={selectedStatus}
-          isUpdatingProgress={isUpdatingProgress}
-          onClose={() => {
-            setShowProgressModal(false);
-          }}
-          onConfirm={(progress) => {
-            saveProgress(progress, isUpdatingProgress);
-          }}
-        />
       )}
     </View>
   );

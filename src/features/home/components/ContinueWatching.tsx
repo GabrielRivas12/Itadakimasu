@@ -14,13 +14,19 @@ export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
   if (items.length === 0) return null;
 
   return (
-    <View style={[styles.container, isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }]}>
+    <View style={[
+      styles.container, 
+      isWeb && { maxWidth: getContentWidth(), width: '100%', alignSelf: 'center' }
+    ]}>
       <Text style={styles.sectionHeader}>Continuar Viendo</Text>
       
       <ScrollView 
         horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        showsHorizontalScrollIndicator={Platform.OS === 'web'}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isWeb && { paddingBottom: 10 } // Espacio para la scrollbar en web
+        ]}
       >
         {items.map((item) => {
           const progress = item.anime.episodes ? item.progress / item.anime.episodes : 0;
@@ -75,12 +81,12 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   card: {
-    width: 140,
+    width: 120,
     marginRight: 16,
   },
   imageContainer: {
-    width: 140,
-    height: 200,
+    width: 120,
+    height: 170,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#1e293b',

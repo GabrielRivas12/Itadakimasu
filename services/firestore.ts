@@ -15,7 +15,27 @@ function getWebFirestore() {
   return webDb;
 }
 
-const LIST_COLLECTION = 'userLists';
+const ROOT_COLLECTION = 'userList';
+const SUB_COLLECTION = 'animes';
+
+function sanitizeObject(obj: any): any {
+  if (obj === null) return null;
+  if (obj === undefined) return "N/A";
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeObject(item));
+  }
+  if (typeof obj === 'object') {
+    const clean: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        clean[key] = val === undefined ? "N/A" : sanitizeObject(val);
+      }
+    }
+    return clean;
+  }
+  return obj;
+}
 
 /**
  * Sincroniza un anime a Firestore
@@ -24,37 +44,50 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
   try {
     const { getCurrentUser } = require('./auth');
     const user = getCurrentUser();
-    if (!user) return;
+    if (!user) {
+      console.warn('⚠️ [Firestore] No se puede sincronizar: No hay usuario autenticado.');
+      return;
+    }
 
     asegurarFirebaseApp();
+
+    const cleanItem = sanitizeObject(item);
+    if (cleanItem && cleanItem.anime) {
+      // Limpiamos campos pesados para no exceder límites de Firestore
+      delete cleanItem.anime.characters;
+      delete cleanItem.anime.relations;
+    }
+
+    const animeId = String(item.anime.id);
+    console.log(`🚀 [Firestore] Sincronizando anime ${animeId} (${item.anime.title?.romaji})...`);
 
     if (Platform.OS === 'web') {
       const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
       const db = getWebFirestore();
       
-      const docId = `${user.uid}_${item.anime.id}`;
-      const docRef = doc(db, LIST_COLLECTION, docId);
+      const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, animeId);
       await setDoc(docRef, {
-        ...item,
+        ...cleanItem,
         userId: user.uid,
         updatedAt: serverTimestamp(),
       }, { merge: true });
     } else {
-      const firestoreMobile = require('@react-native-firebase/firestore').default;
-      const { firebase } = require('@react-native-firebase/firestore');
+      const firestore = require('@react-native-firebase/firestore').default;
 
-      const docId = `${user.uid}_${item.anime.id}`;
-      await firestoreMobile()
-        .collection(LIST_COLLECTION)
-        .doc(docId)
+      await firestore()
+        .collection(ROOT_COLLECTION)
+        .doc(user.uid)
+        .collection(SUB_COLLECTION)
+        .doc(animeId)
         .set({
-          ...item,
+          ...cleanItem,
           userId: user.uid,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
     }
+    console.log(`✅ [Firestore] Sincronización exitosa para ID: ${animeId}`);
   } catch (error) {
-    console.error('Error syncing to Firestore:', error);
+    console.error('❌ [Firestore] Error sincronizando anime:', error);
   }
 }
 
@@ -70,15 +103,12 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
     asegurarFirebaseApp();
 
     if (Platform.OS === 'web') {
-      const { collection, getDocs, query, where } = require('firebase/firestore');
+      const { collection, getDocs } = require('firebase/firestore');
       const db = getWebFirestore();
       
-      console.log(`🔥 [Firestore Web] Buscando en colección: ${LIST_COLLECTION} para userId: ${user.uid}`);
+      console.log(`🔥 [Firestore Web] Buscando en subcolección: ${ROOT_COLLECTION}/${user.uid}/${SUB_COLLECTION}`);
       
-      const q = query(
-        collection(db, LIST_COLLECTION),
-        where('userId', '==', user.uid)
-      );
+      const q = collection(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION);
       const querySnapshot = await getDocs(q);
       console.log(`🔥 [Firestore Web] Documentos encontrados: ${querySnapshot.size}`);
       
@@ -97,12 +127,13 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
       });
       return list;
     } else {
-      const firestoreMobile = require('@react-native-firebase/firestore').default;
-      console.log(`🔥 [Firestore Móvil] Buscando en colección: ${LIST_COLLECTION} para userId: ${user.uid}`);
+      const firestore = require('@react-native-firebase/firestore').default;
+      console.log(`🔥 [Firestore Móvil] Buscando en subcolección: ${ROOT_COLLECTION}/${user.uid}/${SUB_COLLECTION}`);
       
-      const snapshot = await firestoreMobile()
-        .collection(LIST_COLLECTION)
-        .where('userId', '==', user.uid)
+      const snapshot = await firestore()
+        .collection(ROOT_COLLECTION)
+        .doc(user.uid)
+        .collection(SUB_COLLECTION)
         .get();
 
       console.log(`🔥 [Firestore Móvil] Documentos encontrados: ${snapshot.size}`);
@@ -121,8 +152,8 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
       });
     }
   } catch (error) {
-    console.error('Error fetching from Firestore:', error);
-    return [];
+    console.error('❌ [Firestore] Error obteniendo lista:', error);
+    return null;
   }
 }
 
@@ -137,21 +168,26 @@ export async function removeFromFirestore(animeId: number): Promise<void> {
 
     asegurarFirebaseApp();
 
+    const id = String(animeId);
+    console.log(`🗑️ [Firestore] Eliminando anime ${id}...`);
+
     if (Platform.OS === 'web') {
       const { doc, deleteDoc } = require('firebase/firestore');
       const db = getWebFirestore();
-      const docId = `${user.uid}_${animeId}`;
-      await deleteDoc(doc(db, LIST_COLLECTION, docId));
+      const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
+      await deleteDoc(docRef);
     } else {
-      const firestoreMobile = require('@react-native-firebase/firestore').default;
-      const docId = `${user.uid}_${animeId}`;
-      await firestoreMobile()
-        .collection(LIST_COLLECTION)
-        .doc(docId)
+      const firestore = require('@react-native-firebase/firestore').default;
+      await firestore()
+        .collection(ROOT_COLLECTION)
+        .doc(user.uid)
+        .collection(SUB_COLLECTION)
+        .doc(id)
         .delete();
     }
+    console.log(`✅ [Firestore] Anime eliminado con éxito.`);
   } catch (error) {
-    console.error('Error removing from Firestore:', error);
+    console.error('❌ [Firestore] Error eliminando anime:', error);
   }
 }
 
@@ -166,28 +202,32 @@ export async function updateProgressInFirestore(animeId: number, progress: numbe
 
     asegurarFirebaseApp();
 
-    const docId = `${user.uid}_${animeId}`;
+    const id = String(animeId);
+    console.log(`⏳ [Firestore] Actualizando progreso de ${id} a ${progress}...`);
 
     if (Platform.OS === 'web') {
       const { doc, updateDoc, serverTimestamp } = require('firebase/firestore');
       const db = getWebFirestore();
-      await updateDoc(doc(db, LIST_COLLECTION, docId), {
+      const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
+      await updateDoc(docRef, {
         progress,
         updatedAt: serverTimestamp(),
       });
     } else {
-      const firestoreMobile = require('@react-native-firebase/firestore').default;
-      const { firebase } = require('@react-native-firebase/firestore');
+      const firestore = require('@react-native-firebase/firestore').default;
 
-      await firestoreMobile()
-        .collection(LIST_COLLECTION)
-        .doc(docId)
+      await firestore()
+        .collection(ROOT_COLLECTION)
+        .doc(user.uid)
+        .collection(SUB_COLLECTION)
+        .doc(id)
         .update({
           progress,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firestore.FieldValue.serverTimestamp(),
         });
     }
+    console.log(`✅ [Firestore] Progreso actualizado para ID: ${id}`);
   } catch (error) {
-    console.error('Error updating progress in Firestore:', error);
+    console.error('❌ [Firestore] Error actualizando progreso:', error);
   }
 }

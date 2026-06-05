@@ -165,5 +165,6 @@ export const useProfile = () => {
     handleLogout,
     handleRemove,
     handleAnimePress,
+    loadList,
   };
 };

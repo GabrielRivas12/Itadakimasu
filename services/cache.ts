@@ -4,8 +4,26 @@ import { Anime } from './anilist';
 export const cacheKeys = {
   TRENDING_BANNER: 'cache:trending_banner',
   TRENDING_LIST: 'cache:trending_list',
+  CONTINUE_WATCHING: 'cache:continue_watching',
   ANIME_DETAILS: (id: number) => `cache:anime_details:${id}`,
 };
+
+export async function getCachedContinueWatching(): Promise<any[] | null> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.CONTINUE_WATCHING);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheContinueWatching(list: any[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.CONTINUE_WATCHING, JSON.stringify(list));
+  } catch (error) {
+    console.error('Error caching continue watching list:', error);
+  }
+}
 
 export async function getCachedTrendingBanner(): Promise<Anime | null> {
   try {
@@ -42,7 +60,7 @@ export async function cacheTrendingList(list: Anime[]): Promise<void> {
     const detailPairs: [string, string][] = [];
     
     for (const anime of list) {
-      // Solo cacheamos si es necesario o para asegurar que tenemos la data básica
+      // Guardamos el objeto completo para asegurar que la página de detalles tenga toda la info
       detailPairs.push([cacheKeys.ANIME_DETAILS(anime.id), JSON.stringify(anime)]);
     }
     

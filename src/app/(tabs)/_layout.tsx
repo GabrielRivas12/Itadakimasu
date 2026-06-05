@@ -7,7 +7,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { isWeb, isMobile } = useResponsive();
-  
+
   // En web, si no es móvil (tablet/desktop), ocultamos la barra de pestañas inferior
   const showBottomTabs = !isWeb || isMobile;
 
@@ -33,8 +33,12 @@ export default function TabLayout() {
           backgroundColor: '#0f172a',
           borderTopWidth: 1,
           borderTopColor: '#1e293b',
-          height: Platform.OS === 'ios' ? 88 : 64 + insets.bottom,
-          paddingBottom: Platform.OS === 'ios' ? 28 : (insets.bottom > 0 ? insets.bottom : 10),
+          height: isWeb
+            ? 75
+            : (Platform.OS === 'ios' ? 88 : 64 + insets.bottom),
+          paddingBottom: isWeb
+            ? 10
+            : (Platform.OS === 'ios' ? 28 : (insets.bottom > 0 ? insets.bottom : 10)),
           paddingTop: 10,
         } : { display: 'none' },
         tabBarLabelStyle: {

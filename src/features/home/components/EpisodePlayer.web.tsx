@@ -19,9 +19,10 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
       <iframe
         src={url}
         style={{ width: '100%', height: '100%', border: 'none' }}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
         title="Anime Video Player"
+        sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
       />
     </View>
   );

@@ -9,7 +9,7 @@ interface TrendingGridProps {
 }
 
 export const TrendingGrid = memo(function TrendingGrid({ trending, onPress }: TrendingGridProps) {
-  const { getColumns } = useResponsive();
+  const { getColumns, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 5);
 
   return (
@@ -20,7 +20,10 @@ export const TrendingGrid = memo(function TrendingGrid({ trending, onPress }: Tr
           style={[styles.trendingCard, { width: `${100 / columns - 2}%` }]}
           onPress={() => onPress(item.id)}
         >
-          <Image source={{ uri: item.coverImage.large }} style={styles.trendingImage} />
+          <Image 
+            source={{ uri: item.coverImage.large }} 
+            style={[styles.trendingImage, isMobile && { height: 180 }]} 
+          />
           {item.averageScore && (
             <View style={styles.ratingBadge}>
               <Text style={styles.ratingText}>★ {(item.averageScore / 10).toFixed(1)}</Text>

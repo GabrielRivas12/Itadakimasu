@@ -29,13 +29,17 @@ export function HomePage() {
     handleScroll,
   } = useHome();
 
-  const { isWeb, getContentWidth } = useResponsive();
+  const { isWeb, getContentWidth, isMobile } = useResponsive();
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' }]}>
+      <View style={[
+        styles.header, 
+        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+      ]}>
         <Text style={styles.headerTitle}>Inicio</Text>
-        <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu</Text>
+        <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
       </View>
       {loading ? (
         <ResponsiveContainer>
