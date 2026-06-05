@@ -39,7 +39,7 @@ export function HomePage() {
         isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
       ]}>
         <Text style={styles.headerTitle}>Inicio</Text>
-        <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu</Text>
+        <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
       </View>
       {loading ? (
         <ResponsiveContainer>

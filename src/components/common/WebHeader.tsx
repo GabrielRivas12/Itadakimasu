@@ -26,7 +26,7 @@ export function WebHeader() {
               <View style={styles.logoIcon}>
                 <Ionicons name="play" size={20} color="#ffffff" />
               </View>
-              <Text style={styles.logoText}>Itadakimasu</Text>
+              <Text style={styles.logoText}>Itadakimasu!</Text>
             </TouchableOpacity>
           </Link>
         </View>

@@ -20,7 +20,7 @@ import { RelatedAnime } from '../components/RelatedAnime';
 import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
-import { EpisodePlayer } from '../components/EpisodePlayer'; // ¡Expo elegirá .web.tsx automáticamente en PC!
+import { EpisodePlayer } from '../components/EpisodePlayer'; 
 import { EpisodePicker } from '../components/EpisodePicker';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
@@ -72,7 +72,7 @@ export function AnimeDetailsPage() {
   const handleShare = async () => {
     if (!anime) return;
     try {
-      const shareUrl = `https://itadakimasu-f61d8.web.app/anime/${anime.id}`;
+      const shareUrl = `https://itadakimasu.online/anime/${anime.id}`;
       const title = anime.title.romaji || anime.title.english;
       
       await Share.share({
