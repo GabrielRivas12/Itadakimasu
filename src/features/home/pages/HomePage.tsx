@@ -14,6 +14,7 @@ import { HomeSkeleton } from '../components/HomeSkeleton';
 import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
+import { DownloadApkButton } from '../components/DownloadApkButton';
 
 export function HomePage() {
   const {
@@ -38,8 +39,13 @@ export function HomePage() {
         isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
         isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
       ]}>
-        <Text style={styles.headerTitle}>Inicio</Text>
-        <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>Inicio</Text>
+            <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
+          </View>
+          {isWeb && isMobile && <DownloadApkButton />}
+        </View>
       </View>
       {loading ? (
         <ResponsiveContainer>
@@ -86,6 +92,11 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     paddingBottom: 15,
     backgroundColor: '#0b0f19',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
     color: '#ffffff',
