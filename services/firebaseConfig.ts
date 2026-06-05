@@ -9,12 +9,32 @@ const getFirebaseConfig = () => ({
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 });
 
+// Inicialización inmediata en Web para evitar condiciones de carrera
+if (Platform.OS === 'web') {
+  try {
+    const { initializeApp, getApps } = require('firebase/app');
+    if (getApps().length === 0) {
+      const config = getFirebaseConfig();
+      // Solo inicializar si al menos el apiKey existe para evitar errores fatales
+      if (config.apiKey) {
+        initializeApp(config);
+        console.log('[Firebase] Inicializado correctamente en Web (Top-level)');
+      } else {
+        console.warn('[Firebase] No se pudo inicializar en Web: Faltan variables de entorno EXPO_PUBLIC_');
+      }
+    }
+  } catch (error) {
+    console.error('[Firebase] Error durante la inicialización en Web:', error);
+  }
+}
+
 export function asegurarFirebaseApp() {
+  // En Web ya se intentó arriba, pero esto sirve de respaldo y para móvil
   const config = getFirebaseConfig();
   
   if (Platform.OS === 'web') {
     const { initializeApp, getApps } = require('firebase/app');
-    if (getApps().length === 0) {
+    if (getApps().length === 0 && config.apiKey) {
       initializeApp(config);
     }
   } else {

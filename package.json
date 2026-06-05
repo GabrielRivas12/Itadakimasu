@@ -37,7 +37,8 @@
     "react-native-webview": "13.16.0",
     "typescript": "~5.9.2",
     "react-native-web": "^0.21.0",
-    "@expo/metro-runtime": "~55.0.11"
+    "@expo/metro-runtime": "~55.0.11",
+    "expo-splash-screen": "~55.0.21"
   },
   "private": true
 }
