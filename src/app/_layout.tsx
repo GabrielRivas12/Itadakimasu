@@ -4,7 +4,7 @@ if (typeof global.setImmediate === 'undefined') {
 }
 
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { usePathname, Stack } from 'expo-router';
 import '../../services/auth'; 
 import { SystemBars } from 'react-native-edge-to-edge';
 import { View, StyleSheet, Platform } from 'react-native';
@@ -21,6 +21,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 
 export default function RootLayout() {
   const { isWeb, isMobile } = useResponsive();
+  const pathname = usePathname();
   const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
   });
@@ -33,24 +34,28 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   // Si no hay fuentes y no hay error aún, retornamos null pero el Splash seguirá visible
-  // En Web, si fontsLoaded tarda, esto evita el "blanco" porque el splash aguanta.
   if (!fontsLoaded && !fontError) {
     return null;
   }
+
+  // No mostrar WebHeader en la Landing Page (pathname === '/')
+  const showWebHeader = isWeb && !isMobile && pathname !== '/';
 
   return (
     <View style={styles.container}>
       {/* SystemBars solo tiene sentido en Móvil (Android/iOS) */}
       {Platform.OS !== 'web' && <SystemBars style="light" />}
-      
-      {isWeb && !isMobile && <WebHeader />}
-      
+
+      {showWebHeader && <WebHeader />}
+
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+        <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
       </Stack>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

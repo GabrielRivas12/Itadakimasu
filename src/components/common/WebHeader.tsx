@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useResponsive } from '../../hooks/useResponsive';
 
 const NAV_ITEMS = [
-  { name: 'Inicio', path: '/', icon: 'home' },
+  { name: 'Inicio', path: '/home', icon: 'home' },
   { name: 'En Emisión', path: '/airing', icon: 'radio' },
   { name: 'Explorar', path: '/explore', icon: 'search' },
   { name: 'Perfil', path: '/profile', icon: 'person' },
@@ -21,7 +21,7 @@ export function WebHeader() {
       <View style={StyleSheet.flatten([styles.container, { maxWidth: getContentWidth() }])}>
         
         <View style={styles.leftSection}>
-          <Link href="/" asChild>
+          <Link href="/home" asChild>
             <TouchableOpacity style={styles.logoContainer}>
               <View style={styles.logoIcon}>
                 <Ionicons name="play" size={20} color="#ffffff" />
