@@ -39,9 +39,9 @@ export default function RootLayout() {
     return null;
   }
 
-  // No mostrar WebHeader en la Landing Page (pathname === '/')
+  // No mostrar WebHeader ni WebAdBanner en la Landing Page (pathname === '/')
   const showWebHeader = isWeb && !isMobile && pathname !== '/';
-  const showWebAd = isWeb;
+  const showWebAd = isWeb && pathname !== '/';
 
   return (
     <View style={styles.container}>
