@@ -13,10 +13,10 @@ export function UpdateNotification() {
   const [newVersion, setNewVersion] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
 
-  // Solo mostrar en Móvil
-  if (Platform.OS === 'web') return null;
-
   useEffect(() => {
+    // Solo si NO es web
+    if (Platform.OS === 'web') return;
+
     // Función para consultar la API de GitHub (Placeholder)
     const checkForUpdates = async () => {
       try {
@@ -49,6 +49,9 @@ export function UpdateNotification() {
     // Verificamos cada vez que se monta el componente en el perfil
     checkForUpdates();
   }, []);
+
+  // Solo mostrar en Móvil
+  if (Platform.OS === 'web') return null;
 
   if (!updateAvailable) return null;
 
