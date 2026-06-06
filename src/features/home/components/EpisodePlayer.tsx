@@ -181,11 +181,16 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   const [blockedPopup, setBlockedPopup] = useState(false);
   const webViewRef = useRef<WebView>(null);
 
+  const canGoBackRef = useRef(false);
+
   // Hardware back en Android
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      webViewRef.current?.goBack();
-      return true;
+      if (canGoBackRef.current) {
+        webViewRef.current?.goBack();
+        return true;
+      }
+      return false;
     });
     return () => sub.remove();
   }, []);
@@ -280,6 +285,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
 
         // ── Fallback: si la URL cambió a algo no permitido, volver atrás ──────
         onNavigationStateChange={(nav) => {
+          canGoBackRef.current = nav.canGoBack;
           if (
             nav.url !== url &&
             !isAllowedUrl(nav.url) &&
