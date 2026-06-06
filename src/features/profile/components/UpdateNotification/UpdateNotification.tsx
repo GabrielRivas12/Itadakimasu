@@ -51,8 +51,7 @@ export function UpdateNotification() {
         }
 
         // 2. Comprobar GitHub (Temporalmente sin el bloqueo de 5 días para que puedas probarlo)
-        // En producción puedes descomentar la línea de abajo
-        // if (lastCheck && now - parseInt(lastCheck) < CHECK_INTERVAL) return;
+         if (lastCheck && now - parseInt(lastCheck) < CHECK_INTERVAL) return;
 
         console.log('[UpdateCheck] Consultando GitHub:', GITHUB_API_URL);
         const response = await fetch(GITHUB_API_URL, {
