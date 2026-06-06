@@ -29,26 +29,22 @@ export function ResponsiveContainer({
     style,
   ];
 
-  if (useScrollView) {
-    return (
-      <ScrollView
-        style={[styles.flex, isWeb && styles.webBg]}
-        contentContainerStyle={[
-          styles.scrollContent,
-          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-          contentContainerStyle,
-        ]}
-        showsVerticalScrollIndicator={!isWeb}
-        onScroll={onScroll}
-        scrollEventThrottle={scrollEventThrottle}
-        refreshControl={refreshControl}
-      >
-        {children}
-      </ScrollView>
-    );
-  }
-
-  return <View style={containerStyle}>{children}</View>;
+  return (
+    <ScrollView
+      style={[styles.flex, styles.bg]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        contentContainerStyle,
+      ]}
+      showsVerticalScrollIndicator={!isWeb}
+      onScroll={onScroll}
+      scrollEventThrottle={scrollEventThrottle}
+      refreshControl={refreshControl}
+    >
+      {children}
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -57,11 +53,12 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    backgroundColor: '#0b0f19',
   },
   scrollContent: {
     flexGrow: 1,
   },
-  webBg: {
+  bg: {
     backgroundColor: '#0b0f19',
   },
 });
