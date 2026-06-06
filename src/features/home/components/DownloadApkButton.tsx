@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, Linking, Platform, ViewStyle } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, Linking, ViewStyle, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useResponsive } from '../../../hooks/useResponsive';
 
@@ -10,17 +10,35 @@ interface DownloadApkButtonProps {
 export function DownloadApkButton({ style }: DownloadApkButtonProps) {
   const { isWeb } = useResponsive();
 
-  // Solo mostrar en Web
   if (!isWeb) return null;
 
-  const handleDownload = () => {
-    // Aquí iría el link de tu APK
-    Linking.openURL('https://itadakimasu.online');
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(
+        'https://api.github.com/repos/GabrielRivas12/Itadakimasu/releases/latest'
+      );
+
+      const release = await response.json();
+
+      const apkAsset = release.assets?.find(
+        (asset: any) => asset.name.toLowerCase().endsWith('.apk')
+      );
+
+      if (!apkAsset) {
+        Alert.alert('Error', 'No se encontró ningún APK en el último release.');
+        return;
+      }
+
+      Linking.openURL(apkAsset.browser_download_url);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'No se pudo obtener la última versión.');
+    }
   };
 
   return (
-    <TouchableOpacity 
-      style={[styles.button, style]} 
+    <TouchableOpacity
+      style={[styles.button, style]}
       onPress={handleDownload}
       activeOpacity={0.8}
     >

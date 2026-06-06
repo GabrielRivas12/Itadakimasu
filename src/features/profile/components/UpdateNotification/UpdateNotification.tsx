@@ -1,12 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-// Obtenemos la versión directamente del package.json/app.json a través de Expo
 const CURRENT_VERSION = Constants.expoConfig?.version || '1.0.0';
+const GITHUB_API_URL = 'https://api.github.com/repos/GabrielRivas12/Itadakimasu/releases/latest';
+const CHECK_INTERVAL = 5 * 24 * 60 * 60 * 1000; // 5 días en milisegundos
 
+// Función auxiliar para comparar versiones semánticas (ej: 1.0.1 > 1.0.0)
+function isNewerVersion(newVer: string, currentVer: string) {
+  const n = newVer.split('.').map(v => parseInt(v) || 0);
+  const c = currentVer.split('.').map(v => parseInt(v) || 0);
+  
+  for (let i = 0; i < Math.max(n.length, c.length); i++) {
+    const v1 = n[i] || 0;
+    const v2 = c[i] || 0;
+    if (v1 > v2) return true;
+    if (v1 < v2) return false;
+  }
+  return false;
+}
 
 export function UpdateNotification() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -14,46 +28,82 @@ export function UpdateNotification() {
   const [downloadUrl, setDownloadUrl] = useState('');
 
   useEffect(() => {
-    // Solo si NO es web
     if (Platform.OS === 'web') return;
 
-    // Función para consultar la API de GitHub (Placeholder)
     const checkForUpdates = async () => {
       try {
-        // --- COMIENZO DE LÓGICA DE PETICIÓN ---
-        // Aquí iría la llamada a: https://api.github.com/repos/USUARIO/REPO/releases/latest
-        // Por ahora lo dejamos como placeholder para no hacer peticiones reales
-        
-        /*
-        const response = await fetch('https://api.github.com/repos/tu-usuario/tu-repo/releases/latest');
-        const data = await response.json();
-        const latestVersion = data.tag_name.replace('v', '');
-        
-        if (latestVersion !== CURRENT_VERSION) {
-          setNewVersion(latestVersion);
-          setDownloadUrl(data.html_url);
-          setUpdateAvailable(true);
-        }
-        */
-        
-        // Simulación para propósitos de UI (Descomentar para ver cómo queda)
-        setUpdateAvailable(true);
-        setNewVersion('1.0.0');
-        setDownloadUrl('https://github.com/tu-usuario/tu-repo/releases');
+        console.log('[UpdateCheck] Iniciando verificación...');
+        const lastCheck = await AsyncStorage.getItem('@last_update_check');
+        const now = Date.now();
 
+        // 1. Verificar primero si ya tenemos una actualización guardada que sea superior
+        const savedUpdate = await AsyncStorage.getItem('@available_update');
+        if (savedUpdate) {
+          const { version, url } = JSON.parse(savedUpdate);
+          if (isNewerVersion(version, CURRENT_VERSION)) {
+            console.log('[UpdateCheck] Mostrando actualización guardada:', version);
+            setNewVersion(version);
+            setDownloadUrl(url);
+            setUpdateAvailable(true);
+          } else {
+            await AsyncStorage.removeItem('@available_update');
+          }
+        }
+
+        // 2. Comprobar GitHub (Temporalmente sin el bloqueo de 5 días para que puedas probarlo)
+        // En producción puedes descomentar la línea de abajo
+        // if (lastCheck && now - parseInt(lastCheck) < CHECK_INTERVAL) return;
+
+        console.log('[UpdateCheck] Consultando GitHub:', GITHUB_API_URL);
+        const response = await fetch(GITHUB_API_URL, {
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        
+        if (!response.ok) {
+          console.warn('[UpdateCheck] Error en respuesta de GitHub:', response.status);
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data && data.tag_name) {
+          const latestVersion = data.tag_name.replace('v', '');
+          console.log('[UpdateCheck] Versión en GitHub:', latestVersion, 'Versión local:', CURRENT_VERSION);
+          
+          if (isNewerVersion(latestVersion, CURRENT_VERSION)) {
+            // Buscar el APK en los assets. Si no hay, usar la URL de la release
+            const apkAsset = data.assets?.find((asset: any) => 
+              asset.name.toLowerCase().endsWith('.apk')
+            );
+            
+            const url = apkAsset ? apkAsset.browser_download_url : data.html_url;
+            console.log('[UpdateCheck] ¡Nueva versión encontrada! URL:', url);
+
+            setNewVersion(latestVersion);
+            setDownloadUrl(url);
+            setUpdateAvailable(true);
+
+            await AsyncStorage.setItem('@available_update', JSON.stringify({
+              version: latestVersion,
+              url: url
+            }));
+          } else {
+            console.log('[UpdateCheck] La app está actualizada.');
+            setUpdateAvailable(false);
+            await AsyncStorage.removeItem('@available_update');
+          }
+
+          await AsyncStorage.setItem('@last_update_check', now.toString());
+        }
       } catch (error) {
-        console.warn('Error al verificar actualizaciones:', error);
+        console.warn('[UpdateCheck] Error al verificar actualizaciones:', error);
       }
     };
 
-    // Verificamos cada vez que se monta el componente en el perfil
     checkForUpdates();
   }, []);
 
-  // Solo mostrar en Móvil
-  if (Platform.OS === 'web') return null;
-
-  if (!updateAvailable) return null;
+  if (Platform.OS === 'web' || !updateAvailable) return null;
 
   const handleDownload = () => {
     if (downloadUrl) {

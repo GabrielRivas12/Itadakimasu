@@ -107,16 +107,12 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
       const { collection, getDocs } = require('firebase/firestore');
       const db = getWebFirestore();
       
-      console.log(`🔥 [Firestore Web] Buscando en subcolección: ${ROOT_COLLECTION}/${user.uid}/${SUB_COLLECTION}`);
-      
       const q = collection(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION);
       const querySnapshot = await getDocs(q);
-      console.log(`🔥 [Firestore Web] Documentos encontrados: ${querySnapshot.size}`);
       
       const list: UserListItem[] = [];
       querySnapshot.forEach((docSnapshot: any) => {
         const data = docSnapshot.data();
-        console.log(`✅ [Firestore Web] Anime encontrado: ${data.anime?.title?.romaji || data.anime?.id}`);
         // Convertir Timestamp a string ISO si es necesario
         if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
           data.updatedAt = data.updatedAt.toDate().toISOString();
@@ -129,7 +125,6 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
       return list;
     } else {
       const firestore = require('@react-native-firebase/firestore').default;
-      console.log(`🔥 [Firestore Móvil] Buscando en subcolección: ${ROOT_COLLECTION}/${user.uid}/${SUB_COLLECTION}`);
       
       const snapshot = await firestore()
         .collection(ROOT_COLLECTION)
@@ -137,11 +132,8 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
         .collection(SUB_COLLECTION)
         .get();
 
-      console.log(`🔥 [Firestore Móvil] Documentos encontrados: ${snapshot.size}`);
-
       return snapshot.docs.map((docSnapshot: any) => {
         const data = docSnapshot.data();
-        console.log(`✅ [Firestore Móvil] Anime encontrado: ${data.anime?.title?.romaji || data.anime?.id}`);
         // Convertir Timestamp a string ISO si es necesario en móvil también
         if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
           data.updatedAt = data.updatedAt.toDate().toISOString();
