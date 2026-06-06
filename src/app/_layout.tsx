@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import { useResponsive } from '../hooks/useResponsive';
 import { WebHeader } from '../components/common/WebHeader';
+import { WebAdBanner } from '../components/common/WebAdBanner';
 
 // Prevenimos que el Splash Screen se oculte automáticamente hasta que estemos listos
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -40,18 +41,21 @@ export default function RootLayout() {
 
   // No mostrar WebHeader en la Landing Page (pathname === '/')
   const showWebHeader = isWeb && !isMobile && pathname !== '/';
+  const showWebAd = isWeb;
 
   return (
     <View style={styles.container}>
       {/* SystemBars solo tiene sentido en Móvil (Android/iOS) */}
       {Platform.OS !== 'web' && <SystemBars style="light" />}
-
+      
       {showWebHeader && <WebHeader />}
 
       <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
       </Stack>
+
+      {showWebAd && <WebAdBanner />}
     </View>
   );
 }

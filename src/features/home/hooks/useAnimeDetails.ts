@@ -348,8 +348,7 @@ export const useAnimeDetails = () => {
         
         if (anime?.isAdult) {
           // Lógica para adultos: mp4upload > StreamTape > StreamWish
-          preferred = allServers.find(s => s.server.toLowerCase().includes('mp4upload'))
-                   ?? allServers.find(s => s.server.toLowerCase().includes('streamtape'))
+          preferred = allServers.find(s => s.server.toLowerCase().includes('streamtape'))
                    ?? allServers.find(s => s.server.toLowerCase().includes('streamwish'))
                    ?? allServers[0];
         } else {
