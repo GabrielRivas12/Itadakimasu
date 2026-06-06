@@ -34,10 +34,10 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: '#1e293b',
           height: isWeb
-            ? 75
+            ? (isMobile ? 75 : 75) 
             : (Platform.OS === 'ios' ? 88 : 64 + insets.bottom),
           paddingBottom: isWeb
-            ? 10
+            ? (isMobile ? 10 : 10) 
             : (Platform.OS === 'ios' ? 28 : (insets.bottom > 0 ? insets.bottom : 10)),
           paddingTop: 10,
         } : { display: 'none' },
@@ -48,7 +48,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Inicio',
           tabBarLabel: 'Inicio',

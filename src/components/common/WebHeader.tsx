@@ -3,28 +3,31 @@ import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
 import { Link, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useResponsive } from '../../hooks/useResponsive';
+import { DownloadApkButton } from '../../features/home/components/DownloadApkButton';
 
 const NAV_ITEMS = [
-  { name: 'Inicio', path: '/', icon: 'home' },
+  { name: 'Inicio', path: '/home', icon: 'home' },
   { name: 'En Emisión', path: '/airing', icon: 'radio' },
   { name: 'Explorar', path: '/explore', icon: 'search' },
   { name: 'Perfil', path: '/profile', icon: 'person' },
 ];
 
 export function WebHeader() {
-  const { getContentWidth } = useResponsive();
+  const { getContentWidth, isMobile } = useResponsive();
   const pathname = usePathname();
 
   return (
     <View style={styles.headerWrapper}>
-      {/* 1. Corregido: Combinamos de forma plana el estilo estático y el maxWidth dinámico */}
       <View style={StyleSheet.flatten([styles.container, { maxWidth: getContentWidth() }])}>
         
         <View style={styles.leftSection}>
-          <Link href="/" asChild>
+          <Link href="/home" asChild>
             <TouchableOpacity style={styles.logoContainer}>
               <View style={styles.logoIcon}>
-                <Ionicons name="play" size={20} color="#ffffff" />
+                <Image 
+                  source={require('../../../assets/icon.png')} 
+                  style={styles.logoImage} 
+                />
               </View>
               <Text style={styles.logoText}>Itadakimasu!</Text>
             </TouchableOpacity>
@@ -36,9 +39,7 @@ export function WebHeader() {
             const isActive = pathname === item.path || (item.path !== '/' && pathname.startsWith(item.path));
             return (
               <Link key={item.path} href={item.path as any} asChild>
-                {/* 2. Corregido: El array de estilos del TouchableOpacity ahora usa flatten */}
                 <TouchableOpacity style={StyleSheet.flatten([styles.navItem, isActive && styles.navItemActive])}>
-                  {/* El Text está dentro, pero aplicamos flatten por buena práctica con condicionales */}
                   <Text style={StyleSheet.flatten([styles.navText, isActive && styles.navTextActive])}>
                     {item.name}
                   </Text>
@@ -48,8 +49,10 @@ export function WebHeader() {
           })}
         </View>
 
-        {/* Espaciador para mantener el logo a la izquierda y nav centrado si es necesario, o simplemente remover la sección derecha */}
-        <View style={{ width: 150, opacity: 0 }} pointerEvents="none" />
+        <View style={styles.rightSection}>
+          {!isMobile && <DownloadApkButton />}
+          {isMobile && <View style={{ width: 40 }} />}
+        </View>
       </View>
     </View>
   );
@@ -88,6 +91,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#8b5cf6',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   logoText: {
     color: '#ffffff',
@@ -121,9 +129,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   rightSection: {
+    width: 150,
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 16,
   },
   iconButton: {
     padding: 8,

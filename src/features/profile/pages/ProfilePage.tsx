@@ -9,6 +9,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { UserHeader } from '../components/UserHeader';
+import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { StatsCard } from '../components/StatsCard';
 import { StatusTabs } from '../components/StatusTabs';
 import { LibraryAnimeCard } from '../components/LibraryAnimeCard';
@@ -99,6 +100,8 @@ export const ProfilePage = memo(function ProfilePage() {
                 </View>
               </View>
             )}
+
+            <UpdateNotification />
 
             <View style={isWeb && { paddingHorizontal: 0 }}>
               <StatsCard
