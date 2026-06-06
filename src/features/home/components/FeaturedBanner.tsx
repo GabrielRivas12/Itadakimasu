@@ -14,13 +14,8 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Si no hay datos, no renderizar nada
-  if (!featured || featured.length === 0) return null;
-
-  const currentAnime = featured[currentIndex];
-
   useEffect(() => {
-    if (featured.length <= 1) return;
+    if (!featured || featured.length <= 1) return;
 
     const timer = setInterval(() => {
       // Animación de salida (Fade out)
@@ -42,7 +37,12 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
     }, 6000); // Cambia cada 6 segundos
 
     return () => clearInterval(timer);
-  }, [featured.length]);
+  }, [featured?.length]);
+
+  // Si no hay datos, no renderizar nada
+  if (!featured || featured.length === 0) return null;
+
+  const currentAnime = featured[currentIndex];
 
   return (
     <View style={[styles.bannerContainer, isMobile && { height: 180, margin: 12 }]}>

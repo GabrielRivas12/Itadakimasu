@@ -15,6 +15,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
+        sceneStyle: { backgroundColor: '#0b0f19' }, // Color de fondo para todas las escenas de las pestañas
         headerStyle: {
           backgroundColor: '#0f172a',
           shadowColor: 'transparent',

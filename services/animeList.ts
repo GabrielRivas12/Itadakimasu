@@ -1,11 +1,12 @@
 import { Platform } from 'react-native';
-import { Anime } from './anilist';
+import { Anime, fetchAnimesByIds } from './anilist';
 import { 
   syncAnimeToFirestore,   
   fetchUserListFromFirestore, 
   removeFromFirestore, 
   updateProgressInFirestore 
 } from './firestore';
+import { getCachedAnimeDetails, cacheAnimeDetails } from './cache';
 
 // 🔄 Importamos tu servicio de autenticación seguro
 import { getCurrentUser } from './auth'; 
@@ -21,6 +22,57 @@ export interface UserListItem {
   progress: number;
   addedAt: string;
   updatedAt: string;
+}
+
+/**
+ * Enriquecedor de lista: Toma datos de Firestore (que ya no tienen el objeto anime)
+ * y los completa usando el caché local o la API de AniList.
+ */
+async function enrichUserList(minimalList: any[]): Promise<UserListItem[]> {
+  if (!minimalList || minimalList.length === 0) return [];
+
+  const enrichedList: UserListItem[] = [];
+  const missingIds: number[] = [];
+
+  // 1. Intentar recuperar del caché primero
+  for (const item of minimalList) {
+    const animeId = item.animeId || (item.anime && item.anime.id);
+    if (!animeId) continue;
+
+    const cachedAnime = await getCachedAnimeDetails(Number(animeId));
+    if (cachedAnime) {
+      enrichedList.push({
+        ...item,
+        anime: cachedAnime
+      });
+    } else {
+      missingIds.push(Number(animeId));
+    }
+  }
+
+  // 2. Si faltan datos, pedirlos a AniList
+  if (missingIds.length > 0) {
+    console.log(`[Sync] Enriqueciendo ${missingIds.length} animes desde la API...`);
+    const fetchedAnimes = await fetchAnimesByIds(missingIds);
+    
+    // Guardar en caché lo que acabamos de traer
+    for (const anime of fetchedAnimes) {
+      await cacheAnimeDetails(anime.id, anime);
+      
+      const originalItem = minimalList.find(i => (i.animeId || i.anime?.id) == anime.id);
+      if (originalItem) {
+        enrichedList.push({
+          ...originalItem,
+          anime: anime
+        });
+      }
+    }
+  }
+
+  // Ordenar por updatedAt descendente
+  return enrichedList.sort((a, b) => 
+    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
 }
 
 const GUEST_STORAGE_KEY = '@AnimeLT:guest_list';
@@ -53,20 +105,24 @@ export async function getUserList(): Promise<UserListItem[]> {
       if (localList.length === 0) {
         console.log(`[Cache] Cache vacío para ${user.uid}, esperando a Firestore...`);
         const remoteList = await fetchUserListFromFirestore();
-        if (remoteList) {
-          await saveUserListLocally(remoteList, user);
-          return remoteList;
+        if (remoteList && remoteList.length > 0) {
+          const enrichedRemote = await enrichUserList(remoteList);
+          await saveUserListLocally(enrichedRemote, user);
+          return enrichedRemote;
         }
       } else {
         // Sincronización inteligente en segundo plano:
         fetchUserListFromFirestore().then(async (remoteList) => {
           if (!remoteList) return; // Si hubo error en red, no tocamos nada
 
+          // Enriquecemos la lista remota antes de comparar
+          const enrichedRemote = await enrichUserList(remoteList);
+
           const latestJson = await storage.getItem(currentKey);
           const currentLocalList: UserListItem[] = latestJson != null ? JSON.parse(latestJson) : [];
           
-          const localMap = new Map(currentLocalList.map(item => [String(item.anime.id), item]));
-          const remoteIds = new Set(remoteList.map(item => String(item.anime.id)));
+          const localMap = new Map(currentLocalList.filter(item => item && item.anime).map(item => [String(item.anime.id), item]));
+          const remoteIds = new Set(enrichedRemote.filter(item => item && item.anime).map(item => String(item.anime.id)));
           let hasChanges = false;
 
           // 1. Detectar eliminaciones: Si está local pero NO en remoto, se borró en otro dispositivo
@@ -79,7 +135,8 @@ export async function getUserList(): Promise<UserListItem[]> {
           }
 
           // 2. Fusionar cambios: Agregar nuevos o actualizar existentes
-          remoteList.forEach(remoteItem => {
+          enrichedRemote.forEach(remoteItem => {
+            if (!remoteItem || !remoteItem.anime) return;
             const animeId = String(remoteItem.anime.id);
             const localItem = localMap.get(animeId);
 
@@ -145,11 +202,12 @@ export async function mergeGuestListIntoUser(userUid: string) {
     console.log(`Migrando ${guestList.length} items de la lista de invitado...`);
 
     const remoteList = await fetchUserListFromFirestore();
-    const remoteIds = new Set(remoteList.map(item => item.anime.id));
+    const remoteIds = new Set(remoteList.map(item => item.animeId || item.anime?.id));
     const mergedList = [...remoteList];
 
     for (const item of guestList) {
-      if (!remoteIds.has(item.anime.id)) {
+      const animeId = item.animeId || item.anime?.id;
+      if (!remoteIds.has(animeId)) {
         await syncAnimeToFirestore(item);
         mergedList.push(item);
       }
