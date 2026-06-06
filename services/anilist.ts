@@ -91,33 +91,105 @@ export interface Anime {
   };
 }
 
-export async function fetchTrendingAnime(page = 1, perPage = 10): Promise<Anime[]> {
+export async function fetchAnimesByIds(ids: number[]): Promise<Anime[]> {
+  if (!ids.length) return [];
+
   const query = `
-    query ($page: Int, $perPage: Int) {
-      Page(page: $page, perPage: $perPage) {
-        media(sort: TRENDING_DESC, type: ANIME) {
-          id
-          idMal
-          title {
-            romaji
-            english
-            native
-          }
-          coverImage {
-            large
-            medium
-          }
-          bannerImage
-          averageScore
-          episodes
-          genres
-          type
-          isAdult
-          description
+query($ids: [Int]) {
+  Page {
+    media(id_in: $ids, type: ANIME) {
+      id
+      idMal
+      title {
+        romaji
+        english
+        native
+      }
+      coverImage {
+        large
+        medium
+        extraLarge
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      status
+      startDate {
+        year
+        month
+        day
+      }
+      studios {
+        nodes {
+          name
         }
       }
+      season
+      seasonYear
+      description
+      duration
+      source
+      nextAiringEpisode {
+        airingAt
+        timeUntilAiring
+        episode
+      }
     }
-  `;
+  }
+}
+`;
+
+  try {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { ids },
+      }),
+    });
+
+    const json = await response.json();
+    return json.data.Page.media;
+  } catch (error) {
+    console.error('Error fetching animes by ids:', error);
+    return [];
+  }
+}
+
+export async function fetchTrendingAnime(page = 1, perPage = 10): Promise<Anime[]> {
+  const query = `
+query($page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(sort: TRENDING_DESC, type: ANIME) {
+      id
+      idMal
+          title {
+        romaji
+        english
+        native
+      }
+          coverImage {
+        large
+        medium
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      description
+    }
+  }
+}
+`;
 
   try {
     const response = await fetch(ANILIST_URL, {
@@ -142,31 +214,31 @@ export async function fetchTrendingAnime(page = 1, perPage = 10): Promise<Anime[
 
 export async function fetchPopularAnime(page = 1, perPage = 10): Promise<Anime[]> {
   const query = `
-    query ($page: Int, $perPage: Int) {
-      Page(page: $page, perPage: $perPage) {
-        media(sort: POPULARITY_DESC, type: ANIME) {
-          id
-          idMal
+query($page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(sort: POPULARITY_DESC, type: ANIME) {
+      id
+      idMal
           title {
-            romaji
-            english
-            native
-          }
-          coverImage {
-            large
-            medium
-          }
-          bannerImage
-          averageScore
-          episodes
-          genres
-          type
-          isAdult
-          description
-        }
+        romaji
+        english
+        native
       }
+          coverImage {
+        large
+        medium
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      description
     }
-  `;
+  }
+}
+`;
 
   try {
     const response = await fetch(ANILIST_URL, {
@@ -203,38 +275,38 @@ export async function searchAnime(
   const activeSearch = search && search.trim() !== '' ? search : null;
 
   const query = `
-    query ($page: Int, $perPage: Int, $search: String, $genres: [String], $season: MediaSeason, $seasonYear: Int) {
-      Page(page: $page, perPage: $perPage) {
-        media(
-          search: $search,
-          genre_in: $genres,
-          season: $season,
-          seasonYear: $seasonYear,
-          type: ANIME,
-          sort: POPULARITY_DESC
-        ) {
-          id
-          idMal
+query($page: Int, $perPage: Int, $search: String, $genres: [String], $season: MediaSeason, $seasonYear: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(
+      search: $search,
+      genre_in: $genres,
+      season: $season,
+      seasonYear: $seasonYear,
+      type: ANIME,
+      sort: POPULARITY_DESC
+    ) {
+      id
+      idMal
           title {
-            romaji
-            english
-            native
-          }
-          coverImage {
-            large
-            medium
-          }
-          bannerImage
-          averageScore
-          episodes
-          genres
-          type
-          isAdult
-          description
-        }
+        romaji
+        english
+        native
       }
+          coverImage {
+        large
+        medium
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      description
     }
-  `;
+  }
+}
+`;
 
   const variables: Record<string, any> = { page, perPage };
   if (activeSearch) variables.search = activeSearch;
@@ -265,89 +337,89 @@ export async function searchAnime(
 
 export async function fetchAnimeDetails(id: number): Promise<Anime | null> {
   const query = `
-    query ($id: Int) {
-      Media(id: $id, type: ANIME) {
-        id
-        idMal
+query($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    idMal
         title {
-          romaji
-          english
-          native
-        }
+      romaji
+      english
+      native
+    }
         coverImage {
-          large
-          extraLarge
-        }
-        bannerImage
-        averageScore
-        episodes
-        status
-        genres
-        isAdult
-        description
-        type
-        season
-        seasonYear
-        duration
-        source
+      large
+      extraLarge
+    }
+    bannerImage
+    averageScore
+    episodes
+    status
+    genres
+    isAdult
+    description
+    type
+    season
+    seasonYear
+    duration
+    source
         startDate {
-          year
-          month
-          day
-        }
-        studios(isMain: true) {
+      year
+      month
+      day
+    }
+    studios(isMain: true) {
           nodes {
-            name
+        name
+      }
+    }
+    characters(sort: [ROLE, RELEVANCE, ID], perPage: 12) {
+          edges {
+        role
+            node {
+          id
+              name {
+            full
+            userPreferred
+          }
+              image {
+            large
           }
         }
-        characters(sort: [ROLE, RELEVANCE, ID], perPage: 12) {
-          edges {
-            role
-            node {
-              id
+        voiceActors(language: JAPANESE) {
+          id
               name {
-                full
-                userPreferred
-              }
-              image {
-                large
-              }
-            }
-            voiceActors(language: JAPANESE) {
-              id
-              name {
-                full
-                userPreferred
-              }
-              image {
-                large
-              }
-            }
+            full
+            userPreferred
           }
-        }
-        relations {
-          edges {
-            relationType
-            node {
-              id
-              title {
-                romaji
-                english
-                native
-              }
-              coverImage {
-                large
-                medium
-              }
-              type
-              status
-              averageScore
-            }
+              image {
+            large
           }
         }
       }
     }
-  `;
+        relations {
+          edges {
+        relationType
+            node {
+          id
+              title {
+            romaji
+            english
+            native
+          }
+              coverImage {
+            large
+            medium
+          }
+          type
+          status
+          averageScore
+        }
+      }
+    }
+  }
+}
+`;
 
   try {
     const response = await fetch(ANILIST_URL, {
@@ -372,36 +444,36 @@ export async function fetchAnimeDetails(id: number): Promise<Anime | null> {
 
 export async function fetchAiringAnime(page = 1, perPage = 20, isAdult = false): Promise<Anime[]> {
   const query = `
-    query ($page: Int, $perPage: Int, $isAdult: Boolean) {
-      Page(page: $page, perPage: $perPage) {
-        media(status: RELEASING, type: ANIME, sort: TRENDING_DESC, isAdult: $isAdult) {
-          id
-          idMal
+query($page: Int, $perPage: Int, $isAdult: Boolean) {
+  Page(page: $page, perPage: $perPage) {
+    media(status: RELEASING, type: ANIME, sort: TRENDING_DESC, isAdult: $isAdult) {
+      id
+      idMal
           title {
-            romaji
-            english
-            native
-          }
-          coverImage {
-            large
-            medium
-          }
-          bannerImage
-          averageScore
-          episodes
-          nextAiringEpisode {
-            airingAt
-            timeUntilAiring
-            episode
-          }
-          genres
-          type
-          isAdult
-          description
-        }
+        romaji
+        english
+        native
       }
+          coverImage {
+        large
+        medium
+      }
+      bannerImage
+      averageScore
+      episodes
+          nextAiringEpisode {
+        airingAt
+        timeUntilAiring
+        episode
+      }
+      genres
+      type
+      isAdult
+      description
     }
-  `;
+  }
+}
+`;
 
   try {
     const response = await fetch(ANILIST_URL, {

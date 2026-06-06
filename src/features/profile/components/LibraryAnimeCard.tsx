@@ -13,6 +13,9 @@ interface LibraryAnimeCardProps {
 
 export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnimeCardProps) {
   const { isWeb } = useResponsive();
+  
+  if (!item || !item.anime) return null;
+
   const title = item.anime.title.romaji || item.anime.title.english;
   
   return (

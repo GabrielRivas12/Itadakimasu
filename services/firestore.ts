@@ -52,10 +52,9 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
     asegurarFirebaseApp();
 
     const cleanItem = sanitizeObject(item);
-    if (cleanItem && cleanItem.anime) {
-      // Limpiamos campos pesados para no exceder límites de Firestore
-      delete cleanItem.anime.characters;
-      delete cleanItem.anime.relations;
+    // Ya no guardamos el objeto anime completo para ahorrar espacio y consistencia
+    if (cleanItem) {
+      delete cleanItem.anime;
     }
 
     const animeId = String(item.anime.id);
@@ -68,6 +67,7 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
       const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, animeId);
       await setDoc(docRef, {
         ...cleanItem,
+        animeId: Number(animeId), // Guardamos el ID explícitamente
         userId: user.uid,
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -81,6 +81,7 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
         .doc(animeId)
         .set({
           ...cleanItem,
+          animeId: Number(animeId), // Guardamos el ID explícitamente
           userId: user.uid,
           updatedAt: firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
