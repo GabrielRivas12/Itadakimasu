@@ -6,7 +6,25 @@ export const cacheKeys = {
   TRENDING_LIST: 'cache:trending_list',
   CONTINUE_WATCHING: 'cache:continue_watching',
   ANIME_DETAILS: (id: number) => `cache:anime_details:${id}`,
+  ADULT_CONTENT: 'setting:adult_content',
 };
+
+export async function getIsAdultContentEnabled(): Promise<boolean> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.ADULT_CONTENT);
+    return data === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setIsAdultContentEnabled(enabled: boolean): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.ADULT_CONTENT, enabled ? 'true' : 'false');
+  } catch (error) {
+    console.error('Error saving adult content setting:', error);
+  }
+}
 
 export async function getCachedContinueWatching(): Promise<any[] | null> {
   try {

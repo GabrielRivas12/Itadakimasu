@@ -9,6 +9,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { UserHeader } from '../components/UserHeader';
+import { SettingsButton } from '../../settings/components/SettingsButton';
 import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { StatsCard } from '../components/StatsCard';
 import { StatusTabs } from '../components/StatusTabs';
@@ -72,7 +73,10 @@ export const ProfilePage = memo(function ProfilePage() {
               isWeb && { paddingHorizontal: 0 },
               isWeb && isMobile && { paddingTop: 20 }
             ]}>
-              <Text style={styles.headerTitle}>Mi Perfil</Text>
+              <View style={styles.headerTop}>
+                <Text style={styles.headerTitle}>Mi Perfil</Text>
+                <SettingsButton />
+              </View>
               <Text style={styles.headerSubtitle}>Gestiona tu colección</Text>
             </View>
 
@@ -158,6 +162,12 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     paddingBottom: 15,
     backgroundColor: '#0b0f19',
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   headerTitle: {
     color: '#ffffff',

@@ -26,6 +26,7 @@ import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
+import NotFoundScreen from '../../../app/+not-found';
 
 export function AnimeDetailsPage() {
   const router = useRouter();
@@ -63,7 +64,12 @@ export function AnimeDetailsPage() {
     handleUpdateProgress,
     handleRemove,
     isUpdatingStatus,
+    isAdultContentEnabled,
   } = useAnimeDetails();
+
+  if (!loading && anime?.isAdult && !isAdultContentEnabled) {
+    return <NotFoundScreen />;
+  }
 
   const handleAnimePress = (targetId: number) => {
     router.push(`/anime/${targetId}`);

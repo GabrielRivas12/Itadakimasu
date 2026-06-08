@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { fetchAiringAnime, Anime } from '../../../../services/anilist';
+import { getIsAdultContentEnabled } from '../../../../services/cache';
 
 export const useAiring = () => {
   const router = useRouter();
@@ -10,6 +11,18 @@ export const useAiring = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isAdult, setIsAdult] = useState(false);
+  const [isAdultSettingEnabled, setIsAdultSettingEnabled] = useState(false);
+
+  useEffect(() => {
+    const loadSetting = async () => {
+      const enabled = await getIsAdultContentEnabled();
+      setIsAdultSettingEnabled(enabled);
+      if (!enabled) {
+        setIsAdult(false);
+      }
+    };
+    loadSetting();
+  }, []);
 
   const loadAiring = useCallback(async (pageNum: number, isInitial: boolean = false, adultFilter: boolean = isAdult) => {
     try {
@@ -21,7 +34,9 @@ export const useAiring = () => {
         setLoadingMore(true);
       }
 
-      const data = await fetchAiringAnime(pageNum, 20, adultFilter);
+      // Final adult filter is: local toggle AND global setting
+      const finalAdultFilter = adultFilter && isAdultSettingEnabled;
+      const data = await fetchAiringAnime(pageNum, 20, finalAdultFilter);
       
       if (data) {
         if (isInitial) {
@@ -42,14 +57,16 @@ export const useAiring = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [isAdult]);
+  }, [isAdult, isAdultSettingEnabled]);
 
   useEffect(() => {
     loadAiring(1, true, isAdult);
   }, [isAdult, loadAiring]);
 
   const toggleAdult = () => {
-    setIsAdult(!isAdult);
+    if (isAdultSettingEnabled) {
+      setIsAdult(!isAdult);
+    }
   };
 
   const handleLoadMore = () => {
@@ -70,6 +87,7 @@ export const useAiring = () => {
     loadingMore,
     hasMore,
     isAdult,
+    isAdultSettingEnabled,
     toggleAdult,
     handleLoadMore,
     handleAnimePress,

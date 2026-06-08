@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { searchAnime, Anime, AnimeSeason } from '../../../../services/anilist';
+import { getIsAdultContentEnabled } from '../../../../services/cache';
 
 // Module-level cache to persist results across remounts during the session
 let sessionExploreResults: Anime[] = [];
 let exploreInitialized = false;
+let currentAdultSetting: boolean | null = null;
 
 export const useExplore = () => {
   const router = useRouter();
@@ -14,13 +16,31 @@ export const useExplore = () => {
   const [selectedYear, setSelectedYear] = useState<number | 'Todos'>('Todos');
   const [results, setResults] = useState<Anime[]>(sessionExploreResults);
   const [loading, setLoading] = useState(!exploreInitialized);
+  const [isAdultSettingEnabled, setIsAdultSettingEnabled] = useState(false);
   
   // Pagination states
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchData = useCallback(async (pageNum: number, isInitial: boolean = false) => {
+  useEffect(() => {
+    const loadSetting = async () => {
+      const enabled = await getIsAdultContentEnabled();
+      setIsAdultSettingEnabled(enabled);
+      
+      // If setting changed since last session cache, clear it
+      if (currentAdultSetting !== null && currentAdultSetting !== enabled) {
+        sessionExploreResults = [];
+        exploreInitialized = false;
+        setResults([]);
+        fetchData(1, true, enabled);
+      }
+      currentAdultSetting = enabled;
+    };
+    loadSetting();
+  }, []);
+
+  const fetchData = useCallback(async (pageNum: number, isInitial: boolean = false, adultSetting: boolean = isAdultSettingEnabled) => {
     try {
       if (isInitial) {
         setLoading(true);
@@ -35,7 +55,11 @@ export const useExplore = () => {
       const seasonValue = selectedSeason !== 'Todas' ? selectedSeason : null;
       const yearValue = selectedYear !== 'Todos' ? selectedYear : null;
       
-      const data = await searchAnime(queryText, genreText, seasonValue, yearValue, pageNum);
+      // If adult content is disabled, explicitly filter it out (isAdult: false)
+      // If enabled, we show both (isAdult: null)
+      const isAdultFilter = adultSetting ? null : false;
+
+      const data = await searchAnime(queryText, genreText, seasonValue, yearValue, pageNum, 20, isAdultFilter);
       
       if (data) {
         if (isInitial) {
@@ -65,7 +89,7 @@ export const useExplore = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [searchQuery, selectedGenre, selectedSeason, selectedYear]);
+  }, [searchQuery, selectedGenre, selectedSeason, selectedYear, isAdultSettingEnabled]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {

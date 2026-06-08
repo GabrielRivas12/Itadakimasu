@@ -269,13 +269,14 @@ export async function searchAnime(
   season: AnimeSeason | null = null,
   year: number | null = null,
   page = 1,
-  perPage = 20
+  perPage = 20,
+  isAdult: boolean | null = null
 ): Promise<Anime[]> {
   const activeGenre = genre && genre !== 'Todos' ? [genre] : null;
   const activeSearch = search && search.trim() !== '' ? search : null;
 
   const query = `
-query($page: Int, $perPage: Int, $search: String, $genres: [String], $season: MediaSeason, $seasonYear: Int) {
+query($page: Int, $perPage: Int, $search: String, $genres: [String], $season: MediaSeason, $seasonYear: Int, $isAdult: Boolean) {
   Page(page: $page, perPage: $perPage) {
     media(
       search: $search,
@@ -283,7 +284,8 @@ query($page: Int, $perPage: Int, $search: String, $genres: [String], $season: Me
       season: $season,
       seasonYear: $seasonYear,
       type: ANIME,
-      sort: POPULARITY_DESC
+      sort: POPULARITY_DESC,
+      isAdult: $isAdult
     ) {
       id
       idMal
@@ -313,6 +315,7 @@ query($page: Int, $perPage: Int, $search: String, $genres: [String], $season: Me
   if (activeGenre) variables.genres = activeGenre;
   if (season) variables.season = season;
   if (year) variables.seasonYear = year;
+  if (isAdult !== null) variables.isAdult = isAdult;
 
   try {
     const response = await fetch(ANILIST_URL, {

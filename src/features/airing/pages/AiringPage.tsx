@@ -20,6 +20,7 @@ export const AiringPage = memo(function AiringPage() {
     loading,
     loadingMore,
     isAdult,
+    isAdultSettingEnabled,
     toggleAdult,
     handleLoadMore,
     handleAnimePress,
@@ -42,17 +43,19 @@ export const AiringPage = memo(function AiringPage() {
               {isAdult ? 'Contenido para Adultos' : 'Últimas actualizaciones'}
             </Text>
           </View>
-          <RNTouchableOpacity 
-            style={[styles.r18Button, isAdult && styles.r18ButtonActive]} 
-            onPress={toggleAdult}
-          >
-            <Text style={[styles.r18Text, isAdult && styles.r18TextActive]}>R18</Text>
-            <Ionicons 
-              name={isAdult ? "eye" : "eye-off"} 
-              size={18} 
-              color={isAdult ? "#ffffff" : "#94a3b8"} 
-            />
-          </RNTouchableOpacity>
+          {isAdultSettingEnabled && (
+            <RNTouchableOpacity 
+              style={[styles.r18Button, isAdult && styles.r18ButtonActive]} 
+              onPress={toggleAdult}
+            >
+              <Text style={[styles.r18Text, isAdult && styles.r18TextActive]}>R18</Text>
+              <Ionicons 
+                name={isAdult ? "eye" : "eye-off"} 
+                size={18} 
+                color={isAdult ? "#ffffff" : "#94a3b8"} 
+              />
+            </RNTouchableOpacity>
+          )}
         </View>
       </View>
 
