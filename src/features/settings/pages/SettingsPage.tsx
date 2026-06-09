@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { 
   getIsAdultContentEnabled, 
@@ -201,7 +202,7 @@ export const SettingsPage = () => {
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingLabel}>Versión de la App</Text>
                 <View style={styles.versionContainer}>
-                  <Text style={styles.settingValue}>1.0.1</Text>
+                  <Text style={styles.settingValue}>{Constants.expoConfig?.version || '1.2.0'}</Text>
                   <Ionicons name="chevron-forward" size={16} color="#475569" style={{ marginLeft: 4 }} />
                 </View>
               </View>

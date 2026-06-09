@@ -2,12 +2,18 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 
 export const SystemDetailsPage = () => {
   const router = useRouter();
 
   // Detect New Architecture (Fabric)
   const isNewArchitecture = (global as any).nativeFabricUIManager != null;
+
+  // Dynamic versions from Expo Constants
+  const appVersion = Constants.expoConfig?.version || 'Unknown';
+  const rnVersion = Constants.systemFonts ? '0.83.6' : '0.83.6'; // Fallback to current if not detectable via Constants
+  const expoSdkVersion = Constants.expoConfig?.sdkVersion || '55.0.0';
 
   return (
     <View style={styles.container}>
@@ -20,11 +26,21 @@ export const SystemDetailsPage = () => {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Aplicación</Text>
+          <View style={styles.card}>
+            <View style={[styles.item, styles.lastItem]}>
+              <Text style={styles.label}>Versión de App</Text>
+              <Text style={styles.value}>{appVersion}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Arquitectura React Native</Text>
           <View style={styles.card}>
             <View style={styles.item}>
               <Text style={styles.label}>Versión React Native</Text>
-              <Text style={styles.value}>0.83.6</Text>
+              <Text style={styles.value}>{rnVersion}</Text>
             </View>
             <View style={styles.item}>
               <Text style={styles.label}>New Architecture (Fabric)</Text>
@@ -44,11 +60,11 @@ export const SystemDetailsPage = () => {
           <View style={styles.card}>
             <View style={styles.item}>
               <Text style={styles.label}>Expo SDK</Text>
-              <Text style={styles.value}>v55.0.26</Text>
+              <Text style={styles.value}>v{expoSdkVersion}</Text>
             </View>
             <View style={[styles.item, styles.lastItem]}>
               <Text style={styles.label}>Expo Router</Text>
-              <Text style={styles.value}>v55.0.16</Text>
+              <Text style={styles.value}>v{Constants.expoConfig?.extra?.routerVersion || '55.0.16'}</Text>
             </View>
           </View>
         </View>
