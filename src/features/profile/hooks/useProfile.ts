@@ -143,7 +143,7 @@ export const useProfile = () => {
   };
 
   const handleAnimePress = (id: number) => {
-    router.push(`/anime/${id}`);
+    router.push({ pathname: '/animedetails', params: { id } });
   };
 
   const filteredList = list.filter((item) => item.status === activeTab);

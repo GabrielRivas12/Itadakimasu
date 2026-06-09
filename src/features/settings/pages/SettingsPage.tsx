@@ -1,26 +1,107 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  Switch, 
+  Linking, 
+  Modal, 
+  TextInput, 
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  PermissionsAndroid
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
-import { getIsAdultContentEnabled, setIsAdultContentEnabled } from '../../../../services/cache';
+import { 
+  getIsAdultContentEnabled, 
+  setIsAdultContentEnabled,
+  getIsNotificationsEnabled,
+  setIsNotificationsEnabled
+} from '../../../../services/cache';
 
 export const SettingsPage = () => {
   const router = useRouter();
   const [isAdultContentEnabled, setAdultContentEnabled] = useState(false);
+  const [isNotificationsEnabled, setNotificationsEnabled] = useState(false);
+  
+  // Modal state
+  const [isReportModalVisible, setReportModalVisible] = useState(false);
+  const [reportTitle, setReportTitle] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
 
   useEffect(() => {
     loadSettings();
   }, []);
 
   const loadSettings = async () => {
-    const enabled = await getIsAdultContentEnabled();
-    setAdultContentEnabled(enabled);
+    const [adultEnabled, notificationsEnabled] = await Promise.all([
+      getIsAdultContentEnabled(),
+      getIsNotificationsEnabled()
+    ]);
+    setAdultContentEnabled(adultEnabled);
+    setNotificationsEnabled(notificationsEnabled);
   };
 
   const handleToggleAdultContent = async (value: boolean) => {
     setAdultContentEnabled(value);
     await setIsAdultContentEnabled(value);
+  };
+
+  const handleToggleNotifications = async (value: boolean) => {
+    if (value && Platform.OS === 'android') {
+      try {
+        // En Android 13+ (API 33) se requiere permiso explícito para notificaciones
+        if (Platform.Version >= 33) {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: 'Permiso de Notificaciones',
+              message: 'Itadakimasu necesita permiso para enviarte notificaciones sobre nuevos episodios.',
+              buttonNeutral: 'Preguntar después',
+              buttonNegative: 'Cancelar',
+              buttonPositive: 'OK',
+            }
+          );
+          
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert.alert(
+              'Permiso Denegado', 
+              'No podremos enviarte notificaciones sin tu permiso. Puedes activarlo desde los ajustes del sistema.'
+            );
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+
+    setNotificationsEnabled(value);
+    await setIsNotificationsEnabled(value);
+  };
+
+  const handleSendReport = () => {
+    if (!reportTitle.trim() || !reportDescription.trim()) {
+      Alert.alert('Campos incompletos', 'Por favor rellena el título y la descripción del error.');
+      return;
+    }
+
+    const subject = encodeURIComponent(`Reporte de Error: ${reportTitle}`);
+    const body = encodeURIComponent(reportDescription);
+    const mailtoUrl = `mailto:itadakimasuapp1@gmail.com?subject=${subject}&body=${body}`;
+
+    Linking.openURL(mailtoUrl).catch(() => {
+      Alert.alert('Error', 'No se pudo abrir la aplicación de correo.');
+    });
+
+    setReportModalVisible(false);
+    setReportTitle('');
+    setReportDescription('');
   };
 
   return (
@@ -41,14 +122,13 @@ export const SettingsPage = () => {
                 <Ionicons name="notifications-outline" size={22} color="#8b5cf6" />
               </View>
               <Text style={styles.settingLabel}>Notificaciones</Text>
-              <Ionicons name="chevron-forward" size={20} color="#475569" />
-            </View>
-            <View style={styles.settingItem}>
-              <View style={styles.settingIconContainer}>
-                <Ionicons name="color-palette-outline" size={22} color="#8b5cf6" />
-              </View>
-              <Text style={styles.settingLabel}>Apariencia</Text>
-              <Ionicons name="chevron-forward" size={20} color="#475569" />
+              <Switch
+                trackColor={{ false: '#2d3748', true: '#8b5cf6' }}
+                thumbColor={isNotificationsEnabled ? '#ffffff' : '#94a3b8'}
+                ios_backgroundColor="#2d3748"
+                onValueChange={handleToggleNotifications}
+                value={isNotificationsEnabled}
+              />
             </View>
             <View style={[styles.settingItem, styles.lastItem]}>
               <View style={styles.settingIconContainer}>
@@ -91,6 +171,23 @@ export const SettingsPage = () => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Soporte</Text>
+          <View style={styles.card}>
+            <TouchableOpacity 
+              style={[styles.settingItem, styles.lastItem]} 
+              onPress={() => setReportModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="bug-outline" size={22} color="#8b5cf6" />
+              </View>
+              <Text style={styles.settingLabel}>Reportar un error</Text>
+              <Ionicons name="mail-outline" size={20} color="#475569" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Acerca de</Text>
           <View style={styles.card}>
             <TouchableOpacity 
@@ -112,6 +209,60 @@ export const SettingsPage = () => {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={isReportModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reportar un Error</Text>
+              <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Título del Error</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Ej. El episodio no carga"
+                placeholderTextColor="#64748b"
+                value={reportTitle}
+                onChangeText={setReportTitle}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Descripción</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder="Describe qué pasó y cómo podemos reproducirlo..."
+                placeholderTextColor="#64748b"
+                multiline={true}
+                numberOfLines={4}
+                value={reportDescription}
+                onChangeText={setReportDescription}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.sendButton}
+              onPress={handleSendReport}
+            >
+              <Text style={styles.sendButtonText}>Enviar por Correo</Text>
+              <Ionicons name="send" size={18} color="#ffffff" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 };
@@ -199,5 +350,65 @@ const styles = StyleSheet.create({
   versionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  textInput: {
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    padding: 14,
+    color: '#ffffff',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  textArea: {
+    height: 120,
+  },
+  sendButton: {
+    backgroundColor: '#8b5cf6',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  sendButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

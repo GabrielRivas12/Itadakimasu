@@ -7,6 +7,7 @@ export const cacheKeys = {
   CONTINUE_WATCHING: 'cache:continue_watching',
   ANIME_DETAILS: (id: number) => `cache:anime_details:${id}`,
   ADULT_CONTENT: 'setting:adult_content',
+  NOTIFICATIONS_ENABLED: 'setting:notifications_enabled',
 };
 
 export async function getIsAdultContentEnabled(): Promise<boolean> {
@@ -23,6 +24,23 @@ export async function setIsAdultContentEnabled(enabled: boolean): Promise<void> 
     await AsyncStorage.setItem(cacheKeys.ADULT_CONTENT, enabled ? 'true' : 'false');
   } catch (error) {
     console.error('Error saving adult content setting:', error);
+  }
+}
+
+export async function getIsNotificationsEnabled(): Promise<boolean> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.NOTIFICATIONS_ENABLED);
+    return data === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setIsNotificationsEnabled(enabled: boolean): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.NOTIFICATIONS_ENABLED, enabled ? 'true' : 'false');
+  } catch (error) {
+    console.error('Error saving notifications setting:', error);
   }
 }
 

@@ -78,7 +78,7 @@ export const useAiring = () => {
   };
 
   const handleAnimePress = (id: number) => {
-    router.push(`/anime/${id}`);
+    router.push({ pathname: '/animedetails', params: { id } });
   };
 
   return {

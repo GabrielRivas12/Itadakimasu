@@ -375,10 +375,6 @@ export const useAnimeDetails = () => {
     
   };
 
-  const saveProgress = async (progress: number, isUpdate: boolean = false) => {
-    // Keep for backward compatibility / no-op
-  };
-
   const handleUpdateStatus = async (status: UserListStatus) => {
     if (!anime) return;
 
@@ -402,10 +398,6 @@ export const useAnimeDetails = () => {
     } finally {
       setIsUpdatingStatus(false);
     }
-  };
-
-  const handleUpdateProgress = async () => {
-    // No-op
   };
 
   const handleRemove = async () => {
@@ -450,9 +442,7 @@ export const useAnimeDetails = () => {
     fadeAnim,
     loadMoreEpisodes,
     handleEpisodeSelect,
-    saveProgress,
     handleUpdateStatus,
-    handleUpdateProgress,
     handleRemove,
     isUpdatingStatus,
     isAdultContentEnabled,

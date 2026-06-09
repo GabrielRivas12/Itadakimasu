@@ -18,7 +18,6 @@ if (Platform.OS === 'web') {
       // Solo inicializar si al menos el apiKey existe para evitar errores fatales
       if (config.apiKey) {
         initializeApp(config);
-        console.log('[Firebase] Inicializado correctamente en Web (Top-level)');
       } else {
         console.warn('[Firebase] No se pudo inicializar en Web: Faltan variables de entorno EXPO_PUBLIC_');
       }

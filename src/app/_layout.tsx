@@ -40,6 +40,10 @@ export default function RootLayout() {
       }}>
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+        <Stack.Screen name="animedetails" options={{ animation: 'none' }} />
+        <Stack.Screen name="(settings)/settings" options={{ animation: 'none' }} />
+        <Stack.Screen name="(settings)/privacy" options={{ animation: 'none' }} />
+        <Stack.Screen name="(settings)/system-details" options={{ animation: 'none' }} />
       </Stack>
 
       {showWebAd && <WebAdBanner />}
