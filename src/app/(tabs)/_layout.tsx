@@ -40,17 +40,10 @@ export default function TabLayout() {
         tabBarStyle: showBottomTabs ? {
           backgroundColor: '#0f172a',
           borderTopWidth: 0,
-          height: isWeb
-            ? 100 
-            : (Platform.OS === 'ios' ? 96 : 85),
-          paddingTop: isWeb ? 20 : 12,
-          paddingBottom: isWeb ? 20 : (Platform.OS === 'ios' ? 32 : 12),
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          height: isWeb ? 68 : (Platform.OS === 'ios' ? 88 : 60),
+          paddingBottom: isWeb ? 12 : (Platform.OS === 'ios' ? 30 : 12),
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
           elevation: 20,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
@@ -138,7 +131,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
   },
   activeIconWrapper: {
     backgroundColor: 'rgba(139, 92, 246, 0.12)',
