@@ -5,14 +5,11 @@ import { fetchAnimeDetails, Anime } from '../../../../services/anilist';
 import { translateDescription } from '../../../../services/kitsu';
 import {
   getUserList,
-  getAnimeStatus,
   addOrUpdateAnimeInList,
   removeAnimeFromList,
   UserListStatus,
-  getAnimeProgress,
-  updateAnimeProgress,
 } from '../../../../services/animeList';
-import { getCachedAnimeDetails, cacheAnimeDetails } from '../../../../services/cache';
+import { getCachedAnimeDetails, cacheAnimeDetails, getIsAdultContentEnabled } from '../../../../services/cache';
 import {
   searchAnime1V,
   getAnime1VInfo,
@@ -43,6 +40,7 @@ export const useAnimeDetails = () => {
   const [selectedStatus, setSelectedStatus] = useState<UserListStatus | null>(null);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isAdultContentEnabled, setIsAdultContentEnabled] = useState<boolean>(true);
 
   // Anime1V states
   const [anime1VInfo, setAnime1VInfo] = useState<Anime1VInfo | null>(null);
@@ -71,9 +69,14 @@ export const useAnimeDetails = () => {
 
   useEffect(() => {
     if (anime && !anime1VInfo && !contentNotAvailable && !matchingAttempted) {
+      // Solo buscar si no es contenido restringido
+      if (anime.isAdult && !isAdultContentEnabled) {
+        setContentNotAvailable(true);
+        return;
+      }
       searchAndLoadAnime1V();
     }
-  }, [anime]);
+  }, [anime, isAdultContentEnabled]);
 
   // Inicializar displayedEpisodes cuando se carga anime1VInfo
   useEffect(() => {
@@ -103,10 +106,13 @@ export const useAnimeDetails = () => {
       setLoading(true);
 
       // Llamamos a getUserList una sola vez para eficiencia
-      const [cachedAnime, userList] = await Promise.all([
+      const [cachedAnime, userList, adultSetting] = await Promise.all([
         getCachedAnimeDetails(id),
         getUserList(),
+        getIsAdultContentEnabled()
       ]);
+
+      setIsAdultContentEnabled(adultSetting);
 
       console.log(`[DEBUG] userList cargada, tamaño: ${userList?.length || 0}`);
 
@@ -369,10 +375,6 @@ export const useAnimeDetails = () => {
     
   };
 
-  const saveProgress = async (progress: number, isUpdate: boolean = false) => {
-    // Keep for backward compatibility / no-op
-  };
-
   const handleUpdateStatus = async (status: UserListStatus) => {
     if (!anime) return;
 
@@ -396,10 +398,6 @@ export const useAnimeDetails = () => {
     } finally {
       setIsUpdatingStatus(false);
     }
-  };
-
-  const handleUpdateProgress = async () => {
-    // No-op
   };
 
   const handleRemove = async () => {
@@ -444,10 +442,9 @@ export const useAnimeDetails = () => {
     fadeAnim,
     loadMoreEpisodes,
     handleEpisodeSelect,
-    saveProgress,
     handleUpdateStatus,
-    handleUpdateProgress,
     handleRemove,
     isUpdatingStatus,
+    isAdultContentEnabled,
   };
 };

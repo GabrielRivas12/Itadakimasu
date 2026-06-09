@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { Platform, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../../hooks/useResponsive';
 
@@ -15,7 +15,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        sceneStyle: { backgroundColor: '#0b0f19' }, // Color de fondo para todas las escenas de las pestañas
+        sceneStyle: { backgroundColor: '#0b0f19' },
         headerStyle: {
           backgroundColor: '#0f172a',
           shadowColor: 'transparent',
@@ -30,24 +30,35 @@ export default function TabLayout() {
         headerTintColor: '#f8fafc',
         tabBarActiveTintColor: '#8b5cf6',
         tabBarInactiveTintColor: '#94a3b8',
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 13,
+          fontWeight: 'bold',
+          marginBottom: 0,
+          marginTop: 2,
+        },
         tabBarStyle: showBottomTabs ? {
           backgroundColor: '#0f172a',
-          borderTopWidth: 1,
-          borderTopColor: '#1e293b',
+          borderTopWidth: 0,
           height: isWeb
-            ? (isMobile ? 75 : 75) 
-            : (Platform.OS === 'ios' ? 88 : 64 + insets.bottom),
-          paddingBottom: isWeb
-            ? (isMobile ? 10 : 10) 
-            : (Platform.OS === 'ios' ? 28 : (insets.bottom > 0 ? insets.bottom : 10)),
-          paddingTop: 10,
+            ? 100 
+            : (Platform.OS === 'ios' ? 96 : 85),
+          paddingTop: isWeb ? 20 : 12,
+          paddingBottom: isWeb ? 20 : (Platform.OS === 'ios' ? 32 : 12),
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          elevation: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 10,
         } : { display: 'none' },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
-      }}
-    >
+        }}
+        >
       <Tabs.Screen
         name="home"
         options={{
@@ -55,11 +66,13 @@ export default function TabLayout() {
           tabBarLabel: 'Inicio',
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={24}
-              color={color}
-            />
+            <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
+              <Feather
+                name="home"
+                size={20}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -70,11 +83,13 @@ export default function TabLayout() {
           tabBarLabel: 'En Emisión',
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'radio' : 'radio-outline'}
-              size={24}
-              color={color}
-            />
+            <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
+              <Feather
+                name="tv"
+                size={20}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -85,11 +100,13 @@ export default function TabLayout() {
           tabBarLabel: 'Explorar',
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'search' : 'search-outline'}
-              size={24}
-              color={color}
-            />
+            <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
+              <Feather
+                name="search"
+                size={20}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
@@ -100,14 +117,30 @@ export default function TabLayout() {
           tabBarLabel: 'Perfil',
           headerShown: false,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={24}
-              color={color}
-            />
+            <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
+              <Feather
+                name="user"
+                size={20}
+                color={color}
+              />
+            </View>
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrapper: {
+    width: 48,
+    height: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  activeIconWrapper: {
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+  },
+});

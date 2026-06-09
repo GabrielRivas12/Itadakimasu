@@ -193,7 +193,7 @@ export const useHome = () => {
   };
 
   const handleAnimePress = (id: number) => {
-    router.push(`/anime/${id}`);
+    router.push({ pathname: '/animedetails', params: { id } });
   };
 
   const handleScroll = (event: any) => {

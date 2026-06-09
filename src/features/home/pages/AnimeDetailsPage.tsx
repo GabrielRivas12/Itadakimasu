@@ -26,6 +26,7 @@ import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
+import NotFoundScreen from '../../../app/+not-found';
 
 export function AnimeDetailsPage() {
   const router = useRouter();
@@ -63,16 +64,21 @@ export function AnimeDetailsPage() {
     handleUpdateProgress,
     handleRemove,
     isUpdatingStatus,
+    isAdultContentEnabled,
   } = useAnimeDetails();
 
+  if (!loading && anime?.isAdult && !isAdultContentEnabled) {
+    return <NotFoundScreen />;
+  }
+
   const handleAnimePress = (targetId: number) => {
-    router.push(`/anime/${targetId}`);
+    router.push({ pathname: '/animedetails', params: { id: targetId } });
   };
 
   const handleShare = async () => {
     if (!anime) return;
     try {
-      const shareUrl = `https://itadakimasu.online/anime/${anime.id}`;
+      const shareUrl = `https://itadakimasu.online/animedetails?id=${anime.id}`;
       const title = anime.title.romaji || anime.title.english;
       
       await Share.share({

@@ -12,7 +12,7 @@ const CHECK_INTERVAL = 5 * 24 * 60 * 60 * 1000; // 5 días en milisegundos
 function isNewerVersion(newVer: string, currentVer: string) {
   const n = newVer.split('.').map(v => parseInt(v) || 0);
   const c = currentVer.split('.').map(v => parseInt(v) || 0);
-  
+
   for (let i = 0; i < Math.max(n.length, c.length); i++) {
     const v1 = n[i] || 0;
     const v2 = c[i] || 0;
@@ -32,51 +32,53 @@ export function UpdateNotification() {
 
     const checkForUpdates = async () => {
       try {
-        console.log('[UpdateCheck] Iniciando verificación...');
         const lastCheck = await AsyncStorage.getItem('@last_update_check');
         const now = Date.now();
 
-        // 1. Verificar primero si ya tenemos una actualización guardada que sea superior
+        // 1. Verificar si hay una actualización guardada previamente
         const savedUpdate = await AsyncStorage.getItem('@available_update');
+        const cleanCurrentVersion = CURRENT_VERSION.replace(/[vV]/g, '').trim();
+
         if (savedUpdate) {
           const { version, url } = JSON.parse(savedUpdate);
-          if (isNewerVersion(version, CURRENT_VERSION)) {
-            console.log('[UpdateCheck] Mostrando actualización guardada:', version);
-            setNewVersion(version);
-            setDownloadUrl(url);
-            setUpdateAvailable(true);
-          } else {
-            await AsyncStorage.removeItem('@available_update');
-          }
+          const cleanSavedVersion = version.replace(/[vV]/g, '').trim();
+
+          // Si la versión instalada ya es IGUAL o SUPERIOR a la guardada, limpiamos y salimos
+          if (!isNewerVersion(cleanSavedVersion, cleanCurrentVersion)) {
+            await AsyncStorage.multiRemove([
+              '@available_update',
+              '@last_update_check'
+            ]);
+            setUpdateAvailable(false);
+            return;
+          } 
+          
+          // Si sigue siendo una versión superior, la mostramos
+          setNewVersion(cleanSavedVersion);
+          setDownloadUrl(url);
+          setUpdateAvailable(true);
         }
 
-        // 2. Comprobar GitHub (Temporalmente sin el bloqueo de 5 días para que puedas probarlo)
-         if (lastCheck && now - parseInt(lastCheck) < CHECK_INTERVAL) return;
+        // 2. Consultar GitHub (5 días de intervalo)
+        if (lastCheck && now - parseInt(lastCheck) < CHECK_INTERVAL) return;
 
-        console.log('[UpdateCheck] Consultando GitHub:', GITHUB_API_URL);
         const response = await fetch(GITHUB_API_URL, {
           headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
-        
-        if (!response.ok) {
-          console.warn('[UpdateCheck] Error en respuesta de GitHub:', response.status);
-          return;
-        }
+
+        if (!response.ok) return;
 
         const data = await response.json();
-        
+
         if (data && data.tag_name) {
-          const latestVersion = data.tag_name.replace('v', '');
-          console.log('[UpdateCheck] Versión en GitHub:', latestVersion, 'Versión local:', CURRENT_VERSION);
-          
-          if (isNewerVersion(latestVersion, CURRENT_VERSION)) {
-            // Buscar el APK en los assets. Si no hay, usar la URL de la release
-            const apkAsset = data.assets?.find((asset: any) => 
+          const latestVersion = data.tag_name.replace(/[vV]/g, '').trim();
+
+          if (isNewerVersion(latestVersion, cleanCurrentVersion)) {
+            const apkAsset = data.assets?.find((asset: any) =>
               asset.name.toLowerCase().endsWith('.apk')
             );
-            
+
             const url = apkAsset ? apkAsset.browser_download_url : data.html_url;
-            console.log('[UpdateCheck] ¡Nueva versión encontrada! URL:', url);
 
             setNewVersion(latestVersion);
             setDownloadUrl(url);
@@ -87,7 +89,6 @@ export function UpdateNotification() {
               url: url
             }));
           } else {
-            console.log('[UpdateCheck] La app está actualizada.');
             setUpdateAvailable(false);
             await AsyncStorage.removeItem('@available_update');
           }
@@ -95,7 +96,7 @@ export function UpdateNotification() {
           await AsyncStorage.setItem('@last_update_check', now.toString());
         }
       } catch (error) {
-        console.warn('[UpdateCheck] Error al verificar actualizaciones:', error);
+        // Error silencioso en producción para no interrumpir la experiencia
       }
     };
 
