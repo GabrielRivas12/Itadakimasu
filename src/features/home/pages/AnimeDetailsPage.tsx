@@ -65,6 +65,7 @@ export function AnimeDetailsPage() {
     handleRemove,
     isUpdatingStatus,
     isAdultContentEnabled,
+    handleDownloadEpisode,
   } = useAnimeDetails();
 
   if (!loading && anime?.isAdult && !isAdultContentEnabled) {
@@ -256,6 +257,7 @@ export function AnimeDetailsPage() {
                         episodes={displayedEpisodes}
                         currentEpisodeNumber={currentEpisode?.number || null}
                         onEpisodePress={(episode) => handleEpisodeSelect(episode, true)}
+                        onDownloadPress={handleDownloadEpisode} 
                         onLoadMore={loadMoreEpisodes}
                         hasMore={hasMoreEpisodes}
                         isLoadingMore={isLoadingMore}

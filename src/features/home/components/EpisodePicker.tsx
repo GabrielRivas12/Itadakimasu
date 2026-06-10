@@ -7,6 +7,7 @@ interface EpisodePickerProps {
   episodes: Anime1VEpisode[];
   currentEpisodeNumber: number | null;
   onEpisodePress: (episode: Anime1VEpisode) => void;
+  onDownloadPress?: (episode: Anime1VEpisode) => void;
   onLoadMore?: () => Promise<void>;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -16,6 +17,7 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
   episodes,
   currentEpisodeNumber,
   onEpisodePress,
+  onDownloadPress,
   onLoadMore,
   hasMore = false,
   isLoadingMore = false,
@@ -47,9 +49,9 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
 
   const renderEpisodeItem = (item: Anime1VEpisode, index: number) => {
     const isSelected = item.number === currentEpisodeNumber;
-    
+
     const displayTitle = item.title && (
-      item.title.toLowerCase().includes('episodio') || 
+      item.title.toLowerCase().includes('episodio') ||
       item.title.toLowerCase().includes('capítulo') ||
       item.title.includes(String(item.number))
     ) ? item.title : `Episodio ${item.number}${item.title ? `: ${item.title}` : ''}`;
@@ -62,15 +64,39 @@ export const EpisodePicker: React.FC<EpisodePickerProps> = ({
         activeOpacity={0.7}
       >
         <View style={styles.episodeInfo}>
-          <Text 
-            style={[styles.episodeText, isSelected && styles.selectedText]} 
+          <Text
+            style={[styles.episodeText, isSelected && styles.selectedText]}
             numberOfLines={1}
           >
             {displayTitle}
           </Text>
           {isSelected && <Ionicons name="play" size={14} color="#ffffff" style={{ marginLeft: 8 }} />}
         </View>
-        <Ionicons name="chevron-forward" size={16} color={isSelected ? "#ffffff" : "#475569"} />
+
+        <View style={styles.episodeActions}>
+          {onDownloadPress && Platform.OS !== 'web' && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onDownloadPress(item);
+              }}
+              style={styles.downloadButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="download-outline"
+                size={18}
+                color={isSelected ? '#ffffff' : '#8b5cf6'}
+              />
+            </TouchableOpacity>
+          )}
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={isSelected ? '#ffffff' : '#475569'}
+          />
+        </View>
       </TouchableOpacity>
     );
   };
@@ -256,5 +282,15 @@ const styles = StyleSheet.create({
   endMessageText: {
     color: '#64748b',
     fontSize: 12,
+  },
+  episodeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  downloadButton: {
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
   },
 });
