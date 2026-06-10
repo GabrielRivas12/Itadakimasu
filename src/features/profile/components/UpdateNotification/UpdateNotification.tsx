@@ -32,71 +32,73 @@ export function UpdateNotification() {
 
     const checkForUpdates = async () => {
       try {
-        const lastCheck = await AsyncStorage.getItem('@last_update_check');
         const now = Date.now();
-
-        // 1. Verificar si hay una actualización guardada previamente
-        const savedUpdate = await AsyncStorage.getItem('@available_update');
         const cleanCurrentVersion = CURRENT_VERSION.replace(/[vV]/g, '').trim();
 
+        // 1. Mostrar actualización guardada si sigue vigente
+        const savedUpdate = await AsyncStorage.getItem('@available_update');
         if (savedUpdate) {
           const { version, url } = JSON.parse(savedUpdate);
           const cleanSavedVersion = version.replace(/[vV]/g, '').trim();
 
-          // Si la versión instalada ya es IGUAL o SUPERIOR a la guardada, limpiamos y salimos
-          if (!isNewerVersion(cleanSavedVersion, cleanCurrentVersion)) {
-            await AsyncStorage.multiRemove([
-              '@available_update',
-              '@last_update_check'
-            ]);
+          if (isNewerVersion(cleanSavedVersion, cleanCurrentVersion)) {
+            setNewVersion(cleanSavedVersion);
+            setDownloadUrl(url);
+            setUpdateAvailable(true);
+          } else {
+            await AsyncStorage.multiRemove(['@available_update', '@next_update_check']);
             setUpdateAvailable(false);
-            return;
-          } 
-          
-          // Si sigue siendo una versión superior, la mostramos
-          setNewVersion(cleanSavedVersion);
-          setDownloadUrl(url);
-          setUpdateAvailable(true);
+          }
         }
 
-        // 2. Consultar GitHub (5 días de intervalo)
-        if (lastCheck && now - parseInt(lastCheck) < CHECK_INTERVAL) return;
+        // 2. Ver si ya llegó el momento de verificar
+        const nextCheck = await AsyncStorage.getItem('@next_update_check');
+        if (nextCheck && now < parseInt(nextCheck)) return;
 
+        // 3. Consultar GitHub
         const response = await fetch(GITHUB_API_URL, {
           headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
 
-        if (!response.ok) return;
+        // Siempre programar el próximo chequeo, aunque falle
+        const scheduleNext = async () => {
+          // Entre 2 y 7 días al azar
+          const minMs = 3 * 60 * 60 * 1000;
+          const maxMs = 12 * 60 * 60 * 1000;
+          const randomDelay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+          await AsyncStorage.setItem('@next_update_check', (now + randomDelay).toString());
+        };
+
+        if (!response.ok) {
+          await scheduleNext();
+          return;
+        }
 
         const data = await response.json();
 
-        if (data && data.tag_name) {
+        if (data?.tag_name) {
           const latestVersion = data.tag_name.replace(/[vV]/g, '').trim();
 
           if (isNewerVersion(latestVersion, cleanCurrentVersion)) {
             const apkAsset = data.assets?.find((asset: any) =>
               asset.name.toLowerCase().endsWith('.apk')
             );
-
             const url = apkAsset ? apkAsset.browser_download_url : data.html_url;
 
             setNewVersion(latestVersion);
             setDownloadUrl(url);
             setUpdateAvailable(true);
 
-            await AsyncStorage.setItem('@available_update', JSON.stringify({
-              version: latestVersion,
-              url: url
-            }));
+            await AsyncStorage.setItem('@available_update', JSON.stringify({ version: latestVersion, url }));
           } else {
             setUpdateAvailable(false);
             await AsyncStorage.removeItem('@available_update');
           }
-
-          await AsyncStorage.setItem('@last_update_check', now.toString());
         }
-      } catch (error) {
-        // Error silencioso en producción para no interrumpir la experiencia
+
+        await scheduleNext();
+      } catch {
+        // Error silencioso
       }
     };
 

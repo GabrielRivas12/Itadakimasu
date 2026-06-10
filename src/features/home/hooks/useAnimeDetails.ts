@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Alert, Animated } from 'react-native';
+import { Alert, Animated, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchAnimeDetails, Anime } from '../../../../services/anilist';
 import { translateDescription } from '../../../../services/kitsu';
@@ -372,7 +372,7 @@ export const useAnimeDetails = () => {
     } finally {
       setLoadingStream(false);
     }
-    
+
   };
 
   const handleUpdateStatus = async (status: UserListStatus) => {
@@ -416,6 +416,39 @@ export const useAnimeDetails = () => {
     }
   };
 
+  const handleDownloadEpisode = async (episode: Anime1VEpisode) => {
+    try {
+      const links = await getAnime1VEpisodeLinks(episode.url);
+
+      // Usar downloadLinks en vez de streamLinks
+      const subDownloads = links?.downloadLinks?.SUB ?? [];
+      const dubDownloads = links?.downloadLinks?.DUB ?? [];
+      const allDownloads = [...subDownloads, ...dubDownloads];
+
+      // Preferencia: MP4Upload > PDrain > 1Fichier > primero disponible
+      const downloadServer =
+        allDownloads.find(s => s.server.toLowerCase().includes('pdrain')) ??
+        allDownloads.find(s => s.server.toLowerCase().includes('mp4upload')) ??
+        allDownloads[0];
+
+      if (!downloadServer?.url) {
+        Alert.alert('Sin enlace', 'No hay servidor de descarga disponible para este episodio.');
+        return;
+      }
+
+      const supported = await Linking.canOpenURL(downloadServer.url);
+      if (supported) {
+        await Linking.openURL(downloadServer.url);
+      } else {
+        Alert.alert('Error', 'No se pudo abrir el enlace de descarga.');
+      }
+    } catch (error) {
+      console.error('[DEBUG] Error en handleDownloadEpisode:', error);
+      Alert.alert('Error', 'Ocurrió un error al intentar descargar el episodio.');
+    }
+  };
+
+
   return {
     anime,
     loading,
@@ -446,5 +479,6 @@ export const useAnimeDetails = () => {
     handleRemove,
     isUpdatingStatus,
     isAdultContentEnabled,
+    handleDownloadEpisode,
   };
 };

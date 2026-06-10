@@ -39,6 +39,16 @@ export interface Anime1VEpisodeLinks {
     SUB: Anime1VStreamLink[];
     DUB?: Anime1VStreamLink[];
   };
+  downloadLinks?: {          // <-- añadir esto
+    SUB: Anime1VDownloadLink[];
+    DUB?: Anime1VDownloadLink[];
+  };
+}
+
+export interface Anime1VDownloadLink {
+  server: string;
+  url: string;
+  quality?: string; // "1080p", "720p", etc.
 }
 
 async function fetchFromApi<T>(
