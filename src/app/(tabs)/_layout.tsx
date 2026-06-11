@@ -40,8 +40,8 @@ export default function TabLayout() {
         tabBarStyle: showBottomTabs ? {
           backgroundColor: '#0f172a',
           borderTopWidth: 0,
-          height: isWeb ? 68 : (Platform.OS === 'ios' ? 88 : 60),
-          paddingBottom: isWeb ? 12 : (Platform.OS === 'ios' ? 30 : 12),
+          height: isWeb ? 68 : (52 + Math.max(insets.bottom, 12)),
+          paddingBottom: isWeb ? 12 : Math.max(insets.bottom, 12),
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
           elevation: 20,

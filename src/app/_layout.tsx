@@ -9,6 +9,7 @@ import { SystemBars } from 'react-native-edge-to-edge';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { WebHeader } from '../components/common/WebHeader';
 import { WebAdBanner } from '../components/common/WebAdBanner';
@@ -28,26 +29,28 @@ export default function RootLayout() {
   const showWebAd = isWeb && pathname !== '/';
 
   return (
-    <View style={styles.container}>
-      {Platform.OS !== 'web' && <SystemBars style="light" />}
+    <SafeAreaProvider>
+      <View style={styles.container}>
+        {Platform.OS !== 'web' && <SystemBars style="light" />}
 
-      {showWebHeader && <WebHeader />}
+        {showWebHeader && <WebHeader />}
 
-      <Stack screenOptions={{ 
-        headerShown: false, 
-        animation: 'none',
-        contentStyle: { backgroundColor: '#0b0f19' } 
-      }}>
-        <Stack.Screen name="index" options={{ animation: 'none' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
-        <Stack.Screen name="animedetails" options={{ animation: 'none' }} />
-        <Stack.Screen name="(settings)/settings" options={{ animation: 'none' }} />
-        <Stack.Screen name="(settings)/privacy" options={{ animation: 'none' }} />
-        <Stack.Screen name="(settings)/system-details" options={{ animation: 'none' }} />
-      </Stack>
+        <Stack screenOptions={{ 
+          headerShown: false, 
+          animation: 'none',
+          contentStyle: { backgroundColor: '#0b0f19' } 
+        }}>
+          <Stack.Screen name="index" options={{ animation: 'none' }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+          <Stack.Screen name="animedetails" options={{ animation: 'none' }} />
+          <Stack.Screen name="(settings)/settings" options={{ animation: 'none' }} />
+          <Stack.Screen name="(settings)/privacy" options={{ animation: 'none' }} />
+          <Stack.Screen name="(settings)/system-details" options={{ animation: 'none' }} />
+        </Stack>
 
-      {showWebAd && <WebAdBanner />}
-    </View>
+        {showWebAd && <WebAdBanner />}
+      </View>
+    </SafeAreaProvider>
   );
 }
 

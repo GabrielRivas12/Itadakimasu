@@ -329,7 +329,6 @@ export const useAnimeDetails = () => {
   const handleEpisodeSelect = async (episode: Anime1VEpisode, isManual = false) => {
     setCurrentEpisode(episode);
     setLoadingStream(true);
-    setStreamUrl(null);
 
     try {
       if (anime && (isManual || userStatus)) {
