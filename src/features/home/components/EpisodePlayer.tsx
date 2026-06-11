@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet, View, ActivityIndicator, TouchableOpacity,
-  Text, Platform, BackHandler
+  Text, Platform, BackHandler, StatusBar
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import * as NavigationBar from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 interface EpisodePlayerProps {
   url: string | null;
@@ -153,34 +157,125 @@ const ANTI_AD_SCRIPT = `
   observer.observe(document.documentElement, { childList: true, subtree: true });
   document.querySelectorAll('iframe').forEach(cleanNode);
 
+  function notifyFullscreen(isFs) {
+    try {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'fullscreen', value: isFs }));
+    } catch(e) {}
+  }
+
+  document.addEventListener('fullscreenchange', function() {
+    notifyFullscreen(!!document.fullscreenElement);
+  });
+  document.addEventListener('webkitfullscreenchange', function() {
+    notifyFullscreen(!!(document.fullscreenElement || document.webkitFullscreenElement));
+  });
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+      notifyFullscreen(true);
+    } else {
+      var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      notifyFullscreen(isFs);
+    }
+  });
+
   console.log('[AntiAd] Protección cargada.');
 })();
 true;
 `;
 
-export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
-  // FIX PRINCIPAL: en lugar de usar `url` directamente como source del WebView,
-  // guardamos la ÚLTIMA url válida (no-null) en una ref. Así, cuando el hook
-  // pasa url=null durante la transición entre episodios, el WebView NO se
-  // desmonta ni se recarga — sigue mostrando el episodio anterior hasta que
-  // llegue la nueva URL real. Esto preserva el wake lock nativo del sistema.
-  const lastValidUrl = useRef<string | null>(null);
-  if (url !== null) {
-    lastValidUrl.current = url;
+// ─── Helpers para immersive mode ─────────────────────────────────────────────
+// react-native-edge-to-edge gestiona WindowInsetsController de forma exclusiva,
+// por lo que setBehaviorAsync lanza un warning y no tiene efecto.
+// La estrategia correcta es:
+//   - setVisibilityAsync('hidden') para nav bar (sí soportado)
+//   - SystemUI.setBackgroundColorAsync('transparent') para evitar flash
+//   - StatusBar.setTranslucent(true) ANTES de setHidden (requisito de edge-to-edge)
+//   - Doble llamada a setHidden con pequeño delay la primera vez, porque
+//     edge-to-edge hace un layout pass extra que re-muestra los íconos.
+
+// Contador de veces que se entró en fullscreen en esta sesión.
+// La primera vez hay que esperar a que el sistema procese la orientación
+// antes de ocultar el status bar.
+let _immersiveCount = 0;
+
+async function enterImmersiveMode() {
+  try {
+    _immersiveCount++;
+    const isFirst = _immersiveCount === 1;
+
+    // Nav bar: setVisibilityAsync sí funciona con edge-to-edge
+    if (Platform.OS === 'android') {
+      await NavigationBar.setVisibilityAsync('hidden');
+    }
+
+    // Evitar flash de color del sistema al ocultar barras
+    await SystemUI.setBackgroundColorAsync('transparent');
+
+    // Keep awake antes de la orientación
+    await activateKeepAwakeAsync();
+
+    // Rotar a landscape
+    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+
+    // La primera vez, el sistema Android hace un layout pass adicional
+    // después del cambio de orientación que re-muestra el status bar.
+    // Esperamos a que ese pass termine antes de ocultarlo.
+    if (isFirst) {
+      await new Promise(r => setTimeout(r, 150));
+    }
+
+    // translucent SIEMPRE antes de setHidden con edge-to-edge
+    StatusBar.setTranslucent(true);
+    StatusBar.setHidden(true, 'fade');
+
+    // Segunda pasada sin animación para cubrir el layout pass tardío
+    await new Promise(r => setTimeout(r, 80));
+    StatusBar.setHidden(true, 'none');
+  } catch (e) {
+    console.error('[enterImmersiveMode]', e);
   }
+}
+
+async function exitImmersiveMode() {
+  try {
+    await ScreenOrientation.unlockAsync();
+
+    // Mantener translucent para edge-to-edge
+    StatusBar.setTranslucent(true);
+    StatusBar.setHidden(false, 'fade');
+
+    if (Platform.OS === 'android') {
+      await NavigationBar.setVisibilityAsync('visible');
+      await SystemUI.setBackgroundColorAsync('transparent');
+    }
+
+    await deactivateKeepAwake();
+  } catch (e) {
+    console.error('[exitImmersiveMode]', e);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
+  const lastValidUrl = useRef<string | null>(null);
+  if (url !== null) lastValidUrl.current = url;
   const activeUrl = lastValidUrl.current;
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [key, setKey] = useState(0);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(false);
+  const [key, setKey]                   = useState(0);
   const [blockedPopup, setBlockedPopup] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const webViewRef = useRef<WebView>(null);
-  const canGoBackRef = useRef(false);
-  const prevUrlRef = useRef<string | null>(null);
+  const webViewRef        = useRef<WebView>(null);
+  const canGoBackRef      = useRef(false);
+  const prevUrlRef        = useRef<string | null>(null);
+  const isFullscreenRef   = useRef(false);
+  // Guardamos el valor ANTERIOR de isFullscreen para que el efecto sepa
+  // exactamente qué transición ocurrió (false→true o true→false).
+  const prevFullscreenRef = useRef(false);
 
-  // Cuando llega una URL nueva (distinta a la anterior válida), recargamos el WebView.
-  // Pero si url===null es solo una transición temporal, NO hacemos nada.
   useEffect(() => {
     if (url !== null && url !== prevUrlRef.current) {
       prevUrlRef.current = url;
@@ -191,7 +286,51 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   }, [url]);
 
   useEffect(() => {
+    isFullscreenRef.current = isFullscreen;
+  }, [isFullscreen]);
+
+  // ── Gestionar immersive mode al cambiar fullscreen ────────────────────────
+  // Usamos dos efectos separados con responsabilidades claras:
+  //   1. Efecto de mount/unmount: solo para cleanup al desmontar el componente.
+  //   2. Efecto de isFullscreen: reacciona a cambios, pero ignora el primer render.
+  useEffect(() => {
+    // Cleanup al desmontar el componente: restaurar siempre el sistema.
+    return () => {
+      exitImmersiveMode();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // En el PRIMER render isFullscreen=false — no hacer nada todavía.
+    // prevFullscreenRef arranca en false, así que la transición false→false
+    // (primer render) no dispara exit ni enter.
+    const wasFullscreen = prevFullscreenRef.current;
+    prevFullscreenRef.current = isFullscreen;
+
+    if (isFullscreen && !wasFullscreen) {
+      // false → true: entrar en immersive
+      enterImmersiveMode();
+    } else if (!isFullscreen && wasFullscreen) {
+      // true → false: salir de immersive
+      exitImmersiveMode();
+    }
+    // false → false (primer render) y true → true: no hacer nada.
+
+    // SIN cleanup aquí: si limpiamos en el return, el efecto anterior
+    // (wasFullscreen=false) llamaría exitImmersiveMode justo después de que
+    // el nuevo efecto (isFullscreen=true) llamó enterImmersiveMode,
+    // cancelando el keep awake y la orientación landscape.
+  }, [isFullscreen]);
+
+  // ── Hardware back button ──────────────────────────────────────────────────
+  useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isFullscreenRef.current) {
+        webViewRef.current?.injectJavaScript(
+          '(document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document); true;'
+        );
+        return true;
+      }
       if (canGoBackRef.current) {
         webViewRef.current?.goBack();
         return true;
@@ -212,7 +351,15 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     setTimeout(() => setBlockedPopup(false), 1500);
   }, []);
 
-  // Sin URL válida aún: spinner inicial
+  const handleMessage = useCallback((event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'fullscreen') {
+        setIsFullscreen(data.value);
+      }
+    } catch (_) {}
+  }, []);
+
   if (!activeUrl) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -222,7 +369,8 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   }
 
   return (
-    <View style={styles.container}>
+    // Cuando está en fullscreen, expandimos el contenedor para cubrir toda la pantalla
+    <View style={[styles.container, isFullscreen && styles.containerFullscreen]}>
       <WebView
         key={key}
         ref={webViewRef}
@@ -242,6 +390,8 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         setSupportMultipleWindows={false}
         originWhitelist={['*']}
         injectedJavaScriptBeforeContentLoaded={ANTI_AD_SCRIPT}
+
+        onMessage={handleMessage}
 
         onOpenWindow={(syntheticEvent) => {
           console.log('[BLOQUEADO onOpenWindow]', syntheticEvent.nativeEvent.targetUrl);
@@ -278,7 +428,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         }}
 
         onLoadStart={() => { setLoading(true); setError(false); }}
-        onLoadEnd={() => setLoading(false)}
+        onLoadEnd={()   => setLoading(false)}
         onError={({ nativeEvent }) => {
           console.error('[WebView Error]', nativeEvent);
           setLoading(false);
@@ -322,11 +472,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 16,
   },
-  webview: { flex: 1, backgroundColor: '#000' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
+  // En fullscreen: ocupa toda la pantalla ignorando insets
+  containerFullscreen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    aspectRatio: undefined,
+    borderRadius: 0,
+    marginBottom: 0,
+    zIndex: 9999,
+  },
+  webview:  { flex: 1, backgroundColor: '#000' },
+  overlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
   centered: { justifyContent: 'center', alignItems: 'center', gap: 12 },
-  loadingText: { color: '#94a3b8', fontSize: 14 },
-  errorText: { color: '#94a3b8', fontSize: 14, textAlign: 'center' },
+  loadingText:  { color: '#94a3b8', fontSize: 14 },
+  errorText:    { color: '#94a3b8', fontSize: 14, textAlign: 'center' },
   retryBtn: {
     backgroundColor: '#8b5cf6',
     paddingHorizontal: 24,
@@ -334,7 +496,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 4,
   },
-  retryText: { color: '#fff', fontWeight: 'bold' },
+  retryText:         { color: '#fff', fontWeight: 'bold' },
   popupNotification: { backgroundColor: 'rgba(0,0,0,0.9)' },
-  blockedText: { color: '#10b981', fontSize: 14, fontWeight: 'bold' },
+  blockedText:       { color: '#10b981', fontSize: 14, fontWeight: 'bold' },
 });

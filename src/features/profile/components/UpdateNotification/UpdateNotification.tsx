@@ -6,7 +6,6 @@ import Constants from 'expo-constants';
 
 const CURRENT_VERSION = Constants.expoConfig?.version || '1.0.0';
 const GITHUB_API_URL = 'https://api.github.com/repos/GabrielRivas12/Itadakimasu/releases/latest';
-const CHECK_INTERVAL = 5 * 24 * 60 * 60 * 1000; // 5 días en milisegundos
 
 // Función auxiliar para comparar versiones semánticas (ej: 1.0.1 > 1.0.0)
 function isNewerVersion(newVer: string, currentVer: string) {
@@ -62,9 +61,8 @@ export function UpdateNotification() {
 
         // Siempre programar el próximo chequeo, aunque falle
         const scheduleNext = async () => {
-          // Entre 2 y 7 días al azar
-          const minMs = 3 * 60 * 60 * 1000;
-          const maxMs = 12 * 60 * 60 * 1000;
+          const minMs = 1 * 60 * 60 * 1000;
+          const maxMs = 5 * 60 * 60 * 1000;
           const randomDelay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
           await AsyncStorage.setItem('@next_update_check', (now + randomDelay).toString());
         };
