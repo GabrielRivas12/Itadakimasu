@@ -9,7 +9,8 @@ interface EpisodePlayerProps {
 const AD_OVERLAY_KEYWORDS = [
   'robot', 'captcha', 'verif', 'confirm', 'click to continue',
   'haz clic', 'no soy un robot', 'allow', 'subscribe', 'notification',
-  'continuar', 'continue', 'press', 'skip ad', 'close ad',
+  'continuar', 'continue', 'press', 'skip ad', 'close ad', 'play',
+  'reproducir', 'descargar', 'download', 'start', 'iniciar',
 ];
 
 // Script que se inyecta dentro del iframe via srcdoc proxy o postMessage
@@ -19,8 +20,15 @@ const IFRAME_CLEANER_SCRIPT = `
   function isAdOverlay(el) {
     if (!el || !el.tagName) return false;
     const style = window.getComputedStyle(el);
-    // Debe ser un elemento posicionado encima del contenido
-    const isOverlay = (style.position === 'absolute' || style.position === 'fixed')
+    
+    // Si es un div gigante transparente o semi-transparente que cubre mucho
+    const isBig = el.offsetWidth > window.innerWidth * 0.5 && el.offsetHeight > window.innerHeight * 0.5;
+    const isTransparent = parseFloat(style.opacity) < 0.1 || style.backgroundColor === 'rgba(0, 0, 0, 0)' || style.background === 'transparent';
+    
+    if (isBig && isTransparent && style.position === 'absolute') return true;
+
+    const stylePos = style.position;
+    const isOverlay = (stylePos === 'absolute' || stylePos === 'fixed')
                    && parseInt(style.zIndex || '0') > 1
                    && style.display !== 'none';
     if (!isOverlay) return false;
@@ -30,7 +38,7 @@ const IFRAME_CLEANER_SCRIPT = `
     const keywords = ${JSON.stringify(AD_OVERLAY_KEYWORDS)};
     const hasAdText = keywords.some(k => text.includes(k));
 
-    // Verificar si contiene un link externo (el botón "No soy un robot")
+    // Verificar si contiene un link externo
     const hasExternalLink = Array.from(el.querySelectorAll('a')).some(a => {
       const href = a.getAttribute('href') || '';
       return href.startsWith('http') && !href.includes(window.location.hostname);
@@ -40,41 +48,36 @@ const IFRAME_CLEANER_SCRIPT = `
   }
 
   function removeAdOverlays() {
-    // Buscar en todos los elementos del DOM
-    const allEls = document.querySelectorAll('div, section, aside, article');
+    const allEls = document.querySelectorAll('div, section, aside, article, a, center');
     allEls.forEach(el => {
       if (isAdOverlay(el)) {
-        console.log('[AntiAd] Eliminando overlay:', el.className, el.innerText?.slice(0, 50));
         el.style.display = 'none';
         try { el.remove(); } catch(e) {}
       }
     });
+    
+    // Específico para MP4Upload: remover overlays conocidos
+    if (window.location.hostname.includes('mp4upload')) {
+      const ads = document.querySelectorAll('div[style*=\"z-index: 2147483647\"], .ad-overlay, #ad-layer');
+      ads.forEach(ad => ad.remove());
+    }
   }
 
-  // Correr inmediatamente
+  // Correr inmediatamente y con frecuencia
   removeAdOverlays();
+  setInterval(removeAdOverlays, 1000);
 
-  // MutationObserver: eliminar overlays que se inyectan dinámicamente
-  const observer = new MutationObserver(function(mutations) {
-    let shouldClean = false;
-    mutations.forEach(m => {
-      if (m.addedNodes.length > 0) shouldClean = true;
-    });
-    if (shouldClean) removeAdOverlays();
-  });
+  const observer = new MutationObserver(removeAdOverlays);
   observer.observe(document.body || document.documentElement, {
     childList: true,
     subtree: true,
   });
 
-  // Bloquear window.open y redirecciones
-  window.open = function() { return null; };
-  try { Object.defineProperty(window, 'open', { value: function(){ return null; }, writable: false }); } catch(e) {}
-  var _noop = function() { return false; };
-  try { window.location.assign  = _noop; } catch(e) {}
-  try { window.location.replace = _noop; } catch(e) {}
-
-  console.log('[AntiAd] Cleaner activo en iframe.');
+  // Bloquear window.open agresivamente
+  window.open = function() { return { focus: function(){} }; };
+  try { Object.defineProperty(window, 'open', { value: function(){ return { focus: function(){} }; }, writable: false }); } catch(e) {}
+  
+  console.log('[AntiAd] Cleaner ultra-agresivo activo.');
 })();
 `;
 
@@ -84,6 +87,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   const iframeRef             = useRef<HTMLIFrameElement>(null);
   const blockedTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanerIntervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isMp4Upload           = url?.toLowerCase().includes('mp4upload');
 
   useEffect(() => {
     return () => {
@@ -93,34 +97,32 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   }, []);
 
   useEffect(() => {
-    if (url) setLoading(true);
+    if (url) {
+      setLoading(true);
+      setBlocked(false);
+    }
   }, [url]);
 
   const showBlocked = useCallback(() => {
     setBlocked(true);
     if (blockedTimerRef.current) clearTimeout(blockedTimerRef.current);
-    blockedTimerRef.current = setTimeout(() => setBlocked(false), 1500);
+    blockedTimerRef.current = setTimeout(() => setBlocked(false), 2000);
   }, []);
 
-  // ── Inyectar el cleaner dentro del iframe ──────────────────────────────────
-  // Solo funciona si el iframe es same-origin. Si es cross-origin, el sandbox
-  // + interceptación de clicks es la defensa.
   const injectCleaner = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
     try {
       const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!iDoc || !iDoc.body) return;
-      // Evitar inyectar dos veces
       if ((iDoc as any).__cleanerInjected) return;
       (iDoc as any).__cleanerInjected = true;
 
       const script = iDoc.createElement('script');
       script.textContent = IFRAME_CLEANER_SCRIPT;
       (iDoc.head || iDoc.documentElement).appendChild(script);
-      console.log('[EpisodePlayer] Cleaner inyectado en iframe');
     } catch (e) {
-      // cross-origin: ignorar, el sandbox y el escudo de clicks hacen el trabajo
+      // Cross-origin: el sandbox se encarga
     }
   }, []);
 
@@ -128,23 +130,21 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     setLoading(false);
     injectCleaner();
 
-    // Re-inyectar cada 2s por si el player recarga su contenido internamente
     if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
-    cleanerIntervalRef.current = setInterval(injectCleaner, 2000);
+    cleanerIntervalRef.current = setInterval(injectCleaner, 1500);
 
-    // Detener después de 30s (el video ya debería estar corriendo)
     setTimeout(() => {
       if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
-    }, 30000);
+    }, 45000);
   }, [injectCleaner]);
 
-  // ── Escudo de clicks: intercepta TODOS los clicks sobre el iframe ──────────
-  // A diferencia de la versión anterior, este escudo NO se desactiva solo.
-  // Cada click es evaluado: si cae sobre un elemento sospechoso lo bloquea,
-  // si cae sobre el video/player lo pasa al iframe.
   const handleShieldClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
+    // Si es MP4Upload, somos más cautelosos con los clicks
+    if (isMp4Upload) {
+      // Los primeros 2 clicks en reproductores gratuitos suelen ser anuncios
+      // Aquí intentamos bloquear la apertura de pestañas bajando el escudo muy poco tiempo
+      showBlocked();
+    }
 
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -152,13 +152,15 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     try {
       const rect = iframe.getBoundingClientRect();
       const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      
       if (!iDoc) {
-        // cross-origin: no podemos inspeccionar, pasar el click directamente
-        // removiendo el escudo temporalmente
+        // Cross-origin: Bajamos escudo momentáneamente pero notificamos bloqueo
         (e.currentTarget as HTMLDivElement).style.pointerEvents = 'none';
         setTimeout(() => {
-          (e.currentTarget as HTMLDivElement).style.pointerEvents = 'auto';
-        }, 200);
+          if (e.currentTarget) {
+            (e.currentTarget as HTMLDivElement).style.pointerEvents = 'auto';
+          }
+        }, isMp4Upload ? 80 : 150); // Tiempo más corto para MP4Upload
         return;
       }
 
@@ -173,18 +175,16 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
       const text     = (el.innerText || el.textContent || '').toLowerCase();
       const iframeHost = iframe.src.split('/')[2] ?? '';
 
-      // Detectar si el elemento clickeado es un overlay falso
       const isExternalLink = href.startsWith('http') && !href.includes(iframeHost);
       const isAdText       = AD_OVERLAY_KEYWORDS.some(k => text.includes(k));
-      const isAdElement    = isExternalLink || (isAdText && tag !== 'VIDEO');
+      const isAdElement    = isExternalLink || (isAdText && tag !== 'VIDEO' && tag !== 'HTML');
 
       if (isAdElement) {
-        // Bloquear + intentar eliminar el overlay padre
         showBlocked();
         let node: HTMLElement | null = el;
-        for (let i = 0; i < 6 && node; i++) {
+        for (let i = 0; i < 8 && node; i++) {
           const s = window.getComputedStyle(node);
-          if (s.position === 'absolute' || s.position === 'fixed') {
+          if (s.position === 'absolute' || s.position === 'fixed' || parseInt(s.zIndex) > 100) {
             node.style.display = 'none';
             try { node.remove(); } catch(_) {}
             break;
@@ -192,19 +192,17 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
           node = node.parentElement;
         }
       } else {
-        // Click legítimo: pasarlo al elemento real
         el.click();
       }
     } catch (err) {
-      // cross-origin: bajar el escudo momentáneamente para que el click pase
       (e.currentTarget as HTMLDivElement).style.pointerEvents = 'none';
       setTimeout(() => {
         if (e.currentTarget) {
           (e.currentTarget as HTMLDivElement).style.pointerEvents = 'auto';
         }
-      }, 150);
+      }, isMp4Upload ? 80 : 150);
     }
-  }, [showBlocked]);
+  }, [showBlocked, isMp4Upload]);
 
   // Escuchar postMessage del iframe
   useEffect(() => {
@@ -266,8 +264,6 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
       {/* Notificación de bloqueo */}
       {blocked && (
         <View style={[styles.overlay, styles.centered, styles.blockedOverlay]} {...{ pointerEvents: 'none' }}>
-          <Text style={styles.shieldIcon}>🛡️</Text>
-          <Text style={styles.blockedText}>Anuncio bloqueado</Text>
         </View>
       )}
     </View>
@@ -321,7 +317,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText:  { color: '#94a3b8', fontSize: 14 },
-  blockedOverlay: { backgroundColor: 'rgba(0,0,0,0.90)' },
+  blockedOverlay: { backgroundColor: 'transparent' },
   shieldIcon:   { fontSize: 28 },
   blockedText:  { color: '#10b981', fontSize: 14, fontWeight: 'bold' },
 });

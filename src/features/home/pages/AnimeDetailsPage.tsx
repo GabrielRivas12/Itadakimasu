@@ -22,6 +22,7 @@ import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
 import { EpisodePlayer } from '../components/EpisodePlayer'; 
 import { EpisodePicker } from '../components/EpisodePicker';
+import { ProviderSelector } from '../components/ProviderSelector';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
@@ -66,6 +67,9 @@ export function AnimeDetailsPage() {
     isUpdatingStatus,
     isAdultContentEnabled,
     handleDownloadEpisode,
+    availableServers,
+    selectedServerName,
+    handleServerChange,
   } = useAnimeDetails();
 
   if (!loading && anime?.isAdult && !isAdultContentEnabled) {
@@ -253,6 +257,13 @@ export function AnimeDetailsPage() {
                   ) : displayedEpisodes.length > 0 ? (
                     <>
                       <EpisodePlayer url={streamUrl} />
+                      {isWeb && (
+                        <ProviderSelector
+                          availableServers={availableServers}
+                          selectedServerName={selectedServerName}
+                          onServerChange={handleServerChange}
+                        />
+                      )}
                       <EpisodePicker
                         episodes={displayedEpisodes}
                         currentEpisodeNumber={currentEpisode?.number || null}
