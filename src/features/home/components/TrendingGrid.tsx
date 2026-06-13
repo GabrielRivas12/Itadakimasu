@@ -20,9 +20,9 @@ export const TrendingGrid = memo(function TrendingGrid({ trending, onPress }: Tr
           style={[styles.trendingCard, { width: `${100 / columns - 2}%` }]}
           onPress={() => onPress(item.id)}
         >
-          <Image 
-            source={{ uri: item.coverImage.large }} 
-            style={[styles.trendingImage, isMobile && { height: 180 }]} 
+          <Image
+            source={{ uri: item.coverImage.large }}
+            style={[styles.trendingImage, isMobile && { height: 180 }]}
           />
           {item.averageScore && (
             <View style={styles.ratingBadge}>

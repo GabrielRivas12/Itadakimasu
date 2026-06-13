@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Alert, Platform } from 'react-native'; 
+import { Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { 
-  getUserList, 
-  UserListItem, 
-  UserListStatus, 
-  removeAnimeFromList, 
-  animeListEvents 
+import {
+  getUserList,
+  UserListItem,
+  UserListStatus,
+  removeAnimeFromList,
+  animeListEvents
 } from '../../../../services/animeList';
-import { 
-  onAuthStateChangedCallback as onAuthStateChanged, 
-  signInWithGoogle, 
-  signOutGoogle, 
-  UserInfo, 
-  getCurrentUser 
+import {
+  onAuthStateChangedCallback as onAuthStateChanged,
+  signInWithGoogle,
+  signOutGoogle,
+  UserInfo,
+  getCurrentUser
 } from '../../../../services/auth';
 
 // Session cache for profile
@@ -32,7 +32,7 @@ export const useProfile = () => {
       setIsLoading(false);
       return;
     }
-    
+
     try {
       const userList = await getUserList();
       sessionProfileList = userList;

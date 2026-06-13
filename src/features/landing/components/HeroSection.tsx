@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Image, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Anime } from '../../../../services/anilist';
@@ -14,7 +14,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ bannerAnimes }) => {
   const { isMobile, isTablet } = useResponsive();
   const [currentIndex, setCurrentIndex] = useState(0);
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
-  
+
   // Efecto de carrusel suave
   useEffect(() => {
     if (bannerAnimes.length <= 1) return;
@@ -58,11 +58,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ bannerAnimes }) => {
   return (
     <View style={[styles.outerContainer, { height: dynamicStyles.containerHeight }]}>
       <View style={[styles.cardContainer, { height: dynamicStyles.cardHeight as any }]}>
-        {/* Background Banner with Carousel Effect */}
+        {/* Background Banner  */}
         <Animated.View style={[styles.bannerWrapper, { opacity: fadeAnim }]}>
           {currentAnime?.bannerImage ? (
-            <Image 
-              source={{ uri: currentAnime.bannerImage }} 
+            <Image
+              source={{ uri: currentAnime.bannerImage }}
               style={styles.bannerImage}
               resizeMode="cover"
             />
@@ -80,12 +80,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ bannerAnimes }) => {
               Itadakimasu!
             </Text>
             <Text style={[styles.subtitleText, { textAlign: dynamicStyles.textAlign, fontSize: isMobile ? 15 : 18 }]}>
-              Tu portal definitivo para descubrir, organizar y disfrutar del mejor anime. 
+              Tu portal definitivo para descubrir, organizar y disfrutar del mejor anime.
               Comienza a crear tus propias listas privadas y lleva el seguimiento de tus series favoritas.
             </Text>
-            
-            <TouchableOpacity 
-              style={[styles.button, isMobile && { width: '100%', justifyContent: 'center' }]} 
+
+            <TouchableOpacity
+              style={[styles.button, isMobile && { width: '100%', justifyContent: 'center' }]}
               onPress={handleGetStarted}
               activeOpacity={0.8}
             >
@@ -95,16 +95,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ bannerAnimes }) => {
           </View>
         </View>
 
-        {/* Navigation Dots - Hidden on very small screens to save space */}
+        {/* Navigation Dots */}
         {!isMobile && (
           <View style={styles.dotsContainer}>
             {bannerAnimes.slice(0, 5).map((_, i) => (
-              <View 
-                key={i} 
+              <View
+                key={i}
                 style={[
-                  styles.dot, 
+                  styles.dot,
                   i === currentIndex % 5 && styles.activeDot
-                ]} 
+                ]}
               />
             ))}
           </View>

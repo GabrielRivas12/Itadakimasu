@@ -34,7 +34,7 @@ export const useAiring = () => {
         setLoadingMore(true);
       }
 
-      // Final adult filter is: local toggle AND global setting
+      // filtro final para contenido adulto basado en la configuración del usuario
       const finalAdultFilter = adultFilter && isAdultSettingEnabled;
       const data = await fetchAiringAnime(pageNum, 20, finalAdultFilter);
       

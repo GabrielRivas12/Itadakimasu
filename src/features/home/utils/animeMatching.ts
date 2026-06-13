@@ -1,8 +1,5 @@
 import { NormalizedTitle, MatchResult } from '../types/animeDetails';
 
-// ─────────────────────────────────────────────
-// STOP WORDS — Sin cambios de lógica
-// ─────────────────────────────────────────────
 export const STOP_WORDS_ENG = new Set([
   'the', 'a', 'an', 'and', 'or', 'of', 'to', 'for', 'in', 'on', 'at',
   'by', 'with', 'without', 'from', 'into', 'through', 'during',
@@ -35,9 +32,6 @@ const SPECIAL_ARCS_MAP: Record<string, string> = {
   'boku no hero academia 7': 'my hero academia 7',
 };
 
-// ─────────────────────────────────────────────
-// OPT 1: Regex precompiladas — Evita recompilar en cada llamada
-// ─────────────────────────────────────────────
 const RX_NFD = /[\u0300-\u036f]/g;
 const RX_NAKAGURO = /・/g;
 const RX_DOUBLE_AA = /aa/g;
@@ -73,9 +67,7 @@ const standardizeSeasons = (text: string): string => {
   return n;
 };
 
-// ─────────────────────────────────────────────
-// OPT 2: Memoización con LRU expandido para Sincronizaciones Pesadas
-// ─────────────────────────────────────────────
+// 2. Memoización con LRU expandido para Sincronizaciones Pesadas
 class LRUCache<K, V> {
   private map = new Map<K, V>();
   constructor(private max: number) { }
@@ -104,15 +96,13 @@ const normCache = new LRUCache<string, NormalizedTitle>(2500);
 // Caché secundario dinámico para pares de comparación de scoring ya procesados
 const scoreCache = new Map<string, MatchResult>();
 
-/** Limpia ambos cachés manualmente (útil al cambiar de cuenta o de lista) */
+// Limpia ambos cachés manualmente (útil al cambiar de cuenta o de lista)
 export const clearNormCache = (): void => {
   normCache.clear();
   scoreCache.clear();
 };
 
-// ─────────────────────────────────────────────
 // OPT 3: Levenshtein — Early-exit por umbral
-// ─────────────────────────────────────────────
 const getLevenshteinDistanceOpt = (a: string, b: string, maxDist: number): number => {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
@@ -150,9 +140,7 @@ const getLevenshteinDistanceOpt = (a: string, b: string, maxDist: number): numbe
   return row[a.length];
 };
 
-// ─────────────────────────────────────────────
 // cleanHtmlText
-// ─────────────────────────────────────────────
 export const cleanHtmlText = (text: string): string => {
   if (!text) return '';
   return text
@@ -165,9 +153,7 @@ export const cleanHtmlText = (text: string): string => {
     .trim();
 };
 
-// ─────────────────────────────────────────────
 // normalizeTitleStrict — Efectividad Intacta + Memoización
-// ─────────────────────────────────────────────
 export const normalizeTitleStrict = (title: string): NormalizedTitle => {
   if (!title) {
     return {
@@ -183,7 +169,7 @@ export const normalizeTitleStrict = (title: string): NormalizedTitle => {
   clean = clean.replace(RX_NAKAGURO, ' ');
   clean = standardizeSeasons(clean);
   
-  // ✅ Verificar si es un título especial ANTES de aplicar reducciones vocálicas
+  // Verificar si es un título especial ANTES de aplicar reducciones vocálicas
   let isSpecialArc = false;
   for (const arcKey in SPECIAL_ARCS_MAP) {
     if (clean.includes(arcKey)) {
@@ -193,7 +179,6 @@ export const normalizeTitleStrict = (title: string): NormalizedTitle => {
     }
   }
   
-  // ✅ Para "Koori no Jouheki" y similares, mantener las vocales dobles originales
   // Verificar si el título contiene palabras japonesas conocidas con vocales dobles
   const hasJapaneseLongVowels = /\b(koori|jouheki|toukyou|kyouto|shoujo|shounen|juujutsu)\b/i.test(clean);
   
@@ -239,9 +224,7 @@ export const normalizeTitleStrict = (title: string): NormalizedTitle => {
   return result;
 };
 
-// ─────────────────────────────────────────────
 // calculateMatchScoreStrict — Máxima Precisión + Caché de Resultados
-// ─────────────────────────────────────────────
 export const calculateMatchScoreStrict = (
   title1: NormalizedTitle,
   title2: NormalizedTitle
@@ -290,9 +273,7 @@ export const calculateMatchScoreStrict = (
     if (intersection.length > 0) {
       const set1Size = title1.significantWords.length;
 
-      // ─────────────────────────────────────────────
-      // INICIO DEL PARCHE: Tolerancia a truncamiento en títulos extra largos
-      // ─────────────────────────────────────────────
+      // Tolerancia a truncamiento en títulos extra largos
       if (title1.isLongTitle || title2.isLongTitle) {
         const minSetSize = Math.min(set1Size, set2.size);
         if (intersection.length >= 3 && (intersection.length / minSetSize) >= 0.80) {
@@ -300,9 +281,6 @@ export const calculateMatchScoreStrict = (
           break runValidation;
         }
       }
-      // ─────────────────────────────────────────────
-      // FIN DEL PARCHE
-      // ─────────────────────────────────────────────
 
       const score = (intersection.length * 2) / (set1Size + set2.size);
 
@@ -344,9 +322,7 @@ export const calculateMatchScoreStrict = (
   return finalResult;
 };
 
-// ─────────────────────────────────────────────
 // OPT 4: verifyCrossLanguageMatch — ASÍNCRO-FLUIDO (Resuelve bloqueo de UI)
-// ─────────────────────────────────────────────
 export const verifyCrossLanguageMatch = async (localAnime: any, remoteAnime: any): Promise<boolean> => {
   if (!localAnime || !remoteAnime) return false;
 
@@ -392,7 +368,7 @@ export const verifyCrossLanguageMatch = async (localAnime: any, remoteAnime: any
       // Esto da tiempo al reproductor y animaciones de carga para renderizar sin interrupciones.
       opCounter++;
       if (opCounter % 12 === 0) {
-        await new Promise(resolve => {
+        await new Promise<void>(resolve => {
           if (typeof setImmediate !== 'undefined') {
             setImmediate(resolve);
           } else {
@@ -402,7 +378,7 @@ export const verifyCrossLanguageMatch = async (localAnime: any, remoteAnime: any
       }
 
       if (calculateMatchScoreStrict(normalizedLocals[j], normRemote).matched) {
-        console.log(`🎯 [Match Cruzado]: "${normalizedLocals[j].original}" <-> "${remoteTitles[i]}"`);
+        console.log(`[Match Cruzado]: "${normalizedLocals[j].original}" <-> "${remoteTitles[i]}"`);
         return true;
       }
     }
@@ -410,9 +386,7 @@ export const verifyCrossLanguageMatch = async (localAnime: any, remoteAnime: any
   return false;
 };
 
-// ─────────────────────────────────────────────
 // buildSearchQueriesStrict — Sin cambios de lógica
-// ─────────────────────────────────────────────
 export const buildSearchQueriesStrict = (anime: any): string[] => {
   const queries: string[] = [];
   const seen = new Set<string>();

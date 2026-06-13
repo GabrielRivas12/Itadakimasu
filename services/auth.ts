@@ -9,14 +9,14 @@ export interface UserInfo {
   photo: string | null;
 }
 
-// --- CONFIGURACIÓN E INICIALIZACIÓN WEB (Lazy/Retrasada) ---
+// CONFIGURACIÓN E INICIALIZACIÓN WEB (Diferida)
 let webAuth: any = null;
 let googleProviderWeb: any = null;
 
-// Función para obtener la instancia web de forma segura
+// Función para obtener la instancia web
 function getWebAuth() {
   if (Platform.OS === 'web' && !webAuth) {
-    asegurarFirebaseApp(); //  ASEGURAMOS INICIALIZACIÓN AQUÍ
+    asegurarFirebaseApp(); //  ASEGURAMOS INICIALIZACIÓN
     const { getAuth, GoogleAuthProvider } = require('firebase/auth');
     webAuth = getAuth();
     googleProviderWeb = new GoogleAuthProvider();
@@ -33,9 +33,7 @@ if (Platform.OS !== 'web') {
   });
 }
 
-/**
- * INICIO DE SESIÓN CON GOOGLE
- */
+//INICIO DE SESIÓN CON GOOGLE
 export async function signInWithGoogle(): Promise<UserInfo | null> {
   try {
     let user: any = null;
@@ -46,12 +44,12 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
       const { webAuth: authInstance, googleProviderWeb: provider } = getWebAuth();
 
       if (!authInstance || !provider) {
-        throw new Error('Firebase Auth Web no se pudo inicializar de forma diferida.');
+        throw new Error('Auth Web no se pudo inicializar');
       }
 
       const result = await signInWithPopup(authInstance, provider);
       user = result.user;
-    } 
+    }
     //  MÓVIL
     else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
@@ -71,7 +69,7 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
       user = userCredential.user;
     }
 
-    // --- MIGRACIÓN DE DATOS (Común para ambos mundos) ---
+    // MIGRACIÓN DE DATOS DE USUARIOS ANÓNIMOS
     if (user) {
       await mergeGuestListIntoUser(user.uid);
       return {
@@ -88,14 +86,12 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
   }
 }
 
-/**
- * CERRAR SESIÓN
- */
+// CERRAR SESIÓN
 export async function signOutGoogle(): Promise<void> {
   try {
     console.log('Iniciando proceso de cierre de sesión...');
-    
-    // 1. Limpiar el caché local del usuario (Común para móvil)
+
+    // 1. Limpiar el caché local del usuario
     if (Platform.OS !== 'web') {
       try {
         await clearLocalList();
@@ -114,8 +110,8 @@ export async function signOutGoogle(): Promise<void> {
     } else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
       const authMobile = require('@react-native-firebase/auth').default;
-      
-      // Intentar cerrar sesión de Google (puede fallar si no hay sesión activa de Google)
+
+      // Intentar cerrar sesión de Google 
       try {
         const isSignedIn = await GoogleSignin.isSignedIn();
         if (isSignedIn) {
@@ -125,7 +121,7 @@ export async function signOutGoogle(): Promise<void> {
         console.warn('Error al cerrar sesión en Google Sign-In:', e);
       }
 
-      // Cerrar sesión en Firebase solo si hay un usuario activo
+      // Cerrar sesión en Auth Móvil
       try {
         if (authMobile().currentUser) {
           await authMobile().signOut();
@@ -134,16 +130,14 @@ export async function signOutGoogle(): Promise<void> {
         console.error('Error al cerrar sesión en Firebase Auth Móvil:', e);
       }
     }
-    
+
     console.log('Sesión cerrada correctamente');
   } catch (error) {
     console.error('Error general en signOutGoogle:', error);
   }
 }
 
-/**
- * SUSCRIPCIÓN AL ESTADO DE AUTENTICACIÓN
- */
+// SUSCRIPCIÓN AL ESTADO DE AUTENTICACIÓN
 export function onAuthStateChangedCallback(callback: (user: UserInfo | null) => void) {
   if (Platform.OS === 'web') {
     const { onAuthStateChanged } = require('firebase/auth');
@@ -178,9 +172,7 @@ export function onAuthStateChangedCallback(callback: (user: UserInfo | null) => 
   }
 }
 
-/**
- * OBTENER USUARIO ACTUAL
- */
+// OBTENER USUARIO ACTUAL
 export function getCurrentUser(): UserInfo | null {
   let user: any = null;
 

@@ -39,7 +39,7 @@ export interface Anime1VEpisodeLinks {
     SUB: Anime1VStreamLink[];
     DUB?: Anime1VStreamLink[];
   };
-  downloadLinks?: {          // <-- añadir esto
+  downloadLinks?: {
     SUB: Anime1VDownloadLink[];
     DUB?: Anime1VDownloadLink[];
   };
@@ -48,7 +48,7 @@ export interface Anime1VEpisodeLinks {
 export interface Anime1VDownloadLink {
   server: string;
   url: string;
-  quality?: string; // "1080p", "720p", etc.
+  quality?: string;
 }
 
 async function fetchFromApi<T>(
@@ -110,16 +110,16 @@ export async function searchAnime1V(
 }
 
 export async function getAnime1VInfo(
-  url: string, 
+  url: string,
   limit?: number  // Añadir parámetro opcional
 ): Promise<Anime1VInfo | null> {
   const params: Record<string, string> = { url };
-  
+
   // Si se especifica un límite, añadirlo a los parámetros
   if (limit) {
     params.limit = limit.toString();
   }
-  
+
   return await fetchFromApi<Anime1VInfo>("/api/v1/anime/info", params);
 }
 
@@ -139,20 +139,20 @@ export async function getAllAnime1VEpisodes(
   let currentPage = 1;
   let hasMore = true;
   const limit = 50; // Intentar obtener 50 por página
-  
+
   while (hasMore) {
     try {
-      const params: Record<string, string> = { 
+      const params: Record<string, string> = {
         url,
         page: currentPage.toString(),
         limit: limit.toString()
       };
-      
+
       const data = await fetchFromApi<Anime1VInfo>("/api/v1/anime/info", params);
-      
+
       if (data?.episodes && data.episodes.length > 0) {
         allEpisodes.push(...data.episodes);
-        
+
         // Si recibimos menos episodios que el límite, es la última página
         if (data.episodes.length < limit) {
           hasMore = false;
@@ -167,21 +167,20 @@ export async function getAllAnime1VEpisodes(
       hasMore = false;
     }
   }
-  
+
   return allEpisodes;
 }
 
-// Alternativa: Intentar con un límite grande
 export async function getAnime1VInfoWithAllEpisodes(
   url: string
 ): Promise<Anime1VInfo | null> {
   // Intentar obtener todos los episodios de una vez con un límite alto
   const info = await getAnime1VInfo(url, 999);
-  
+
   if (info && info.totalEpisodes > 0 && info.episodes.length < info.totalEpisodes) {
-    console.log(`⚠️ Solo se obtuvieron ${info.episodes.length} de ${info.totalEpisodes} episodios totales`);
-    console.log("💡 La API puede tener paginación. Usa getAllAnime1VEpisodes()");
+    console.log(`Solo se obtuvieron ${info.episodes.length} de ${info.totalEpisodes} episodios totales`);
+    console.log("La API puede tener paginación. Usa getAllAnime1VEpisodes()");
   }
-  
+
   return info;
 }

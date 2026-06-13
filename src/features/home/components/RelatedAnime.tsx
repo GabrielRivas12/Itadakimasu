@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity } from 'react-native';
 
 interface RelatedNode {
   id: number;
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(139, 92, 246, 0.9)', // Purple brand color with transparency
+    backgroundColor: 'rgba(139, 92, 246, 0.9)',
     paddingVertical: 4,
     alignItems: 'center',
   },

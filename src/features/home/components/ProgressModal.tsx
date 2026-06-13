@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   FlatList,
-  Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
@@ -39,16 +38,16 @@ export function ProgressModal({
 }: ProgressModalProps) {
   // Rango máximo de episodios. Si es null o indefinido, usamos 100 por defecto.
   const maxEpisodes = totalEpisodes || 100;
-  
+
   // Rango de episodios del 0 al maxEpisodes
   const episodesArray = Array.from({ length: maxEpisodes + 1 }, (_, i) => i);
-  
+
   // Elementos con espaciadores arriba y abajo para centrado
   const items = [null, null, ...episodesArray, null, null];
-  
+
   // Estado local para el valor seleccionado actualmente
   const [selectedProgress, setSelectedProgress] = useState(initialProgress);
-  
+
   const flatListRef = useRef<FlatList<any>>(null);
 
   // Sincronizar el progreso seleccionado con el valor inicial cuando se muestra el modal
@@ -57,7 +56,7 @@ export function ProgressModal({
       // Asegurarse de no exceder el máximo permitido
       const clampedProgress = Math.min(Math.max(0, initialProgress), maxEpisodes);
       setSelectedProgress(clampedProgress);
-      
+
       // Auto-scrollear a la posición correspondiente en el siguiente ciclo de renderizado
       setTimeout(() => {
         if (flatListRef.current) {
@@ -95,7 +94,7 @@ export function ProgressModal({
     }
 
     const isSelected = item === selectedProgress;
-    
+
     return (
       <View style={styles.itemContainer}>
         <Text style={[styles.itemText, isSelected && styles.itemTextSelected]}>
@@ -136,11 +135,11 @@ export function ProgressModal({
               <Text style={styles.label}>
                 Desliza verticalmente para elegir los episodios vistos:
               </Text>
-              
+
               <View style={styles.pickerContainer}>
                 {/* Indicador de selección central */}
                 <View style={styles.selectionHighlight} />
-                
+
                 <FlatList
                   ref={flatListRef}
                   data={items}
@@ -167,7 +166,7 @@ export function ProgressModal({
                   }}
                 />
               </View>
-              
+
               <Text style={styles.progressStatusText}>
                 Seleccionado: <Text style={styles.progressHighlight}>{selectedProgress}</Text> de {totalEpisodes || '??'} episodios
               </Text>

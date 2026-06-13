@@ -26,7 +26,7 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
       }).start(() => {
         // Cambiar al siguiente index
         setCurrentIndex((prevIndex) => (prevIndex + 1) % featured.length);
-        
+
         // Animación de entrada (Fade in)
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -58,17 +58,17 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
           <View style={styles.tag}>
             <Text style={styles.tagText}>TENDENCIA HOY</Text>
           </View>
-          
+
           <Text style={[styles.bannerTitle, isMobile && { fontSize: 18 }]} numberOfLines={1}>
             {currentAnime.title.romaji || currentAnime.title.english}
           </Text>
-          
+
           <Text style={[styles.bannerSubtitle, isMobile && { fontSize: 11, marginBottom: 8 }]} numberOfLines={2}>
             {currentAnime.description
               ? currentAnime.description.replace(/<[^>]*>/g, '')
               : 'Una producción imperdible disponible ahora en AnimeLT.'}
           </Text>
-          
+
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.bannerButton, isMobile && { paddingHorizontal: 12, paddingVertical: 6 }]}
@@ -80,12 +80,12 @@ export function FeaturedBanner({ featured, onPress }: FeaturedBannerProps) {
             {/* Indicadores de posición (Dots) */}
             <View style={styles.dotsContainer}>
               {featured.map((_, index) => (
-                <View 
-                  key={index} 
+                <View
+                  key={index}
                   style={[
-                    styles.dot, 
+                    styles.dot,
                     currentIndex === index ? styles.activeDot : styles.inactiveDot
-                  ]} 
+                  ]}
                 />
               ))}
             </View>

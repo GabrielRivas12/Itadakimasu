@@ -35,11 +35,11 @@ const getSourceInSpanish = (source: string | undefined): string => {
 
 const formatDate = (date: { year: number | null; month: number | null; day: number | null } | undefined): string => {
   if (!date || !date.year) return 'Desconocida';
-  
+
   const day = date.day || 1;
   const month = date.month || 1;
   const year = date.year;
-  
+
   return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
 };
 
@@ -51,13 +51,13 @@ export function TechnicalSpecs({ anime }: TechnicalSpecsProps) {
       <View style={styles.divider} />
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionHeader}>Ficha Técnica</Text>
-        
+
         <View style={styles.specCard}>
           <View style={styles.specRow}>
             <Text style={styles.specLabel}>Tipo</Text>
             <Text style={styles.specValue}>{anime.type || 'N/A'}</Text>
           </View>
-          
+
           <View style={styles.specRow}>
             <Text style={styles.specLabel}>Temporada</Text>
             <Text style={styles.specValue}>{seasonText}</Text>

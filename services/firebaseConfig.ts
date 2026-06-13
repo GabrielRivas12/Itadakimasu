@@ -15,7 +15,7 @@ if (Platform.OS === 'web') {
     const { initializeApp, getApps } = require('firebase/app');
     if (getApps().length === 0) {
       const config = getFirebaseConfig();
-      // Solo inicializar si al menos el apiKey existe para evitar errores fatales
+      // Solo inicializar si al menos el apiKey existe
       if (config.apiKey) {
         initializeApp(config);
       } else {

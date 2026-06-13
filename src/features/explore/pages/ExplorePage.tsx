@@ -1,11 +1,5 @@
 import React, { memo } from 'react';
-import {
-  StyleSheet,
-  View,
-  FlatList,
-  ActivityIndicator,
-  Text,
-} from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator, Text } from 'react-native';
 import { SearchBar } from '../components/SearchBar';
 import { GenreFilters } from '../components/GenreFilters';
 import { AnimeGridCard } from '../components/AnimeGridCard';

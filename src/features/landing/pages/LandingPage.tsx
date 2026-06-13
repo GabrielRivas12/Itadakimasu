@@ -12,7 +12,7 @@ export function LandingPage() {
   return (
     <ScrollView style={styles.container} bounces={false}>
       <HeroSection bannerAnimes={bannerAnimes} />
-      
+
       {/* Features Section */}
       <View style={[styles.featuresContainer, isMobile && { marginTop: 0 }]}>
         <Text style={[styles.featuresTitle, { fontSize: isMobile ? 28 : 36 }]}>
@@ -21,23 +21,23 @@ export function LandingPage() {
         <Text style={[styles.featuresSubtitle, { fontSize: isMobile ? 16 : 18 }]}>
           Todo lo que necesitas para disfrutar de tu pasión por el anime en un solo lugar.
         </Text>
-        
+
         <View style={styles.featuresGrid}>
-          <FeatureCard 
-            icon="library" 
-            title="Biblioteca Personal" 
+          <FeatureCard
+            icon="library"
+            title="Biblioteca Personal"
             description="Organiza tu colección con estados personalizados: Viendo, Terminado o Por Ver. Mantén tu progreso siempre al día."
             color="#8b5cf6"
           />
-          <FeatureCard 
-            icon="search-circle" 
-            title="Descubrimiento Inteligente" 
+          <FeatureCard
+            icon="search-circle"
+            title="Descubrimiento Inteligente"
             description="Encuentra tu próximo anime favorito usando filtros avanzados por género, año y popularidad de forma rápida."
             color="#3b82f6"
           />
-          <FeatureCard 
-            icon="stats-chart" 
-            title="Estadísticas de Usuario" 
+          <FeatureCard
+            icon="stats-chart"
+            title="Estadísticas de Usuario"
             description="Lleva un registro detallado de tus hábitos y tiempo dedicado. Esta función estará disponible muy pronto."
             color="#10b981"
             isComingSoon
@@ -55,7 +55,7 @@ export function LandingPage() {
 
 const FeatureCard = ({ icon, title, description, color, isComingSoon }: { icon: any, title: string, description: string, color: string, isComingSoon?: boolean }) => {
   const { isMobile } = useResponsive();
-  
+
   return (
     <View style={[styles.card, isMobile && { width: '100%' }]}>
       <View style={[styles.cardIconWrapper, { backgroundColor: `${color}15` }]}>

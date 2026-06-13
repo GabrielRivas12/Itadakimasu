@@ -9,7 +9,7 @@ export function HomeSkeleton() {
   return (
     <View style={styles.skeletonContainer}>
       <View style={styles.skeletonBanner} />
-      
+
       {/* Continue Watching Skeleton */}
       <View style={styles.skeletonTitle} />
       <View style={styles.skeletonScroll}>
@@ -21,9 +21,9 @@ export function HomeSkeleton() {
       <View style={styles.skeletonTitle} />
       <View style={styles.skeletonGrid}>
         {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <View 
-            key={i} 
-            style={[styles.skeletonCard, { width: `${100 / columns - 2}%` }]} 
+          <View
+            key={i}
+            style={[styles.skeletonCard, { width: `${100 / columns - 2}%` }]}
           />
         ))}
       </View>

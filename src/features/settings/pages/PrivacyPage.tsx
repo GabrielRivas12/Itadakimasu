@@ -18,7 +18,7 @@ export const PrivacyPage = () => {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.documentBody}>
           <Text style={styles.lastUpdated}>Última actualización: 08 de junio de 2026</Text>
-          
+
           <Text style={styles.paragraph}>
             La presente Política de Privacidad y Condiciones de Uso (en adelante, "la Política") establece los términos bajo los cuales Itadakimasu! (en adelante, "la Aplicación") utiliza y protege la información que es proporcionada por sus usuarios al momento de utilizar su plataforma. Estamos comprometidos con la seguridad de los datos de nuestros usuarios.
           </Text>

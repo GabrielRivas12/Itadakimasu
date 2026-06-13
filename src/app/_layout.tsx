@@ -1,6 +1,5 @@
-if (typeof global.setImmediate === 'undefined') {
-  // @ts-ignore
-  global.setImmediate = (fn: (...args: any[]) => void, ...args: any[]) => setTimeout(fn, 0, ...args);
+if (typeof globalThis.setImmediate === 'undefined') {
+  globalThis.setImmediate = (fn: (...args: any[]) => void, ...args: any[]) => setTimeout(fn, 0, ...args);
 }
 
 import { usePathname, Stack } from 'expo-router';
@@ -35,10 +34,10 @@ export default function RootLayout() {
 
         {showWebHeader && <WebHeader />}
 
-        <Stack screenOptions={{ 
-          headerShown: false, 
+        <Stack screenOptions={{
+          headerShown: false,
           animation: 'none',
-          contentStyle: { backgroundColor: '#0b0f19' } 
+          contentStyle: { backgroundColor: '#0b0f19' }
         }}>
           <Stack.Screen name="index" options={{ animation: 'none' }} />
           <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />

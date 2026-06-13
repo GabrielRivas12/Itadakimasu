@@ -37,28 +37,25 @@ function sanitizeObject(obj: any): any {
   return obj;
 }
 
-/**
- * Sincroniza un anime a Firestore
- */
+// Sincroniza un anime a Firestore
 export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
   try {
     const { getCurrentUser } = require('./auth');
     const user = getCurrentUser();
     if (!user) {
-      console.warn('⚠️ [Firestore] No se puede sincronizar: No hay usuario autenticado.');
+      console.warn('No se puede sincronizar: No hay usuario autenticado.');
       return;
     }
 
     asegurarFirebaseApp();
 
     const cleanItem = sanitizeObject(item);
-    // Ya no guardamos el objeto anime completo para ahorrar espacio y consistencia
     if (cleanItem) {
       delete cleanItem.anime;
     }
 
     const animeId = String(item.anime.id);
-    console.log(`🚀 [Firestore] Sincronizando anime ${animeId} (${item.anime.title?.romaji})...`);
+    console.log(`Sincronizando anime ${animeId} (${item.anime.title?.romaji})...`);
 
     if (Platform.OS === 'web') {
       const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
@@ -67,7 +64,7 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
       const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, animeId);
       await setDoc(docRef, {
         ...cleanItem,
-        animeId: Number(animeId), // Guardamos el ID explícitamente
+        animeId: Number(animeId),
         userId: user.uid,
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -81,20 +78,18 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
         .doc(animeId)
         .set({
           ...cleanItem,
-          animeId: Number(animeId), // Guardamos el ID explícitamente
+          animeId: Number(animeId),
           userId: user.uid,
           updatedAt: firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
     }
-    console.log(`✅ [Firestore] Sincronización exitosa para ID: ${animeId}`);
+    console.log(`Sincronización exitosa para ID: ${animeId}`);
   } catch (error) {
-    console.error('❌ [Firestore] Error sincronizando anime:', error);
+    console.error('Error sincronizando anime:', error);
   }
 }
 
-/**
- * Obtiene la lista de usuario de Firestore
- */
+//Obtiene la lista de usuario de Firestore
 export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
   try {
     const { getCurrentUser } = require('./auth');
@@ -145,14 +140,12 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
       });
     }
   } catch (error) {
-    console.error('❌ [Firestore] Error obteniendo lista:', error);
-    return null;
+    console.error('Error obteniendo lista:', error);
+    return [];
   }
 }
 
-/**
- * Elimina un anime de Firestore
- */
+// Elimina un anime de Firestore
 export async function removeFromFirestore(animeId: number): Promise<void> {
   try {
     const { getCurrentUser } = require('./auth');
@@ -162,7 +155,7 @@ export async function removeFromFirestore(animeId: number): Promise<void> {
     asegurarFirebaseApp();
 
     const id = String(animeId);
-    console.log(`🗑️ [Firestore] Eliminando anime ${id}...`);
+    console.log(`Eliminando anime ${id}...`);
 
     if (Platform.OS === 'web') {
       const { doc, deleteDoc } = require('firebase/firestore');
@@ -178,15 +171,13 @@ export async function removeFromFirestore(animeId: number): Promise<void> {
         .doc(id)
         .delete();
     }
-    console.log(`✅ [Firestore] Anime eliminado con éxito.`);
+    console.log(`Anime eliminado con éxito.`);
   } catch (error) {
-    console.error('❌ [Firestore] Error eliminando anime:', error);
+    console.error('Error eliminando anime:', error);
   }
 }
 
-/**
- * Actualiza el progreso de un anime en Firestore
- */
+// Actualiza el progreso de un anime en Firestore
 export async function updateProgressInFirestore(animeId: number, progress: number): Promise<void> {
   try {
     const { getCurrentUser } = require('./auth');
@@ -219,8 +210,8 @@ export async function updateProgressInFirestore(animeId: number, progress: numbe
           updatedAt: firestore.FieldValue.serverTimestamp(),
         });
     }
-    console.log(`✅ [Firestore] Progreso actualizado para ID: ${id}`);
+    console.log(`Progreso actualizado para ID: ${id}`);
   } catch (error) {
-    console.error('❌ [Firestore] Error actualizando progreso:', error);
+    console.error('Error actualizando progreso:', error);
   }
 }

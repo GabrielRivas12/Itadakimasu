@@ -9,7 +9,7 @@ interface QuickStatsProps {
 
 const getStatusLabel = (status: string | undefined): string => {
   if (!status) return '...';
-  
+
   const statusMap: Record<string, string> = {
     'FINISHED': 'Finalizado',
     'RELEASING': 'En Emisión',
@@ -17,7 +17,7 @@ const getStatusLabel = (status: string | undefined): string => {
     'CANCELLED': 'Cancelado',
     'HIATUS': 'En Pausa',
   };
-  
+
   return statusMap[status] || 'Desconocido';
 };
 

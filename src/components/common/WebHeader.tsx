@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
 import { Link, usePathname } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useResponsive } from '../../hooks/useResponsive';
 import { DownloadApkButton } from '../../features/home/components/DownloadApkButton';
 
@@ -19,14 +18,14 @@ export function WebHeader() {
   return (
     <View style={styles.headerWrapper}>
       <View style={StyleSheet.flatten([styles.container, { maxWidth: getContentWidth() }])}>
-        
+
         <View style={styles.leftSection}>
           <Link href="/home" asChild>
             <TouchableOpacity style={styles.logoContainer}>
               <View style={styles.logoIcon}>
-                <Image 
-                  source={require('../../../assets/icon.png')} 
-                  style={styles.logoImage} 
+                <Image
+                  source={require('../../../assets/icon.png')}
+                  style={styles.logoImage}
                 />
               </View>
               <Text style={styles.logoText}>Itadakimasu!</Text>

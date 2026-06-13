@@ -2,22 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { Animated, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { fetchTrendingAnime, Anime } from '../../../../services/anilist';
-import { 
-  getUserList, 
-  UserListItem, 
-  animeListEvents 
+import {
+  getUserList,
+  UserListItem,
+  animeListEvents
 } from '../../../../services/animeList';
 import { onAuthStateChangedCallback } from '../../../../services/auth';
-import { 
-  getCachedTrendingBanner, 
-  getCachedTrendingList, 
+import {
+  getCachedTrendingBanner,
+  getCachedTrendingList,
   getCachedContinueWatching,
-  cacheTrendingBanner, 
+  cacheTrendingBanner,
   cacheTrendingList,
   cacheContinueWatching
 } from '../../../../services/cache';
 
-// Module-level cache to persist data across remounts during the session
+// Persistencia en sesión para evitar cargas innesarias 
 let sessionTrending: Anime[] = [];
 let sessionFeatured: Anime[] = [];
 let sessionContinueWatching: UserListItem[] = [];
@@ -37,41 +37,39 @@ export const useHome = () => {
   const pageRef = useRef(1);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
-  
-  // Track if we are waiting for the initial auth resolution on web (Only for data fetching, not for UI blocking)
+
+  //  En web, se resuelve la autenticacion
   const isWaitingAuth = useRef(Platform.OS === 'web' && !homeInitialized);
 
   const loadData = async (forceRefresh = false) => {
-    // If we already have data and it's not a forced refresh, don't do anything
+    // Si no se fuerza el refresh y ya tenemos datos en sesión, no hacemos nada
     if (!forceRefresh && homeInitialized && sessionTrending.length > 0) {
       setLoading(false);
       return;
     }
 
     try {
-      // 1. Initial Cache Load (AsyncStorage)
+      // 1. Initial Cache (AsyncStorage)
       if (!forceRefresh && !homeInitialized && sessionTrending.length === 0) {
         const [cachedList, cachedBanner, cachedContinue] = await Promise.all([
           getCachedTrendingList(),
           getCachedTrendingBanner(),
           getCachedContinueWatching()
         ]);
-        
+
         if (cachedList && cachedList.length > 0) {
           sessionTrending = cachedList;
           setTrending(cachedList);
-          
+
           const featuredItems = cachedList.slice(0, 5);
           sessionFeatured = featuredItems;
           setFeatured(featuredItems);
-          
-          // Show cached content immediately on all platforms to be fast
+
           setLoading(false);
         }
       }
 
-      // 2. Network Fetch (Trending and User List)
-      // On web, we don't wait for auth to show trending.
+      // 2. Para web, si estamos esperando autenticación, no hacemos fetch del listado de usuario
       const fetchPromises: [Promise<Anime[]>, Promise<UserListItem[]>] = [
         fetchTrendingAnime(1, 10),
         (Platform.OS === 'web' && isWaitingAuth.current) ? Promise.resolve([]) : getUserList()
@@ -84,7 +82,7 @@ export const useHome = () => {
         setTrending(trendingData);
         pageRef.current = 1;
         hasMoreRef.current = trendingData.length >= 10;
-        
+
         const featuredItems = trendingData.slice(0, 5);
         sessionFeatured = featuredItems;
         setFeatured(featuredItems);
@@ -93,7 +91,7 @@ export const useHome = () => {
         await cacheTrendingBanner(featuredItems[0]);
       }
 
-      // Update Continue Watching if we fetched a real list
+      // Actualiza el listado de "Watching" en web solo si no estamos esperando autenticación, para evitar fetch innecesarios
       if (!(Platform.OS === 'web' && isWaitingAuth.current)) {
         const inProcessList = userList.filter(item => item.status === 'En Proceso');
         sessionContinueWatching = inProcessList;
@@ -107,7 +105,6 @@ export const useHome = () => {
     } catch (error) {
       console.error('Error loading Home data:', error);
     } finally {
-      // Always hide loading on finish, regardless of auth
       setLoading(false);
       setRefreshing(false);
     }
@@ -116,7 +113,7 @@ export const useHome = () => {
   useEffect(() => {
     loadData();
 
-    // Event listener for global list updates
+    // Actualizaciones en tiempo real del listado de usuario, solo en web para evitar fetch innecesarios en mobile
     const handleListUpdate = (updatedList: UserListItem[]) => {
       const inProcessList = updatedList.filter(item => item.status === 'En Proceso');
       sessionContinueWatching = inProcessList;
@@ -124,31 +121,29 @@ export const useHome = () => {
       cacheContinueWatching(inProcessList);
     };
 
-    // Firebase Auth Listener (Updates data in background)
+    // Autenticación en web, para evitar fetch innecesarios del listado de usuario
     const unsubscribeAuth = onAuthStateChangedCallback(async (user) => {
       console.log(`[useHome] Auth state changed. User: ${user ? 'Logged In' : 'Guest'}`);
-      
-      // Clear the waiting flag
+
+      // Limpiar datos de sesión si el usuario se desloguea
       isWaitingAuth.current = false;
-      
-      // Fetch the definitive user list in background
+
+      // Lista de usuario solo se actualiza en web, para evitar fetch innecesarios en mobile
       try {
         const userList = await getUserList();
         const inProcessList = userList.filter(item => item.status === 'En Proceso');
-        
+
         sessionContinueWatching = inProcessList;
         setContinueWatching(inProcessList);
         await cacheContinueWatching(inProcessList);
       } catch (e) {
         console.warn('[useHome] Error fetching user list after auth change:', e);
       }
-
-      // Ensure loading is false if it wasn't already
       setLoading(false);
     });
 
     animeListEvents.on('listUpdated', handleListUpdate);
-    
+
     return () => {
       animeListEvents.off('listUpdated', handleListUpdate);
       if (unsubscribeAuth) unsubscribeAuth();

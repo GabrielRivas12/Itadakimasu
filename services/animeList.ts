@@ -1,15 +1,12 @@
 import { Platform } from 'react-native';
 import { Anime, fetchAnimesByIds } from './anilist';
-import { 
-  syncAnimeToFirestore,   
-  fetchUserListFromFirestore, 
-  removeFromFirestore, 
-  updateProgressInFirestore 
+import {
+  syncAnimeToFirestore, fetchUserListFromFirestore,
+  removeFromFirestore, updateProgressInFirestore
 } from './firestore';
 import { getCachedAnimeDetails, cacheAnimeDetails } from './cache';
-
-// 🔄 Importamos tu servicio de autenticación seguro
-import { getCurrentUser } from './auth'; 
+// import { getCurrentUser } from './auth';
+import { getUserId } from '../src/hooks/userHelper';
 import { EventEmitter } from 'eventemitter3';
 
 export const animeListEvents = new EventEmitter();
@@ -17,6 +14,7 @@ export const animeListEvents = new EventEmitter();
 export type UserListStatus = 'En Proceso' | 'Terminado' | 'Por Ver';
 
 export interface UserListItem {
+  animeId: number;
   anime: Anime;
   status: UserListStatus;
   progress: number;
@@ -24,10 +22,7 @@ export interface UserListItem {
   updatedAt: string;
 }
 
-/**
- * Enriquecedor de lista: Toma datos de Firestore (que ya no tienen el objeto anime)
- * y los completa usando el caché local o la API de AniList.
- */
+// Función para enriquecer la lista del usuario con detalles completos de anime
 async function enrichUserList(minimalList: any[]): Promise<UserListItem[]> {
   if (!minimalList || minimalList.length === 0) return [];
 
@@ -54,11 +49,11 @@ async function enrichUserList(minimalList: any[]): Promise<UserListItem[]> {
   if (missingIds.length > 0) {
     console.log(`[Sync] Enriqueciendo ${missingIds.length} animes desde la API...`);
     const fetchedAnimes = await fetchAnimesByIds(missingIds);
-    
+
     // Guardar en caché lo que acabamos de traer
     for (const anime of fetchedAnimes) {
       await cacheAnimeDetails(anime.id, anime);
-      
+
       const originalItem = minimalList.find(i => (i.animeId || i.anime?.id) == anime.id);
       if (originalItem) {
         enrichedList.push({
@@ -70,7 +65,7 @@ async function enrichUserList(minimalList: any[]): Promise<UserListItem[]> {
   }
 
   // Ordenar por updatedAt descendente
-  return enrichedList.sort((a, b) => 
+  return enrichedList.sort((a, b) =>
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
 }
@@ -88,13 +83,14 @@ const getAsyncStorage = () => {
   return storage.default || storage;
 };
 
+// Obtiene la lista del usuario, primero del caché local y luego sincroniza con Firestore si el usuario está logueado
 export async function getUserList(): Promise<UserListItem[]> {
   try {
-    const user = getCurrentUser(); 
+    const user = getUserId();
 
     const storage = getAsyncStorage();
     const currentKey = getStorageKey(user);
-    
+
     // 1. Obtener lo que hay en caché local inmediatamente
     const jsonValue = await storage.getItem(currentKey);
     const localList: UserListItem[] = jsonValue != null ? JSON.parse(jsonValue) : [];
@@ -103,7 +99,7 @@ export async function getUserList(): Promise<UserListItem[]> {
     if (user) {
       // Si el caché está vacío, esperamos a la red obligatoriamente para la primera carga
       if (localList.length === 0) {
-        console.log(`[Cache] Cache vacío para ${user.uid}, esperando a Firestore...`);
+        console.log(`[Cache] Cache vacío para ${user}, esperando a Firestore...`);
         const remoteList = await fetchUserListFromFirestore();
         if (remoteList && remoteList.length > 0) {
           const enrichedRemote = await enrichUserList(remoteList);
@@ -111,7 +107,7 @@ export async function getUserList(): Promise<UserListItem[]> {
           return enrichedRemote;
         }
       } else {
-        // Sincronización inteligente en segundo plano:
+        // Sincronización en segundo plano:
         fetchUserListFromFirestore().then(async (remoteList) => {
           if (!remoteList) return; // Si hubo error en red, no tocamos nada
 
@@ -120,7 +116,7 @@ export async function getUserList(): Promise<UserListItem[]> {
 
           const latestJson = await storage.getItem(currentKey);
           const currentLocalList: UserListItem[] = latestJson != null ? JSON.parse(latestJson) : [];
-          
+
           const localMap = new Map(currentLocalList.filter(item => item && item.anime).map(item => [String(item.anime.id), item]));
           const remoteIds = new Set(enrichedRemote.filter(item => item && item.anime).map(item => String(item.anime.id)));
           let hasChanges = false;
@@ -175,7 +171,7 @@ export async function getUserList(): Promise<UserListItem[]> {
 async function saveUserListLocally(list: UserListItem[], customUser?: any) {
   try {
     const storage = getAsyncStorage();
-    const user = customUser !== undefined ? customUser : getCurrentUser();
+    const user = customUser !== undefined ? customUser : getUserId();
     const currentKey = getStorageKey(user);
     const jsonValue = JSON.stringify(list);
     await storage.setItem(currentKey, jsonValue);
@@ -184,9 +180,7 @@ async function saveUserListLocally(list: UserListItem[], customUser?: any) {
   }
 }
 
-/**
- * Migración: Pasa los datos de la lista de invitado a la cuenta de usuario
- */
+// Migración: Pasa los datos de la lista de invitado a la cuenta de usuario
 export async function mergeGuestListIntoUser(userUid: string) {
   try {
     const storage = getAsyncStorage();
@@ -216,20 +210,18 @@ export async function mergeGuestListIntoUser(userUid: string) {
     const userKey = `@AnimeLT:user_list:${userUid}`;
     await storage.setItem(userKey, JSON.stringify(mergedList));
     await storage.removeItem(GUEST_STORAGE_KEY);
-    
+
     console.log('Migración completada con éxito');
   } catch (error) {
     console.error('Error durante la migración de la lista:', error);
   }
 }
 
-/**
- * Limpia el caché local del usuario actual
- */
+//Limpia el caché local del usuario actual
 export async function clearLocalList() {
   try {
     const storage = getAsyncStorage();
-    const user = getCurrentUser();
+    const user = getUserId();
     const currentKey = getStorageKey(user);
     await storage.removeItem(currentKey);
     console.log(`Cache local eliminado para la clave: ${currentKey}`);
@@ -238,10 +230,7 @@ export async function clearLocalList() {
   }
 }
 
-/**
- * Métodos para componentes y vistas
- */
-
+// Métodos para componentes y vistas
 export async function getAnimeStatus(animeId: number): Promise<UserListStatus | null> {
   const list = await getUserList();
   const item = list.find(item => String(item.anime.id) === String(animeId));
@@ -259,6 +248,7 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
   const existingIndex = currentList.findIndex(item => String(item.anime.id) === String(anime.id));
 
   const newItem: UserListItem = {
+    animeId: anime.id,
     anime,
     status,
     progress,
@@ -272,15 +262,15 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
     currentList.push(newItem);
   }
 
-  const user = getCurrentUser();
-  
+  const user = getUserId();
+
   // Guardamos al mismo tiempo en cache y firestore
   const promises: Promise<any>[] = [];
   promises.push(saveUserListLocally(currentList, user));
   if (user) {
     promises.push(syncAnimeToFirestore(newItem));
   }
-  
+
   await Promise.all(promises);
 
   animeListEvents.emit('listUpdated', currentList);
@@ -291,14 +281,14 @@ export async function removeAnimeFromList(animeId: number): Promise<UserListItem
   const currentList = await getUserList();
   const updatedList = currentList.filter(item => String(item.anime.id) !== String(animeId));
 
-  const user = getCurrentUser();
-  
+  const user = getUserId();
+
   const promises: Promise<any>[] = [];
   promises.push(saveUserListLocally(updatedList, user));
-  if (user) { 
+  if (user) {
     promises.push(removeFromFirestore(animeId));
   }
-  
+
   await Promise.all(promises);
 
   animeListEvents.emit('listUpdated', updatedList);
@@ -312,15 +302,15 @@ export async function updateAnimeProgress(animeId: number, progress: number): Pr
   if (existingIndex > -1) {
     currentList[existingIndex].progress = progress;
     currentList[existingIndex].updatedAt = new Date().toISOString();
-    
-    const user = getCurrentUser();
-    
+
+    const user = getUserId();
+
     const promises: Promise<any>[] = [];
     promises.push(saveUserListLocally(currentList, user));
-    if (user) { 
+    if (user) {
       promises.push(updateProgressInFirestore(animeId, progress));
     }
-    
+
     await Promise.all(promises);
   }
 

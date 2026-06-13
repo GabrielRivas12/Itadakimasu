@@ -1,12 +1,12 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, DimensionValue } from 'react-native';
 import { Anime } from '../../../../services/anilist';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 interface AnimeGridCardProps {
   item: Anime;
   onPress: (id: number) => void;
-  width?: number | string;
+  width?: DimensionValue; 
 }
 
 export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress, width }: AnimeGridCardProps) {

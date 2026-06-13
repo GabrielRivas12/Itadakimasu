@@ -9,7 +9,7 @@ export async function prepareTranslator(): Promise<boolean> {
   
   initializing = true;
   try {
-    console.log('📚 Preparando traductor offline...');
+    console.log('Traduciendo...');
     
     await FastTranslator.prepare({
       source: 'English' as Languages,
@@ -41,7 +41,7 @@ export async function translateToSpanish(text: string): Promise<string> {
   
   try {
     const translated = await FastTranslator.translate(text);
-    console.log('📝 Traducción completada');
+    console.log('Traducción completada');
     return translated;
   } catch (error) {
     console.error('Error de traducción:', error);

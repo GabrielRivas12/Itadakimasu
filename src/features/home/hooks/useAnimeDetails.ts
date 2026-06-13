@@ -16,6 +16,7 @@ import {
   getAnime1VEpisodeLinks,
   Anime1VEpisode,
   Anime1VInfo,
+  Anime1VStreamLink,
 } from '../../../../services/anime1v';
 import { SearchResult } from '../types/animeDetails';
 import {
@@ -49,6 +50,8 @@ export const useAnimeDetails = () => {
   const [loadingStream, setLoadingStream] = useState(false);
   const [contentNotAvailable, setContentNotAvailable] = useState(false);
   const [matchingAttempted, setMatchingAttempted] = useState(false);
+  const [availableServers, setAvailableServers] = useState<Anime1VStreamLink[]>([]);
+  const [selectedServerName, setSelectedServerName] = useState<string>('streamwish');
 
   // Pagination states para episodios
   const [displayedEpisodes, setDisplayedEpisodes] = useState<Anime1VEpisode[]>([]);
@@ -141,7 +144,7 @@ export const useAnimeDetails = () => {
       if (cachedAnime) {
         console.log(`[DEBUG] Usando cachedAnime para la vista inicial`);
         setAnime(cachedAnime);
-        // Quitamos loading si ya tenemos cache (evita parpadeo de Skeleton)
+        // Quitamos loading si ya tenemos cache
         setLoading(false);
       }
 
@@ -241,7 +244,7 @@ export const useAnimeDetails = () => {
       let bestMatch: SearchResult | null = null;
       let bestMatchInfo: Anime1VInfo | null = null;
 
-      // Limitamos el tiempo total de búsqueda para no quedarnos pegados
+      // Limitamos el tiempo total de búsqueda 
       const searchStartTime = Date.now();
       const MAX_SEARCH_TIME = 20000; // 20 segundos máximo para el debug
 
@@ -348,18 +351,26 @@ export const useAnimeDetails = () => {
         const subServers = links.streamLinks.SUB ?? [];
         const dubServers = links.streamLinks.DUB ?? [];
         const allServers = [...subServers, ...dubServers];
+        setAvailableServers(allServers);
 
         let preferred;
 
-        if (anime?.isAdult) {
-          preferred = allServers.find(s => s.server.toLowerCase().includes('mp4upload'))
-            ?? allServers.find(s => s.server === 'streamwish')
-            ?? allServers[0];
+        // Intentar usar el servidor seleccionado por el usuario
+        const userSelected = allServers.find(s => s.server.toLowerCase().includes(selectedServerName.toLowerCase()));
+
+        if (userSelected) {
+          preferred = userSelected;
         } else {
-          // Lógica normal: StreamWish > HLS > primero disponible
-          preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish'))
-            ?? allServers.find(s => s.server === 'mp4upload')
-            ?? allServers[0];
+          if (anime?.isAdult) {
+            preferred = allServers.find(s => s.server.toLowerCase().includes('mp4upload'))
+              ?? allServers.find(s => s.server === 'streamwish')
+              ?? allServers[0];
+          } else {
+            // Lógica normal: StreamWish > HLS > primero disponible
+            preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish'))
+              ?? allServers.find(s => s.server === 'mp4upload')
+              ?? allServers[0];
+          }
         }
 
         if (preferred?.url) {
@@ -372,6 +383,16 @@ export const useAnimeDetails = () => {
       setLoadingStream(false);
     }
 
+  };
+
+  const handleServerChange = (serverName: string) => {
+    setSelectedServerName(serverName);
+    if (availableServers.length > 0) {
+      const server = availableServers.find(s => s.server.toLowerCase().includes(serverName.toLowerCase()));
+      if (server) {
+        setStreamUrl(server.url);
+      }
+    }
   };
 
   const handleUpdateStatus = async (status: UserListStatus) => {
@@ -479,5 +500,8 @@ export const useAnimeDetails = () => {
     isUpdatingStatus,
     isAdultContentEnabled,
     handleDownloadEpisode,
+    availableServers,
+    selectedServerName,
+    handleServerChange,
   };
 };
