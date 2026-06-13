@@ -20,7 +20,7 @@ import { RelatedAnime } from '../components/RelatedAnime';
 import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
-import { EpisodePlayer } from '../components/EpisodePlayer'; 
+import { EpisodePlayer } from '../components/EpisodePlayer';
 import { EpisodePicker } from '../components/EpisodePicker';
 import { ProviderSelector } from '../components/ProviderSelector';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
@@ -32,10 +32,10 @@ import NotFoundScreen from '../../../app/+not-found';
 export function AnimeDetailsPage() {
   const router = useRouter();
   const { isWeb, getContentWidth, width, isMobile, isWebDesktop } = useResponsive();
-  
+
   // Calcular margen dinámico para alinear con el contenido centrado en web
   const contentWidth = typeof getContentWidth() === 'number' ? (getContentWidth() as number) : width;
-  
+
   const {
     anime,
     loading,
@@ -60,9 +60,7 @@ export function AnimeDetailsPage() {
     fadeAnim,
     loadMoreEpisodes,
     handleEpisodeSelect,
-    saveProgress,
     handleUpdateStatus,
-    handleUpdateProgress,
     handleRemove,
     isUpdatingStatus,
     isAdultContentEnabled,
@@ -85,11 +83,11 @@ export function AnimeDetailsPage() {
     try {
       const shareUrl = `https://itadakimasu.online/animedetails?id=${anime.id}`;
       const title = anime.title.romaji || anime.title.english;
-      
+
       await Share.share({
         message: `¡Mira ${title} en Itadakimasu!\n${shareUrl}`,
         url: shareUrl,
-        title: title,
+        title: title || 'Anime desconocido',
       });
     } catch (error) {
       console.error('Error sharing anime:', error);
@@ -114,22 +112,22 @@ export function AnimeDetailsPage() {
           headerTransparent: true,
           headerTintColor: '#ffffff',
           headerLeft: () => (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
                 if (router.canGoBack()) {
                   router.back();
                 } else {
                   router.replace('/');
                 }
-              }} 
+              }}
               style={styles.headerIconButton}
             >
               <Ionicons name="arrow-back" size={24} color="#ffffff" />
             </TouchableOpacity>
           ),
           headerRight: () => (!loading && anime) ? (
-            <TouchableOpacity 
-              onPress={handleShare} 
+            <TouchableOpacity
+              onPress={handleShare}
               style={styles.headerIconButton}
             >
               <Ionicons name="share-social" size={22} color="#ffffff" />
@@ -154,20 +152,20 @@ export function AnimeDetailsPage() {
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           {isWeb && anime && (
             <View style={[styles.webHeroContainer, isMobile && { height: 300 }]}>
-              <Image 
-                source={{ uri: anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large }} 
+              <Image
+                source={{ uri: anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large }}
                 style={styles.webHeroImage}
                 resizeMode="cover"
               />
               <View style={styles.webHeroOverlay} />
             </View>
           )}
-          
+
           <ResponsiveContainer contentContainerStyle={StyleSheet.flatten([styles.scrollContent, isWeb && styles.webScrollContent, isMobile && { paddingTop: 0 }])}>
             <View style={StyleSheet.flatten(showWebLayout ? styles.webDetailsContainer : { width: '100%' })}>
               <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebar : { width: '100%' })}>
                 <AnimeHeader anime={anime} />
-                
+
                 <View style={StyleSheet.flatten(showWebLayout ? styles.webSidebarActions : { width: '100%', marginTop: 20 })}>
                   <StatusSelector
                     userStatus={userStatus}
@@ -239,7 +237,7 @@ export function AnimeDetailsPage() {
                     {currentEpisode ? `Reproduciendo: ${currentEpisode.title}` : 'Episodios'}
                   </Text>
 
-                  {loading ? ( 
+                  {loading ? (
                     <View style={styles.episodesLoadingContainer}>
                       <ActivityIndicator size="large" color="#8b5cf6" />
                       <Text style={styles.loadingTextSmall}>Buscando capítulos disponibles...</Text>
@@ -268,7 +266,7 @@ export function AnimeDetailsPage() {
                         episodes={displayedEpisodes}
                         currentEpisodeNumber={currentEpisode?.number || null}
                         onEpisodePress={(episode) => handleEpisodeSelect(episode, true)}
-                        onDownloadPress={handleDownloadEpisode} 
+                        onDownloadPress={handleDownloadEpisode}
                         onLoadMore={loadMoreEpisodes}
                         hasMore={hasMoreEpisodes}
                         isLoadingMore={isLoadingMore}
@@ -300,17 +298,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
-  },
-  webDetailsContainer: {
-    flexDirection: 'row',
-    paddingTop: 20,
-  },
-  webSidebar: {
-    width: 300,
-    paddingRight: 20,
-  },
-  webMainContent: {
-    flex: 1,
   },
   errorContainer: {
     flex: 1,
