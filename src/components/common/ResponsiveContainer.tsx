@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, ViewStyle, ScrollView } from 'react-native';
+import { StyleSheet, View, ViewStyle, ScrollView, RefreshControlProps } from 'react-native';
 import { useResponsive } from '../../hooks/useResponsive';
 
 interface ResponsiveContainerProps {
@@ -9,7 +9,7 @@ interface ResponsiveContainerProps {
   useScrollView?: boolean;
   onScroll?: (event: any) => void;
   scrollEventThrottle?: number;
-  refreshControl?: React.ReactElement;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 export function ResponsiveContainer({

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { searchAnime, Anime, AnimeSeason } from '../../../../services/anilist';
 import { getIsAdultContentEnabled } from '../../../../services/cache';
 
-// Module-level cache to persist results across remounts during the session
+// Persistencia de resultados
 let sessionExploreResults: Anime[] = [];
 let exploreInitialized = false;
 let currentAdultSetting: boolean | null = null;
@@ -17,8 +17,8 @@ export const useExplore = () => {
   const [results, setResults] = useState<Anime[]>(sessionExploreResults);
   const [loading, setLoading] = useState(!exploreInitialized);
   const [isAdultSettingEnabled, setIsAdultSettingEnabled] = useState(false);
-  
-  // Pagination states
+
+  // Paginacion estados
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -27,8 +27,8 @@ export const useExplore = () => {
     const loadSetting = async () => {
       const enabled = await getIsAdultContentEnabled();
       setIsAdultSettingEnabled(enabled);
-      
-      // If setting changed since last session cache, clear it
+
+      // si el setting ha cambiado, reiniciamos la exploracion
       if (currentAdultSetting !== null && currentAdultSetting !== enabled) {
         sessionExploreResults = [];
         exploreInitialized = false;
@@ -54,21 +54,21 @@ export const useExplore = () => {
       const genreText = selectedGenre !== 'Todos' ? selectedGenre : null;
       const seasonValue = selectedSeason !== 'Todas' ? selectedSeason : null;
       const yearValue = selectedYear !== 'Todos' ? selectedYear : null;
-      
-      // If adult content is disabled, explicitly filter it out (isAdult: false)
-      // If enabled, we show both (isAdult: null)
+
+      // Si contenido adulto está deshabilitado, filtrarlo explícitamente (isAdult: false)
+      // Si está habilitado, mostramos ambos (isAdult: null)
       const isAdultFilter = adultSetting ? null : false;
 
       const data = await searchAnime(queryText, genreText, seasonValue, yearValue, pageNum, 20, isAdultFilter);
-      
+
       if (data) {
         if (isInitial) {
           setResults(data);
-          // Determine if we are in the "initial state" (no active search/filters) to cache
-          const isInitialState = searchQuery === '' && 
-                                selectedGenre === 'Todos' && 
-                                selectedSeason === 'Todas' && 
-                                selectedYear === 'Todos';
+          // Determina si estamos en el estado inicial para almacenar los resultados en sesión
+          const isInitialState = searchQuery === '' &&
+            selectedGenre === 'Todos' &&
+            selectedSeason === 'Todas' &&
+            selectedYear === 'Todos';
           if (isInitialState) {
             sessionExploreResults = data;
             exploreInitialized = true;
@@ -76,7 +76,7 @@ export const useExplore = () => {
         } else {
           setResults(prev => [...prev, ...data]);
         }
-        
+
         if (data.length < 20) {
           setHasMore(false);
         }
@@ -93,12 +93,11 @@ export const useExplore = () => {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      // If we have session results and we are just returning to the initial state, 
-      // don't re-fetch but initialize correctly.
-      const isInitialFilters = searchQuery === '' && 
-                            selectedGenre === 'Todos' && 
-                            selectedSeason === 'Todas' && 
-                            selectedYear === 'Todos';
+      // Si estamos en el estado inicial y ya tenemos resultados en sesión, los usamos en lugar de hacer una nueva consulta
+      const isInitialFilters = searchQuery === '' &&
+        selectedGenre === 'Todos' &&
+        selectedSeason === 'Todas' &&
+        selectedYear === 'Todos';
 
       if (exploreInitialized && sessionExploreResults.length > 0 && isInitialFilters && page === 1) {
         setResults(sessionExploreResults);

@@ -16,7 +16,6 @@ import { StatusTabs } from '../components/StatusTabs';
 import { LibraryAnimeCard } from '../components/LibraryAnimeCard';
 import { ProfileEmptyList } from '../components/ProfileEmptyList';
 import { useProfile } from '../hooks/useProfile';
-import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 export const ProfilePage = memo(function ProfilePage() {
@@ -69,7 +68,7 @@ export const ProfilePage = memo(function ProfilePage() {
         ListHeaderComponent={
           <View style={isWeb && { width: '100%', marginBottom: 10 }}>
             <View style={[
-              styles.header, 
+              styles.header,
               isWeb && { paddingHorizontal: 0 },
               isWeb && isMobile && { paddingTop: 20 }
             ]}>
@@ -122,9 +121,9 @@ export const ProfilePage = memo(function ProfilePage() {
           </View>
         }
         ListEmptyComponent={
-          <ProfileEmptyList 
-            activeTab={activeTab} 
-            onExplorePress={() => router.push('/explore')} 
+          <ProfileEmptyList
+            activeTab={activeTab}
+            onExplorePress={() => router.push('/explore')}
           />
         }
         renderItem={({ item }) => (

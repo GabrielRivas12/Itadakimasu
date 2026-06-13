@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     height: 240,
     marginHorizontal: -16,
     width: 'auto',
-    backgroundColor: '#1e293b', // Fondo sólido mientras carga
+    backgroundColor: '#1e293b',
   },
   bannerImage: {
     width: '100%',

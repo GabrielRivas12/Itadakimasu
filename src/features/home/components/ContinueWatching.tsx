@@ -10,39 +10,39 @@ interface ContinueWatchingProps {
 
 export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
   const { isWeb, getContentWidth } = useResponsive();
-  
+
   if (items.length === 0) return null;
 
   return (
     <View style={[
-      styles.container, 
+      styles.container,
       isWeb && { maxWidth: getContentWidth(), width: '100%', alignSelf: 'center' }
     ]}>
       <Text style={styles.sectionHeader}>Continuar Viendo</Text>
-      
-      <ScrollView 
-        horizontal 
+
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={Platform.OS === 'web'}
         contentContainerStyle={[
           styles.scrollContent,
-          isWeb && { paddingBottom: 10 } // Espacio para la scrollbar en web
+          isWeb && { paddingBottom: 10 }
         ]}
       >
         {items.map((item) => {
           const progress = item.anime.episodes ? item.progress / item.anime.episodes : 0;
           const title = item.anime.title.romaji || item.anime.title.english;
-          
+
           return (
-            <TouchableOpacity 
-              key={item.anime.id} 
+            <TouchableOpacity
+              key={item.anime.id}
               style={styles.card}
               onPress={() => onPress(item.anime.id)}
               activeOpacity={0.8}
             >
               <View style={styles.imageContainer}>
-                <Image 
-                  source={{ uri: item.anime.coverImage.large }} 
-                  style={styles.image} 
+                <Image
+                  source={{ uri: item.anime.coverImage.large }}
+                  style={styles.image}
                 />
                 <View style={styles.overlay}>
                   <Text style={styles.episodeText}>Episodio {item.progress}</Text>
@@ -52,7 +52,7 @@ export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
                   <View style={[styles.progressBar, { width: `${Math.min(progress * 100, 100)}%` }]} />
                 </View>
               </View>
-              
+
               <Text style={styles.title} numberOfLines={1}>{title}</Text>
             </TouchableOpacity>
           );

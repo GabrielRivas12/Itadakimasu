@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 const CURRENT_VERSION = Constants.expoConfig?.version || '1.0.0';
 const GITHUB_API_URL = 'https://api.github.com/repos/GabrielRivas12/Itadakimasu/releases/latest';
 
-// Función auxiliar para comparar versiones semánticas (ej: 1.0.1 > 1.0.0)
+// Función para comparar versiones semánticas (ej: 1.0.1 > 1.0.0)
 function isNewerVersion(newVer: string, currentVer: string) {
   const n = newVer.split('.').map(v => parseInt(v) || 0);
   const c = currentVer.split('.').map(v => parseInt(v) || 0);

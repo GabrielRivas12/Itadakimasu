@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Platform, StyleSheet, Animated } from 'react-native';
+import { Platform, StyleSheet, Animated } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useResponsive } from '../../hooks/useResponsive';
 
@@ -9,7 +9,6 @@ interface WebAdBannerProps {
 }
 
 export function WebAdBanner({ type = 'auto' }: WebAdBannerProps) {
-  // Mover la configuración DENTRO del componente garantiza que siempre esté definida
   const AD_CONFIGS = {
     '728x90': { key: '04d928200e72e6dff1a017e433b845e7', format: 'iframe', height: 90, width: 728 },
     '468x60': { key: 'b35df60e7a73946fc66b968cb3ffab65', format: 'iframe', height: 60, width: 468 },
@@ -24,7 +23,7 @@ export function WebAdBanner({ type = 'auto' }: WebAdBannerProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Lógica de selección de tipo
+  // Selección de tipo
   let selectedType = type;
   if (type === 'auto') {
     if (windowWidth >= 1024) selectedType = '728x90';
@@ -65,7 +64,6 @@ export function WebAdBanner({ type = 'auto' }: WebAdBannerProps) {
   // Determinar si la ruta actual muestra la barra de navegación inferior (Bottom Tabs)
   const isTabRoute = ['/home', '/airing', '/explore', '/profile'].some(route => pathname.startsWith(route));
 
-  //NO MODFICAR 
   return (
     <Animated.View style={[styles.floatingContainer, { opacity: fadeAnim, bottom: (isMobile && isTabRoute) ? 95 : 25 }]}>
       <iframe
@@ -76,7 +74,6 @@ export function WebAdBanner({ type = 'auto' }: WebAdBannerProps) {
       />
     </Animated.View>
   );
-  //NO MODFICAR
 }
 
 const styles = StyleSheet.create({

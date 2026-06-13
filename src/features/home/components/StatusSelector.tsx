@@ -24,7 +24,7 @@ export function StatusSelector({
   onRemove,
   isUpdating = false,
 }: StatusSelectorProps) {
-  
+
   // Color del indicador según el estado actual
   const getStatusColor = () => {
     if (userStatus === 'En Proceso') return '#38bdf8';
@@ -92,9 +92,9 @@ export function StatusSelector({
       {showStatusSelector && (
         <View style={styles.selectorDropdown}>
           <Text style={styles.dropdownTitle}>Elegir estado del Anime:</Text>
-          
-          <TouchableOpacity 
-            style={styles.dropdownOption} 
+
+          <TouchableOpacity
+            style={styles.dropdownOption}
             onPress={() => onUpdateStatus('En Proceso')}
             disabled={isUpdating}
           >
@@ -102,9 +102,9 @@ export function StatusSelector({
             <Text style={styles.dropdownOptionText}>En Proceso</Text>
             {userStatus === 'En Proceso' && <Ionicons name="checkmark" size={18} color="#8b5cf6" style={styles.checkIcon} />}
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.dropdownOption} 
+
+          <TouchableOpacity
+            style={styles.dropdownOption}
             onPress={() => onUpdateStatus('Terminado')}
             disabled={isUpdating}
           >
@@ -112,9 +112,9 @@ export function StatusSelector({
             <Text style={styles.dropdownOptionText}>Terminado</Text>
             {userStatus === 'Terminado' && <Ionicons name="checkmark" size={18} color="#8b5cf6" style={styles.checkIcon} />}
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.dropdownOption} 
+
+          <TouchableOpacity
+            style={styles.dropdownOption}
             onPress={() => onUpdateStatus('Por Ver')}
             disabled={isUpdating}
           >
@@ -125,8 +125,8 @@ export function StatusSelector({
 
           {/* Botón para quitar de la lista - SIEMPRE visible si el anime está en la lista */}
           {userStatus && (
-            <TouchableOpacity 
-              style={[styles.dropdownOption, styles.dropdownRemove]} 
+            <TouchableOpacity
+              style={[styles.dropdownOption, styles.dropdownRemove]}
               onPress={onRemove}
               disabled={isUpdating}
             >

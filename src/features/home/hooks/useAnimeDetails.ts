@@ -144,7 +144,7 @@ export const useAnimeDetails = () => {
       if (cachedAnime) {
         console.log(`[DEBUG] Usando cachedAnime para la vista inicial`);
         setAnime(cachedAnime);
-        // Quitamos loading si ya tenemos cache (evita parpadeo de Skeleton)
+        // Quitamos loading si ya tenemos cache
         setLoading(false);
       }
 
@@ -244,7 +244,7 @@ export const useAnimeDetails = () => {
       let bestMatch: SearchResult | null = null;
       let bestMatchInfo: Anime1VInfo | null = null;
 
-      // Limitamos el tiempo total de búsqueda para no quedarnos pegados
+      // Limitamos el tiempo total de búsqueda 
       const searchStartTime = Date.now();
       const MAX_SEARCH_TIME = 20000; // 20 segundos máximo para el debug
 

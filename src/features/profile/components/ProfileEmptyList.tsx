@@ -15,8 +15,8 @@ export function ProfileEmptyList({ activeTab, onExplorePress }: ProfileEmptyList
           activeTab === 'En Proceso'
             ? 'play-circle-outline'
             : activeTab === 'Terminado'
-            ? 'ribbon-outline'
-            : 'bookmark-outline'
+              ? 'ribbon-outline'
+              : 'bookmark-outline'
         }
         size={64}
         color="#475569"
@@ -26,8 +26,8 @@ export function ProfileEmptyList({ activeTab, onExplorePress }: ProfileEmptyList
         {activeTab === 'En Proceso'
           ? 'No tienes ningún anime en reproducción en este momento.'
           : activeTab === 'Terminado'
-          ? '¡Empieza a ver animes y márcalos como terminados aquí!'
-          : 'Agrega animes que planeas ver más tarde.'}
+            ? '¡Empieza a ver animes y márcalos como terminados aquí!'
+            : 'Agrega animes que planeas ver más tarde.'}
       </Text>
       <TouchableOpacity style={styles.exploreButton} onPress={onExplorePress}>
         <Text style={styles.exploreButtonText}>Explorar Catálogo</Text>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserListItem } from '../../../../services/animeList';
 import { useResponsive } from '../../../hooks/useResponsive';
@@ -8,7 +8,7 @@ interface LibraryAnimeCardProps {
   item: UserListItem;
   onPress: (id: number) => void;
   onRemove: (id: number, title: string) => void;
-  width?: number | string;
+  width?: DimensionValue;
 }
 
 export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnimeCardProps) {
@@ -16,7 +16,7 @@ export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnim
   
   if (!item || !item.anime) return null;
 
-  const title = item.anime.title.romaji || item.anime.title.english;
+  const title = item.anime.title.romaji || item.anime.title.english || 'Anime Desconocido';
   
   return (
     <TouchableOpacity

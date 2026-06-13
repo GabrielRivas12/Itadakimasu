@@ -7,8 +7,8 @@ export const SettingsButton = () => {
   const router = useRouter();
 
   return (
-    <TouchableOpacity 
-      style={styles.button} 
+    <TouchableOpacity
+      style={styles.button}
       onPress={() => router.push('/settings')}
       activeOpacity={0.7}
     >

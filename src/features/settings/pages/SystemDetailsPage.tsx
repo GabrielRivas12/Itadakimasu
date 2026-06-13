@@ -8,11 +8,11 @@ export const SystemDetailsPage = () => {
   const router = useRouter();
 
   // Detect New Architecture (Fabric)
-  const isNewArchitecture = (global as any).nativeFabricUIManager != null;
+  const isNewArchitecture = (globalThis as any).nativeFabricUIManager != null;
 
   // Dynamic versions from Expo Constants
   const appVersion = Constants.expoConfig?.version || 'Unknown';
-  const rnVersion = Constants.systemFonts ? '0.83.6' : '0.83.6'; // Fallback to current if not detectable via Constants
+  const rnVersion = Constants.systemFonts ? '0.83.6' : '0.83.6';
   const expoSdkVersion = Constants.expoConfig?.sdkVersion || '55.0.0';
 
   return (

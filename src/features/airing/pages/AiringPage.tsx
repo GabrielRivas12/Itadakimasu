@@ -1,10 +1,6 @@
 import React, { memo } from 'react';
-import {
-  StyleSheet,
-  View,
-  FlatList,
-  ActivityIndicator,
-  Text,
+import { StyleSheet, View, FlatList,
+  ActivityIndicator, Text,
   TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
 import { AnimeGridCard } from '../../explore/components/AnimeGridCard';
@@ -32,7 +28,7 @@ export const AiringPage = memo(function AiringPage() {
   return (
     <View style={styles.container}>
       <View style={[
-        styles.header, 
+        styles.header,
         isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
         isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
       ]}>
@@ -44,15 +40,15 @@ export const AiringPage = memo(function AiringPage() {
             </Text>
           </View>
           {isAdultSettingEnabled && (
-            <RNTouchableOpacity 
-              style={[styles.r18Button, isAdult && styles.r18ButtonActive]} 
+            <RNTouchableOpacity
+              style={[styles.r18Button, isAdult && styles.r18ButtonActive]}
               onPress={toggleAdult}
             >
               <Text style={[styles.r18Text, isAdult && styles.r18TextActive]}>R18</Text>
-              <Ionicons 
-                name={isAdult ? "eye" : "eye-off"} 
-                size={18} 
-                color={isAdult ? "#ffffff" : "#94a3b8"} 
+              <Ionicons
+                name={isAdult ? "eye" : "eye-off"}
+                size={18}
+                color={isAdult ? "#ffffff" : "#94a3b8"}
               />
             </RNTouchableOpacity>
           )}
@@ -66,7 +62,7 @@ export const AiringPage = memo(function AiringPage() {
       ) : (
         <View style={styles.flex}>
           <FlatList
-            key={columns} // Force re-render when columns change
+            key={columns}
             data={results}
             keyExtractor={(item, index) => `${item.id}-${index}`}
             numColumns={columns}
@@ -78,15 +74,15 @@ export const AiringPage = memo(function AiringPage() {
             columnWrapperStyle={styles.gridRow}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
-              <AnimeGridCard 
-                item={item} 
-                onPress={handleAnimePress} 
+              <AnimeGridCard
+                item={item}
+                onPress={handleAnimePress}
                 width={`${100 / columns - 2}%`}
               />
             )}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
-            ListFooterComponent={() => 
+            ListFooterComponent={() =>
               loadingMore ? (
                 <View style={styles.footerLoader}>
                   <ActivityIndicator size="small" color="#8b5cf6" />

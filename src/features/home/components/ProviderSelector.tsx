@@ -16,7 +16,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
 }) => {
   // Solo mostrar los servidores que el usuario pidió si están disponibles
   const targetServers = ['streamwish', 'mp4upload'];
-  
+
   // Usar un Set para evitar duplicados por nombre de servidor
   const seenServers = new Set<string>();
   const filteredServers = availableServers.filter(s => {
@@ -40,7 +40,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.list}>
         {filteredServers.map((server, index) => {
           const isSelected = server.server.toLowerCase().includes(selectedServerName.toLowerCase());
-          
+
           let displayName = server.server;
           if (server.server.toLowerCase().includes('streamwish')) displayName = 'StreamWish';
           else if (server.server.toLowerCase().includes('mp4upload')) displayName = 'MP4Upload';

@@ -49,7 +49,7 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
 
       const result = await signInWithPopup(authInstance, provider);
       user = result.user;
-    } 
+    }
     //  MÓVIL
     else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
@@ -90,7 +90,7 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
 export async function signOutGoogle(): Promise<void> {
   try {
     console.log('Iniciando proceso de cierre de sesión...');
-    
+
     // 1. Limpiar el caché local del usuario
     if (Platform.OS !== 'web') {
       try {
@@ -110,7 +110,7 @@ export async function signOutGoogle(): Promise<void> {
     } else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
       const authMobile = require('@react-native-firebase/auth').default;
-      
+
       // Intentar cerrar sesión de Google 
       try {
         const isSignedIn = await GoogleSignin.isSignedIn();
@@ -130,7 +130,7 @@ export async function signOutGoogle(): Promise<void> {
         console.error('Error al cerrar sesión en Firebase Auth Móvil:', e);
       }
     }
-    
+
     console.log('Sesión cerrada correctamente');
   } catch (error) {
     console.error('Error general en signOutGoogle:', error);

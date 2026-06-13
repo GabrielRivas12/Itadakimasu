@@ -183,19 +183,6 @@ const ANTI_AD_SCRIPT = `
 true;
 `;
 
-// ─── Helpers para immersive mode ─────────────────────────────────────────────
-// react-native-edge-to-edge gestiona WindowInsetsController de forma exclusiva,
-// por lo que setBehaviorAsync lanza un warning y no tiene efecto.
-// La estrategia correcta es:
-//   - setVisibilityAsync('hidden') para nav bar (sí soportado)
-//   - SystemUI.setBackgroundColorAsync('transparent') para evitar flash
-//   - StatusBar.setTranslucent(true) ANTES de setHidden (requisito de edge-to-edge)
-//   - Doble llamada a setHidden con pequeño delay la primera vez, porque
-//     edge-to-edge hace un layout pass extra que re-muestra los íconos.
-
-// Contador de veces que se entró en fullscreen en esta sesión.
-// La primera vez hay que esperar a que el sistema procese la orientación
-// antes de ocultar el status bar.
 let _immersiveCount = 0;
 
 async function enterImmersiveMode() {
@@ -255,23 +242,21 @@ async function exitImmersiveMode() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   const lastValidUrl = useRef<string | null>(null);
   if (url !== null) lastValidUrl.current = url;
   const activeUrl = lastValidUrl.current;
 
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(false);
-  const [key, setKey]                   = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [key, setKey] = useState(0);
   const [blockedPopup, setBlockedPopup] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const webViewRef        = useRef<WebView>(null);
-  const canGoBackRef      = useRef(false);
-  const prevUrlRef        = useRef<string | null>(null);
-  const isFullscreenRef   = useRef(false);
+  const webViewRef = useRef<WebView>(null);
+  const canGoBackRef = useRef(false);
+  const prevUrlRef = useRef<string | null>(null);
+  const isFullscreenRef = useRef(false);
   // Guardamos el valor ANTERIOR de isFullscreen para que el efecto sepa
   // exactamente qué transición ocurrió (false→true o true→false).
   const prevFullscreenRef = useRef(false);
@@ -289,40 +274,23 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     isFullscreenRef.current = isFullscreen;
   }, [isFullscreen]);
 
-  // ── Gestionar immersive mode al cambiar fullscreen ────────────────────────
-  // Usamos dos efectos separados con responsabilidades claras:
-  //   1. Efecto de mount/unmount: solo para cleanup al desmontar el componente.
-  //   2. Efecto de isFullscreen: reacciona a cambios, pero ignora el primer render.
   useEffect(() => {
-    // Cleanup al desmontar el componente: restaurar siempre el sistema.
     return () => {
       exitImmersiveMode();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    // En el PRIMER render isFullscreen=false — no hacer nada todavía.
-    // prevFullscreenRef arranca en false, así que la transición false→false
-    // (primer render) no dispara exit ni enter.
     const wasFullscreen = prevFullscreenRef.current;
     prevFullscreenRef.current = isFullscreen;
 
     if (isFullscreen && !wasFullscreen) {
-      // false → true: entrar en immersive
       enterImmersiveMode();
     } else if (!isFullscreen && wasFullscreen) {
-      // true → false: salir de immersive
       exitImmersiveMode();
     }
-    // false → false (primer render) y true → true: no hacer nada.
-
-    // SIN cleanup aquí: si limpiamos en el return, el efecto anterior
-    // (wasFullscreen=false) llamaría exitImmersiveMode justo después de que
-    // el nuevo efecto (isFullscreen=true) llamó enterImmersiveMode,
-    // cancelando el keep awake y la orientación landscape.
   }, [isFullscreen]);
 
-  // ── Hardware back button ──────────────────────────────────────────────────
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (isFullscreenRef.current) {
@@ -357,7 +325,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
       if (data.type === 'fullscreen') {
         setIsFullscreen(data.value);
       }
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   if (!activeUrl) {
@@ -369,7 +337,6 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   }
 
   return (
-    // Cuando está en fullscreen, expandimos el contenedor para cubrir toda la pantalla
     <View style={[styles.container, isFullscreen && styles.containerFullscreen]}>
       <WebView
         key={key}
@@ -428,7 +395,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         }}
 
         onLoadStart={() => { setLoading(true); setError(false); }}
-        onLoadEnd={()   => setLoading(false)}
+        onLoadEnd={() => setLoading(false)}
         onError={({ nativeEvent }) => {
           console.error('[WebView Error]', nativeEvent);
           setLoading(false);
@@ -439,7 +406,6 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
       {loading && !error && (
         <View style={[styles.overlay, styles.centered]} pointerEvents="none">
           <ActivityIndicator size="large" color="#8b5cf6" />
-          <Text style={styles.loadingText}>Cargando reproductor...</Text>
         </View>
       )}
 
@@ -472,7 +438,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 16,
   },
-  // En fullscreen: ocupa toda la pantalla ignorando insets
   containerFullscreen: {
     position: 'absolute',
     top: 0,
@@ -484,11 +449,10 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     zIndex: 9999,
   },
-  webview:  { flex: 1, backgroundColor: '#000' },
-  overlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
+  webview: { flex: 1, backgroundColor: '#000' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
   centered: { justifyContent: 'center', alignItems: 'center', gap: 12 },
-  loadingText:  { color: '#94a3b8', fontSize: 14 },
-  errorText:    { color: '#94a3b8', fontSize: 14, textAlign: 'center' },
+  errorText: { color: '#94a3b8', fontSize: 14, textAlign: 'center' },
   retryBtn: {
     backgroundColor: '#8b5cf6',
     paddingHorizontal: 24,
@@ -496,7 +460,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 4,
   },
-  retryText:         { color: '#fff', fontWeight: 'bold' },
+  retryText: { color: '#fff', fontWeight: 'bold' },
   popupNotification: { backgroundColor: 'rgba(0,0,0,0.9)' },
-  blockedText:       { color: '#10b981', fontSize: 14, fontWeight: 'bold' },
+  blockedText: { color: '#10b981', fontSize: 14, fontWeight: 'bold' },
 });

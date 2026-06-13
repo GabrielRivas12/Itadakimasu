@@ -1,13 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  Modal,
-  TouchableOpacity,
-  FlatList,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
+import { StyleSheet, Text, View, Modal, TouchableOpacity,
+  FlatList, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
