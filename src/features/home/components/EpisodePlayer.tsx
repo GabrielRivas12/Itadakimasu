@@ -170,12 +170,8 @@ const ANTI_AD_SCRIPT = `
     notifyFullscreen(!!(document.fullscreenElement || document.webkitFullscreenElement));
   });
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'hidden') {
-      notifyFullscreen(true);
-    } else {
-      var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      notifyFullscreen(isFs);
-    }
+    var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    notifyFullscreen(isFs);
   });
 
   console.log('[AntiAd] Protección cargada.');
@@ -225,7 +221,9 @@ async function enterImmersiveMode() {
 
 async function exitImmersiveMode() {
   try {
-    await ScreenOrientation.unlockAsync();
+    if (Platform.OS !== 'web') {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    }
 
     // Mantener translucent para edge-to-edge
     StatusBar.setTranslucent(true);

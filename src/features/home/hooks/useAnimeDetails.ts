@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Alert, Animated, Linking } from 'react-native';
+import { Alert, Animated, Linking, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchAnimeDetails, Anime } from '../../../../services/anilist';
 import { translateDescription } from '../../../../services/kitsu';

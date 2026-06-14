@@ -17,8 +17,10 @@ import { LibraryAnimeCard } from '../components/LibraryAnimeCard';
 import { ProfileEmptyList } from '../components/ProfileEmptyList';
 import { useProfile } from '../hooks/useProfile';
 import { useResponsive } from '../../../hooks/useResponsive';
+import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export const ProfilePage = memo(function ProfilePage() {
+  usePortraitOrientation();
   const router = useRouter();
   const {
     user,

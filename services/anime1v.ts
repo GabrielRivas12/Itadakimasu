@@ -128,7 +128,7 @@ export async function getAnime1VEpisodeLinks(
 ): Promise<Anime1VEpisodeLinks | null> {
   return await fetchFromApi<Anime1VEpisodeLinks>(
     "/api/v1/anime/episode",
-    { url }
+    { url, includeMega: "true" }
   );
 }
 

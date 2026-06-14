@@ -9,8 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAiring } from '../hooks/useAiring';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
+import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export const AiringPage = memo(function AiringPage() {
+  usePortraitOrientation();
   const {
     results,
     loading,

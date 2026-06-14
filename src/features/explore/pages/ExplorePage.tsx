@@ -7,8 +7,10 @@ import { ExploreLoading, ExploreEmpty } from '../components/ExploreStates';
 import { useExplore } from '../hooks/useExplore';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
+import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export const ExplorePage = memo(function ExplorePage() {
+  usePortraitOrientation();
   const {
     searchQuery,
     setSearchQuery,

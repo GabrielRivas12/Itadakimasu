@@ -15,8 +15,10 @@ import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { DownloadApkButton } from '../components/DownloadApkButton';
+import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export function HomePage() {
+  usePortraitOrientation();
   const {
     trending,
     continueWatching,

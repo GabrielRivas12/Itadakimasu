@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 
 interface EpisodePlayerProps {
   url: string | null;
@@ -254,8 +254,17 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
   }, []);
 
+  const [forceLoadIframe, setForceLoadIframe] = useState(false);
+  const isMega = (url?.toLowerCase().includes('mega.nz') || url?.toLowerCase().includes('mega.co.nz')) ?? false;
+  const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
+  const showMegaAndroidUI = isMega && isAndroid && !forceLoadIframe;
+
   useEffect(() => {
-    if (url) { setLoading(true); setBlocked(false); }
+    if (url) {
+      setLoading(true);
+      setBlocked(false);
+      setForceLoadIframe(false);
+    }
   }, [url]);
 
   const showBlocked = useCallback(() => {
@@ -281,6 +290,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
 
   const handleIframeLoad = useCallback(() => {
     setLoading(false);
+    if (!isMp4Upload) return;
     injectCleaner();
 
     if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
@@ -289,7 +299,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     setTimeout(() => {
       if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
     }, 60_000);
-  }, [injectCleaner]);
+  }, [injectCleaner, isMp4Upload]);
 
   const handleShieldClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const iframe = iframeRef.current;
@@ -345,6 +355,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   }, [showBlocked, isMp4Upload]);
 
   useEffect(() => {
+    if (!isMp4Upload) return;
     const handler = (e: MessageEvent) => {
       const data = typeof e.data === 'string' ? e.data : JSON.stringify(e.data ?? '');
       if (/window\.open|location\.href|popup|redirect|popunder/i.test(data)) {
@@ -353,7 +364,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [showBlocked]);
+  }, [showBlocked, isMp4Upload]);
 
   useEffect(() => {
     if (!isMp4Upload) return;
@@ -383,6 +394,45 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     );
   }
 
+  if (showMegaAndroidUI) {
+    const handleOpenMega = () => {
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    return (
+      <View style={[styles.container, styles.megaContainer]}>
+        <View style={styles.megaGlassCard}>
+          {/* Logo de Mega en SVG */}
+          <svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 16 }}>
+            <circle cx="50" cy="50" r="50" fill="url(#megaGrad)" />
+            <path d="M25 70V30L50 50L75 30V70H63V48L50 58L37 48V70H25Z" fill="white" />
+            <defs>
+              <linearGradient id="megaGrad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#ff4e50" />
+                <stop offset="1" stopColor="#f9d423" />
+              </linearGradient>
+            </defs>
+          </svg>
+
+          <Text style={styles.megaTitle}>Servidor MEGA Detectado</Text>
+          <Text style={styles.megaDescription}>
+            Para reproducir este video en Android con la mejor calidad y sin restricciones de navegación, te recomendamos abrir el enlace externo en la aplicación oficial de MEGA o en tu navegador.
+          </Text>
+
+          <TouchableOpacity style={styles.megaButton} onPress={handleOpenMega} activeOpacity={0.8}>
+            <Text style={styles.megaButtonText}>ABRIR EN MEGA</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.megaSecondaryButton} onPress={() => setForceLoadIframe(true)} activeOpacity={0.7}>
+            <Text style={styles.megaSecondaryButtonText}>Intentar reproducir en el navegador</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <iframe
@@ -396,14 +446,6 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         style={iframeStyles.iframe}
         onLoad={handleIframeLoad}
       />
-
-      {!loading && (
-        <div
-          ref={shieldRef}
-          onClick={handleShieldClick}
-          style={divStyles.shield}
-        />
-      )}
 
       {loading && (
         <View style={[styles.overlay, styles.centered]} {...{ pointerEvents: 'none' }}>
@@ -453,6 +495,71 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     // @ts-ignore
     position: 'relative',
+  },
+  megaContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#070a13',
+    padding: 24,
+  },
+  megaGlassCard: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: 'rgba(30, 41, 59, 0.55)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 24,
+    alignItems: 'center',
+    textAlign: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    // @ts-ignore
+    backdropFilter: 'blur(16px)',
+  },
+  megaTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  megaDescription: {
+    color: '#94a3b8',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  megaButton: {
+    width: '100%',
+    backgroundColor: '#ff4b4b',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#ff4b4b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  megaButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  megaSecondaryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  megaSecondaryButtonText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
   overlay: {
     // @ts-ignore
