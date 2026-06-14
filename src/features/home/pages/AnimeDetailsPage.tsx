@@ -28,8 +28,10 @@ import { cleanHtmlText } from '../utils/animeMatching';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import NotFoundScreen from '../../../app/+not-found';
+import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export function AnimeDetailsPage() {
+  usePortraitOrientation();
   const router = useRouter();
   const { isWeb, getContentWidth, width, isMobile, isWebDesktop } = useResponsive();
 
