@@ -15,7 +15,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
   onServerChange,
 }) => {
   // Solo mostrar los servidores que el usuario pidió si están disponibles
-  const targetServers = ['streamwish', 'mp4upload'];
+  const targetServers = ['streamwish', 'mp4upload', 'yourupload', 'streamtape', 'mega'];
 
   // Usar un Set para evitar duplicados por nombre de servidor
   const seenServers = new Set<string>();
@@ -44,6 +44,9 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
           let displayName = server.server;
           if (server.server.toLowerCase().includes('streamwish')) displayName = 'StreamWish';
           else if (server.server.toLowerCase().includes('mp4upload')) displayName = 'MP4Upload';
+          else if (server.server.toLowerCase().includes('yourupload')) displayName = 'YourUpload';
+          else if (server.server.toLowerCase().includes('streamtape')) displayName = 'StreamTape';
+          else if (server.server.toLowerCase().includes('mega')) displayName = 'MEGA';
 
           return (
             <TouchableOpacity
