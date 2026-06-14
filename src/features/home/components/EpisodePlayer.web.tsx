@@ -255,7 +255,10 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   }, []);
 
   useEffect(() => {
-    if (url) { setLoading(true); setBlocked(false); }
+    if (url) {
+      setLoading(true);
+      setBlocked(false);
+    }
   }, [url]);
 
   const showBlocked = useCallback(() => {
@@ -281,6 +284,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
 
   const handleIframeLoad = useCallback(() => {
     setLoading(false);
+    if (!isMp4Upload) return;
     injectCleaner();
 
     if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
@@ -289,7 +293,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     setTimeout(() => {
       if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
     }, 60_000);
-  }, [injectCleaner]);
+  }, [injectCleaner, isMp4Upload]);
 
   const handleShieldClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const iframe = iframeRef.current;
@@ -345,6 +349,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   }, [showBlocked, isMp4Upload]);
 
   useEffect(() => {
+    if (!isMp4Upload) return;
     const handler = (e: MessageEvent) => {
       const data = typeof e.data === 'string' ? e.data : JSON.stringify(e.data ?? '');
       if (/window\.open|location\.href|popup|redirect|popunder/i.test(data)) {
@@ -353,7 +358,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [showBlocked]);
+  }, [showBlocked, isMp4Upload]);
 
   useEffect(() => {
     if (!isMp4Upload) return;
@@ -396,14 +401,6 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         style={iframeStyles.iframe}
         onLoad={handleIframeLoad}
       />
-
-      {!loading && (
-        <div
-          ref={shieldRef}
-          onClick={handleShieldClick}
-          style={divStyles.shield}
-        />
-      )}
 
       {loading && (
         <View style={[styles.overlay, styles.centered]} {...{ pointerEvents: 'none' }}>
