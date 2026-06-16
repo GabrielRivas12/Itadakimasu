@@ -157,22 +157,52 @@ const ANTI_AD_SCRIPT = `
   observer.observe(document.documentElement, { childList: true, subtree: true });
   document.querySelectorAll('iframe').forEach(cleanNode);
 
+  var lastFsState = false;
   function notifyFullscreen(isFs) {
     try {
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'fullscreen', value: isFs }));
     } catch(e) {}
   }
 
-  document.addEventListener('fullscreenchange', function() {
-    notifyFullscreen(!!document.fullscreenElement);
-  });
-  document.addEventListener('webkitfullscreenchange', function() {
-    notifyFullscreen(!!(document.fullscreenElement || document.webkitFullscreenElement));
-  });
-  document.addEventListener('visibilitychange', function() {
-    var isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    notifyFullscreen(isFs);
-  });
+  function checkFullscreen() {
+    var isFs = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+    if (!isFs) {
+      try {
+        var videos = document.querySelectorAll('video');
+        for (var i = 0; i < videos.length; i++) {
+          if (videos[i].webkitDisplayingFullscreen) {
+            isFs = true;
+            break;
+          }
+        }
+      } catch (e) {}
+    }
+    return isFs;
+  }
+
+  function handleFsChange() {
+    var current = checkFullscreen();
+    if (current !== lastFsState) {
+      lastFsState = current;
+      notifyFullscreen(current);
+    }
+  }
+
+  document.addEventListener('fullscreenchange', handleFsChange, true);
+  document.addEventListener('webkitfullscreenchange', handleFsChange, true);
+  document.addEventListener('mozfullscreenchange', handleFsChange, true);
+  document.addEventListener('MSFullscreenChange', handleFsChange, true);
+  document.addEventListener('webkitbeginfullscreen', handleFsChange, true);
+  document.addEventListener('webkitendfullscreen', handleFsChange, true);
+  document.addEventListener('visibilitychange', handleFsChange, true);
+
+  // Fallback check periodico
+  setInterval(handleFsChange, 400);
 
   console.log('[AntiAd] Protección cargada.');
 })();
@@ -355,6 +385,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         setSupportMultipleWindows={false}
         originWhitelist={['*']}
         injectedJavaScriptBeforeContentLoaded={ANTI_AD_SCRIPT}
+        injectedJavaScriptBeforeContentLoadedForMainFrameOnly={false}
 
         onMessage={handleMessage}
 

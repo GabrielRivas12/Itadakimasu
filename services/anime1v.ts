@@ -184,3 +184,29 @@ export async function getAnime1VInfoWithAllEpisodes(
 
   return info;
 }
+
+export interface Anime1VResolvedStream {
+  success: boolean;
+  server: string;
+  mediaType: string;
+  streamUrl: string;
+  resolvedFrom: string;
+}
+
+export async function resolveAnime1VStream(
+  url: string
+): Promise<Anime1VResolvedStream | null> {
+  return await fetchFromApi<Anime1VResolvedStream>(
+    "/api/v1/anime/resolve",
+    { url }
+  );
+}
+
+export async function resolveAnime1VStreams(
+  urls: string[]
+): Promise<Anime1VResolvedStream | null> {
+  return await fetchFromApi<Anime1VResolvedStream>(
+    "/api/v1/anime/resolve",
+    { urls: JSON.stringify(urls) }
+  );
+}

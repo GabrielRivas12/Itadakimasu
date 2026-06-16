@@ -21,6 +21,7 @@ import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
 import { EpisodePlayer } from '../components/EpisodePlayer';
+import { NativeEpisodePlayer } from '../components/NativeEpisodePlayer';
 import { EpisodePicker } from '../components/EpisodePicker';
 import { ProviderSelector } from '../components/ProviderSelector';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
@@ -33,6 +34,7 @@ import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 export function AnimeDetailsPage() {
   usePortraitOrientation();
   const router = useRouter();
+  const [nativePlayerFailed, setNativePlayerFailed] = React.useState(false);
   const { isWeb, getContentWidth, width, isMobile, isWebDesktop } = useResponsive();
 
   // Calcular margen dinámico para alinear con el contenido centrado en web
@@ -71,6 +73,10 @@ export function AnimeDetailsPage() {
     selectedServerName,
     handleServerChange,
   } = useAnimeDetails();
+
+  React.useEffect(() => {
+    setNativePlayerFailed(false);
+  }, [streamUrl]);
 
   if (!loading && anime?.isAdult && !isAdultContentEnabled) {
     return <NotFoundScreen />;
@@ -256,7 +262,16 @@ export function AnimeDetailsPage() {
                     </View>
                   ) : displayedEpisodes.length > 0 ? (
                     <>
-                      <EpisodePlayer url={streamUrl} />
+                      {isWeb || nativePlayerFailed ? (
+                        <EpisodePlayer url={streamUrl} />
+                      ) : (
+                        <View style={{ marginBottom: 12 }}>
+                          <NativeEpisodePlayer 
+                            url={streamUrl} 
+                            onError={() => setNativePlayerFailed(true)} 
+                          />
+                        </View>
+                      )}
                       {isWeb && (
                         <ProviderSelector
                           availableServers={availableServers}
