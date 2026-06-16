@@ -20,12 +20,12 @@
     "eventemitter3": "^5.0.4",
     "expo": "~55.0.26",
     "expo-constants": "~55.0.16",
+    "expo-doctor": "^1.19.10",
     "expo-file-system": "~55.0.22",
     "expo-font": "~55.0.8",
     "expo-keep-awake": "~55.0.8",
     "expo-linking": "~55.0.15",
     "expo-media-library": "~55.0.17",
-    "expo-modules-core": "~55.0.25",
     "expo-navigation-bar": "~55.0.13",
     "expo-notifications": "~55.0.23",
     "expo-router": "~55.0.16",
@@ -44,7 +44,6 @@
     "react-native-video": "^6.19.2",
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.16.0",
-    "react-player": "^3.4.0",
     "typescript": "~5.9.2"
   },
   "private": true
