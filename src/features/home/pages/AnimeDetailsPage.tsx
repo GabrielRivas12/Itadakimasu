@@ -266,9 +266,6 @@ export function AnimeDetailsPage() {
                         <EpisodePlayer url={streamUrl} />
                       ) : (
                         <View style={{ marginBottom: 12 }}>
-                          <Text style={{ color: '#a78bfa', fontSize: 12, fontWeight: 'bold', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                            Reproductor Nativo
-                          </Text>
                           <NativeEpisodePlayer 
                             url={streamUrl} 
                             onError={() => setNativePlayerFailed(true)} 

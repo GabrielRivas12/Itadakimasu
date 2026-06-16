@@ -113,7 +113,7 @@ export const NativeEpisodePlayer: React.FC<NativeEpisodePlayerProps> = ({ url, o
         const id = parts[parts.length - 1] || parts[parts.length - 2];
         if (id && id.length >= 16) {
           const directM3u8 = `https://player.zilla-networks.com/m3u8/${id}`;
-          console.log(`[NativePlayer] Resuelto localmente (Zilla HLS): ${directM3u8}`);
+          // console.log(`[NativePlayer] Resuelto localmente (Zilla HLS): ${directM3u8}`);
           setHeaders({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             'Referer': 'https://player.zilla-networks.com/'
@@ -167,11 +167,11 @@ export const NativeEpisodePlayer: React.FC<NativeEpisodePlayerProps> = ({ url, o
       }
 
       // 4. Detección por scraping y decodificación local de Streamwish / ghbrisk
-      const isStreamwishFamily = targetUrl.includes('ghbrisk.com') || 
-                                 targetUrl.includes('streamwish.com') || 
-                                 targetUrl.includes('strw.com') || 
-                                 targetUrl.includes('awish.pro');
-                                 
+      const isStreamwishFamily = targetUrl.includes('ghbrisk.com') ||
+        targetUrl.includes('streamwish.com') ||
+        targetUrl.includes('strw.com') ||
+        targetUrl.includes('awish.pro');
+
       if (isStreamwishFamily) {
         console.log(`[NativePlayer] Scraping HTML y desempaquetando Streamwish/ghbrisk: ${targetUrl}`);
         const response = await fetch(targetUrl, {
@@ -181,7 +181,7 @@ export const NativeEpisodePlayer: React.FC<NativeEpisodePlayerProps> = ({ url, o
           }
         });
         const html = await response.text();
-        
+
         // Buscar bloque packer javascript: eval(function(p,a,c,k,e,d)...
         // Capturamos p (grupo 2), a (grupo 3), c (grupo 4) y k (grupo 6)
         const packerMatch = html.match(/eval\(function\(p,a,c,k,e,d\)[\s\S]*?return p\}\s*\(\s*(['"])([\s\S]*?)\1\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(['"])([\s\S]*?)\5\.split\(/);
@@ -191,39 +191,39 @@ export const NativeEpisodePlayer: React.FC<NativeEpisodePlayerProps> = ({ url, o
             const a = parseInt(packerMatch[3]);
             const wordsStr = packerMatch[6];
             const k = wordsStr.split('|');
-            
+
             // Desempaquetador Dean Edwards Packer
             const decoded = p.replace(/\b\w+\b/g, (w) => {
               const num = parseInt(w, a);
               return k[num] || w;
             });
-                
-                // Extraer el enlace m3u8
-                const m3u8Match = decoded.match(/https?:\/\/[^"']+\.m3u8[^"']*/);
-                if (m3u8Match) {
-                  const directUrl = m3u8Match[0].replace(/\\/g, '');
-                  console.log(`[NativePlayer] Resuelto localmente Streamwish/ghbrisk: ${directUrl}`);
-                  setHeaders({
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    'Referer': targetUrl
-                  });
-                  setResolvedUrl(directUrl);
-                  setResolving(false);
-                  setLoading(false);
-                  return;
-                }
-              } catch (unpackErr) {
-                console.error('[NativePlayer] Error al desempaquetar script de Streamwish:', unpackErr);
-              }
+
+            // Extraer el enlace m3u8
+            const m3u8Match = decoded.match(/https?:\/\/[^"']+\.m3u8[^"']*/);
+            if (m3u8Match) {
+              const directUrl = m3u8Match[0].replace(/\\/g, '');
+              console.log(`[NativePlayer] Resuelto localmente Streamwish/ghbrisk: ${directUrl}`);
+              setHeaders({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': targetUrl
+              });
+              setResolvedUrl(directUrl);
+              setResolving(false);
+              setLoading(false);
+              return;
             }
+          } catch (unpackErr) {
+            console.error('[NativePlayer] Error al desempaquetar script de Streamwish:', unpackErr);
           }
+        }
+      }
 
       // 5. Fallback a la API de resolución
       const res = await resolveAnime1VStream(targetUrl);
-      
+
       if (res && res.success && res.streamUrl) {
         console.log(`[NativePlayer] Stream resuelto vía API (${res.server}): ${res.streamUrl}`);
-        
+
         const customHeaders: Record<string, string> = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
         };
@@ -264,64 +264,72 @@ export const NativeEpisodePlayer: React.FC<NativeEpisodePlayerProps> = ({ url, o
   };
 
   return (
-    <View style={[styles.container, isFullscreen && styles.containerFullscreen]}>
-      {resolving && (
-        <View style={[styles.overlay, styles.centered]}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
-          <Text style={styles.infoText}>Extrayendo video directo...</Text>
-        </View>
-      )}
+    <>
+      {isFullscreen && <View style={styles.placeholder} />}
+      <View style={[styles.container, isFullscreen && styles.containerFullscreen]}>
+        {resolving && (
+          <View style={[styles.overlay, styles.centered]}>
+            <ActivityIndicator size="large" color="#8b5cf6" />
+            <Text style={styles.infoText}>Extrayendo video directo...</Text>
+          </View>
+        )}
 
-      {error && (
-        <View style={[styles.overlay, styles.centered]}>
-          <Ionicons name="alert-circle-outline" size={40} color="#f43f5e" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        {error && (
+          <View style={[styles.overlay, styles.centered]}>
+            <Ionicons name="alert-circle-outline" size={40} color="#f43f5e" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
+              <Text style={styles.retryText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {resolvedUrl && (
-        <View style={{ flex: 1, position: 'relative' }}>
-          <Video
-            ref={videoRef}
-            source={{
-              uri: resolvedUrl,
-              type: resolvedUrl.includes('m3u8') ? 'm3u8' : undefined,
-              headers: headers,
-            }}
-            style={styles.video}
-            controls={true}
-            paused={true}
-            resizeMode="contain"
-            onLoadStart={() => setLoading(true)}
-            onLoad={() => setLoading(false)}
-            onError={(e) => {
-              console.error('[NativePlayer Video Error]', e);
-              const msg = 'No se pudo reproducir el stream nativo.';
-              setError(msg);
-              setLoading(false);
-              onError?.(msg);
-            }}
-            onFullscreenPlayerWillPresent={() => setIsFullscreen(true)}
-            onFullscreenPlayerDidPresent={() => setIsFullscreen(true)}
-            onFullscreenPlayerWillDismiss={() => setIsFullscreen(false)}
-            onFullscreenPlayerDidDismiss={() => setIsFullscreen(false)}
-          />
+        {resolvedUrl && (
+          <View style={{ flex: 1, position: 'relative' }}>
+            <Video
+              ref={videoRef}
+              source={{
+                uri: resolvedUrl,
+                type: resolvedUrl.includes('m3u8') ? 'm3u8' : undefined,
+                headers: headers,
+              }}
+              style={styles.video}
+              controls={true}
+              paused={true}
+              resizeMode="contain"
+              onLoadStart={() => setLoading(true)}
+              onLoad={() => setLoading(false)}
+              onError={(e) => {
+                console.error('[NativePlayer Video Error]', e);
+                const msg = 'No se pudo reproducir el stream nativo.';
+                setError(msg);
+                setLoading(false);
+                onError?.(msg);
+              }}
+              onFullscreenPlayerWillPresent={() => setIsFullscreen(true)}
+              onFullscreenPlayerDidPresent={() => setIsFullscreen(true)}
+              onFullscreenPlayerWillDismiss={() => setIsFullscreen(false)}
+              onFullscreenPlayerDidDismiss={() => setIsFullscreen(false)}
+            />
 
-          {loading && (
-            <View style={[styles.videoOverlay, styles.centered]} pointerEvents="none">
-              <ActivityIndicator size="large" color="#8b5cf6" />
-            </View>
-          )}
-        </View>
-      )}
-    </View>
+            {loading && (
+              <View style={[styles.videoOverlay, styles.centered]} pointerEvents="none">
+                <ActivityIndicator size="large" color="#8b5cf6" />
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
+  placeholder: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    marginBottom: 16,
+  },
   container: {
     width: '100%',
     aspectRatio: 16 / 9,
