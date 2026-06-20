@@ -151,8 +151,8 @@ export const useAnimeDetails = () => {
       setUserStatus(status);
       setUserProgress(progress);
 
-      // Si no tenemos la info completa (personajes/relaciones), la buscamos
-      if (!currentAnime || !currentAnime.characters || !currentAnime.relations) {
+      // Si no tenemos la info completa (personajes/relaciones/trailer), la buscamos
+      if (!currentAnime || !currentAnime.characters || !currentAnime.relations || !currentAnime.trailer) {
         console.log(`[DEBUG] Buscando detalles completos en AniList...`);
         const details = await fetchAnimeDetails(id);
 

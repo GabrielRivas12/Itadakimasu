@@ -19,6 +19,7 @@ import { QuickStats } from '../components/QuickStats';
 import { RelatedAnime } from '../components/RelatedAnime';
 import { CharacterList } from '../components/CharacterList';
 import { TechnicalSpecs } from '../components/TechnicalSpecs';
+import { AnimeTrailer } from '../components/AnimeTrailer';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
 import { EpisodePlayer } from '../components/EpisodePlayer';
 import { NativeEpisodePlayer } from '../components/NativeEpisodePlayer';
@@ -211,6 +212,12 @@ export function AnimeDetailsPage() {
                     </View>
                   )}
 
+                  {(!isWeb || isMobile) && (
+                    <View style={styles.sectionContainer}>
+                      <AnimeTrailer trailer={anime.trailer} />
+                    </View>
+                  )}
+
                   <TechnicalSpecs anime={anime} />
                 </View>
               </View>
@@ -232,6 +239,12 @@ export function AnimeDetailsPage() {
                         )}
                       </>
                     )}
+                  </View>
+                )}
+
+                {showWebLayout && (
+                  <View style={styles.webSectionContainer}>
+                    <AnimeTrailer trailer={anime.trailer} />
                   </View>
                 )}
 
