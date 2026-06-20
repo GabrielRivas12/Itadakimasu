@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
+import { useResponsive } from '../../../hooks/useResponsive';
 import { 
   getIsAdultContentEnabled, 
   setIsAdultContentEnabled,
@@ -29,6 +29,8 @@ import {
 
 export const SettingsPage = () => {
   const router = useRouter();
+  const { isWeb, getContentWidth, isMobile } = useResponsive();
+  const contentWidth = isWeb ? getContentWidth() : '100%';
   const [isAdultContentEnabled, setAdultContentEnabled] = useState(false);
   const [isNotificationsEnabled, setNotificationsEnabled] = useState(false);
   const [episodeOrder, setEpisodeOrderState] = useState<'asc' | 'desc'>('asc');
@@ -118,14 +120,23 @@ export const SettingsPage = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[
+        styles.header,
+        isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+      ]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Configuración</Text>
       </View>
       
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+        ]}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aplicación</Text>
           <View style={styles.card}>
@@ -260,7 +271,10 @@ export const SettingsPage = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
-          <View style={styles.modalContent}>
+          <View style={[
+            styles.modalContent,
+            isWeb && { maxWidth: 500, alignSelf: 'center', width: '100%' },
+          ]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Reportar un Error</Text>
               <TouchableOpacity onPress={() => setReportModalVisible(false)}>

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useResponsive } from '../../../hooks/useResponsive';
 import {
   getCurrentUser,
   onAuthStateChangedCallback,
@@ -21,6 +22,8 @@ import {
 
 export const EditProfilePage = () => {
   const router = useRouter();
+  const { isWeb, getContentWidth, isMobile } = useResponsive();
+  const contentWidth = isWeb ? getContentWidth() : '100%';
   const [user, setUser] = useState<UserInfo | null>(null);
 
   useEffect(() => {
@@ -71,14 +74,23 @@ export const EditProfilePage = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[
+        styles.header,
+        isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+      ]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Editar Perfil</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+        ]}
+      >
         {user ? (
           <>
             <View style={styles.avatarSection}>
