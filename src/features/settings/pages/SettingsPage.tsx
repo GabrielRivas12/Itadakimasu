@@ -22,13 +22,16 @@ import {
   getIsAdultContentEnabled, 
   setIsAdultContentEnabled,
   getIsNotificationsEnabled,
-  setIsNotificationsEnabled
+  setIsNotificationsEnabled,
+  getEpisodeOrder,
+  setEpisodeOrder
 } from '../../../../services/cache';
 
 export const SettingsPage = () => {
   const router = useRouter();
   const [isAdultContentEnabled, setAdultContentEnabled] = useState(false);
   const [isNotificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [episodeOrder, setEpisodeOrderState] = useState<'asc' | 'desc'>('asc');
   
   // Modal state
   const [isReportModalVisible, setReportModalVisible] = useState(false);
@@ -40,17 +43,25 @@ export const SettingsPage = () => {
   }, []);
 
   const loadSettings = async () => {
-    const [adultEnabled, notificationsEnabled] = await Promise.all([
+    const [adultEnabled, notificationsEnabled, order] = await Promise.all([
       getIsAdultContentEnabled(),
-      getIsNotificationsEnabled()
+      getIsNotificationsEnabled(),
+      getEpisodeOrder()
     ]);
     setAdultContentEnabled(adultEnabled);
     setNotificationsEnabled(notificationsEnabled);
+    setEpisodeOrderState(order);
   };
 
   const handleToggleAdultContent = async (value: boolean) => {
     setAdultContentEnabled(value);
     await setIsAdultContentEnabled(value);
+  };
+
+  const handleToggleEpisodeOrder = async () => {
+    const newOrder = episodeOrder === 'asc' ? 'desc' : 'asc';
+    setEpisodeOrderState(newOrder);
+    await setEpisodeOrder(newOrder);
   };
 
   const handleToggleNotifications = async (value: boolean) => {
@@ -142,6 +153,30 @@ export const SettingsPage = () => {
                 ios_backgroundColor="#2d3748"
                 onValueChange={handleToggleAdultContent}
                 value={isAdultContentEnabled}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Reproducción</Text>
+          <View style={styles.card}>
+            <View style={[styles.settingItem, styles.lastItem]}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="swap-vertical-outline" size={22} color="#8b5cf6" />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Orden de episodios</Text>
+                <Text style={styles.settingValue}>
+                  {episodeOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#2d3748', true: '#8b5cf6' }}
+                thumbColor={episodeOrder === 'desc' ? '#ffffff' : '#94a3b8'}
+                ios_backgroundColor="#2d3748"
+                onValueChange={handleToggleEpisodeOrder}
+                value={episodeOrder === 'desc'}
               />
             </View>
           </View>

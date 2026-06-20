@@ -8,6 +8,7 @@ export const cacheKeys = {
   ANIME_DETAILS: (id: number) => `cache:anime_details:${id}`,
   ADULT_CONTENT: 'setting:adult_content',
   NOTIFICATIONS_ENABLED: 'setting:notifications_enabled',
+  EPISODE_ORDER: 'setting:episode_order',
 };
 
 export async function getIsAdultContentEnabled(): Promise<boolean> {
@@ -41,6 +42,23 @@ export async function setIsNotificationsEnabled(enabled: boolean): Promise<void>
     await AsyncStorage.setItem(cacheKeys.NOTIFICATIONS_ENABLED, enabled ? 'true' : 'false');
   } catch (error) {
     console.error('Error saving notifications setting:', error);
+  }
+}
+
+export async function getEpisodeOrder(): Promise<'asc' | 'desc'> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.EPISODE_ORDER);
+    return data === 'desc' ? 'desc' : 'asc';
+  } catch {
+    return 'asc';
+  }
+}
+
+export async function setEpisodeOrder(order: 'asc' | 'desc'): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.EPISODE_ORDER, order);
+  } catch (error) {
+    console.error('Error saving episode order setting:', error);
   }
 }
 
