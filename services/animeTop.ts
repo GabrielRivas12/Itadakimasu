@@ -1,4 +1,4 @@
-import { Anime } from './anilist';
+import { Anime, fetchAnimesByIds } from './anilist';
 import { getUserId } from '../src/hooks/userHelper';
 import { getCachedTopAnime, cacheTopAnime } from './cache';
 import {
@@ -27,6 +27,18 @@ export async function getTopAnimeList(): Promise<TopAnimeItem[]> {
   const remote = await fetchTopAnimeFromFirestore();
   if (remote.length > 0) {
     const sorted = remote.sort((a, b) => a.rank - b.rank);
+    const needAnime = sorted.filter(item => !item.anime);
+    if (needAnime.length > 0) {
+      const ids = needAnime.map(item => item.animeId);
+      const animes = await fetchAnimesByIds(ids);
+      const animeMap = new Map(animes.map(a => [a.id, a]));
+      for (const item of sorted) {
+        if (!item.anime) {
+          const fetched = animeMap.get(item.animeId);
+          if (fetched) item.anime = fetched;
+        }
+      }
+    }
     await cacheTopAnime(uid, sorted);
     return sorted;
   }

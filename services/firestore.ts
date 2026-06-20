@@ -220,7 +220,6 @@ export async function updateProgressInFirestore(animeId: number, progress: numbe
 
 export interface TopAnimeItem {
   animeId: number;
-  anime: Anime;
   rank: number;
   addedAt: string;
 }
@@ -237,7 +236,8 @@ export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<vo
       const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
       const db = getWebFirestore();
       const batch = items.map(item => {
-        const clean = sanitizeObject(item);
+        const { ...data } = item;
+        const clean = sanitizeObject(data);
         const ref = doc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
         return setDoc(ref, { ...clean, userId: user.uid, updatedAt: serverTimestamp() }, { merge: true });
       });
@@ -245,7 +245,8 @@ export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<vo
     } else {
       const firestore = require('@react-native-firebase/firestore').default;
       const batch = items.map(item => {
-        const clean = sanitizeObject(item);
+        const { ...data } = item;
+        const clean = sanitizeObject(data);
         return firestore()
           .collection(ROOT_COLLECTION)
           .doc(user.uid)

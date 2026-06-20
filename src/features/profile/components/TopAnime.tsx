@@ -17,13 +17,15 @@ import { Anime, searchAnime } from '../../../../services/anilist';
 import { useTopAnime } from '../hooks/useTopAnime';
 
 export function TopAnime() {
-  const { topList, loading, userList, handleAdd, handleRemove } = useTopAnime();
+  const { topList, loading, userList, handleAdd, handleRemove, handleReorder } = useTopAnime();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [modalTab, setModalTab] = useState<'manage' | 'lista' | 'buscar'>('manage');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Anime[]>([]);
   const [searching, setSearching] = useState(false);
+  const [rankPickerVisible, setRankPickerVisible] = useState(false);
+  const [rankPickerItem, setRankPickerItem] = useState<TopAnimeItem | null>(null);
 
   const availableFromList = useMemo(() => {
     const topIds = new Set(topList.map(t => t.animeId));
@@ -67,6 +69,24 @@ export function TopAnime() {
     setShowModal(true);
   };
 
+  const handleLongPress = (item: TopAnimeItem) => {
+    if (topList.length <= 1) return;
+    setRankPickerItem(item);
+    setRankPickerVisible(true);
+  };
+
+  const handleMoveToRank = async (targetRank: number) => {
+    if (!rankPickerItem) return;
+    const reordered = [...topList];
+    const fromIndex = reordered.findIndex(i => i.animeId === rankPickerItem.animeId);
+    if (fromIndex === -1) return;
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(targetRank - 1, 0, moved);
+    await handleReorder(reordered);
+    setRankPickerVisible(false);
+    setRankPickerItem(null);
+  };
+
   const isFull = topList.length >= 10;
 
   return (
@@ -90,10 +110,6 @@ export function TopAnime() {
           <Text style={styles.emptyStateText}>
             Presiona Editar para agregar tus animes favoritos desde tu lista o buscando nuevos.
           </Text>
-          <TouchableOpacity style={styles.emptyStateButton} onPress={() => openModal('lista')}>
-            <Ionicons name="add" size={20} color="#ffffff" />
-            <Text style={styles.emptyStateButtonText}>Agregar anime</Text>
-          </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.list}>
@@ -102,7 +118,7 @@ export function TopAnime() {
               key={item.animeId}
               style={styles.horizontalCard}
               activeOpacity={0.7}
-              onPress={() => router.push({ pathname: '/animedetails', params: { id: item.anime.id } })}
+              onPress={item.anime ? () => router.push({ pathname: '/animedetails', params: { id: item.anime.id } }) : undefined}
             >
               <View style={[
                 styles.rankBadge,
@@ -125,20 +141,20 @@ export function TopAnime() {
                 ]}>{index + 1}</Text>
               </View>
               <Image
-                source={{ uri: item.anime.coverImage?.medium || item.anime.coverImage?.large }}
+                source={{ uri: item.anime?.coverImage?.medium || item.anime?.coverImage?.large || '' }}
                 style={styles.coverImage}
               />
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.anime.title.romaji || item.anime.title.english}
+                  {item.anime?.title?.romaji || item.anime?.title?.english || `Anime #${item.animeId}`}
                 </Text>
                 <View style={styles.cardMeta}>
-                  {item.anime.genres && item.anime.genres.length > 0 && (
+                  {item.anime?.genres && item.anime.genres.length > 0 && (
                     <Text style={styles.cardGenres} numberOfLines={1}>
                       {item.anime.genres.slice(0, 3).join(' • ')}
                     </Text>
                   )}
-                  {item.anime.episodes != null && (
+                  {item.anime?.episodes != null && (
                     <View style={styles.cardEpisodes}>
                       <Ionicons name="tv-outline" size={11} color="#64748b" />
                       <Text style={styles.cardEpisodesText}>{item.anime.episodes}</Text>
@@ -191,22 +207,32 @@ export function TopAnime() {
 
                 {topList.length > 0 && (
                   <View style={styles.manageSection}>
-                    <Text style={styles.manageLabel}>Animes en tu Top 10</Text>
+                    <View style={styles.manageLabelRow}>
+                      <Text style={styles.manageLabel}>Animes en tu Top 10</Text>
+                      <Text style={styles.manageHint}>Mantén presionado para mover</Text>
+                    </View>
                     <FlatList
                       data={topList}
                       keyExtractor={(item) => String(item.animeId)}
                       style={styles.manageList}
-                      renderItem={({ item, index }) => (
+                      renderItem={({ item }) => (
                         <View style={styles.manageItem}>
+                          <TouchableOpacity
+                            style={styles.manageDragHandle}
+                            onPress={() => handleLongPress(item)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="reorder-three-outline" size={18} color="#64748b" />
+                          </TouchableOpacity>
                           <View style={styles.manageRank}>
-                            <Text style={styles.manageRankText}>{index + 1}</Text>
+                            <Text style={styles.manageRankText}>{item.rank}</Text>
                           </View>
                           <Image
-                            source={{ uri: item.anime.coverImage?.medium || item.anime.coverImage?.large }}
+                            source={{ uri: item.anime?.coverImage?.medium || item.anime?.coverImage?.large || '' }}
                             style={styles.manageCover}
                           />
                           <Text style={styles.manageName} numberOfLines={1}>
-                            {item.anime.title.romaji || item.anime.title.english}
+                            {item.anime?.title?.romaji || item.anime?.title?.english || `Anime #${item.animeId}`}
                           </Text>
                           <TouchableOpacity
                             style={styles.manageRemove}
@@ -294,6 +320,34 @@ export function TopAnime() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={rankPickerVisible} transparent animationType="fade" onRequestClose={() => setRankPickerVisible(false)}>
+        <View style={styles.rankPickerOverlay}>
+          <View style={styles.rankPickerContent}>
+            <Text style={styles.rankPickerTitle}>Mover a posición</Text>
+            <View style={styles.rankPickerGrid}>
+              {Array.from({ length: topList.length }, (_, i) => i + 1).map(pos => (
+                <TouchableOpacity
+                  key={pos}
+                  style={[
+                    styles.rankPickerButton,
+                    rankPickerItem?.rank === pos && styles.rankPickerButtonActive,
+                  ]}
+                  onPress={() => handleMoveToRank(pos)}
+                >
+                  <Text style={[
+                    styles.rankPickerButtonText,
+                    rankPickerItem?.rank === pos && styles.rankPickerButtonTextActive,
+                  ]}>{pos}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.rankPickerCancel} onPress={() => setRankPickerVisible(false)}>
+              <Text style={styles.rankPickerCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -354,21 +408,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 32,
     lineHeight: 18,
-  },
-  emptyStateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
-    marginTop: 4,
-  },
-  emptyStateButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   list: {
     gap: 8,
@@ -494,13 +533,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 12,
   },
+  manageLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   manageLabel: {
     color: '#94a3b8',
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  manageHint: {
+    color: '#64748b',
+    fontSize: 11,
   },
   manageList: {
     maxHeight: 200,
@@ -509,9 +557,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    gap: 10,
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#2d3748',
+  },
+  manageDragHandle: {
+    paddingLeft: 4,
   },
   manageRank: {
     width: 24,
@@ -620,5 +671,64 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  rankPickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  rankPickerContent: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 24,
+    minWidth: 280,
+    borderWidth: 1,
+    borderColor: '#334155',
+    alignItems: 'center',
+  },
+  rankPickerTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  rankPickerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  rankPickerButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  rankPickerButtonActive: {
+    borderColor: '#8b5cf6',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+  },
+  rankPickerButtonText: {
+    color: '#cbd5e1',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  rankPickerButtonTextActive: {
+    color: '#8b5cf6',
+  },
+  rankPickerCancel: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  rankPickerCancelText: {
+    color: '#64748b',
+    fontSize: 14,
   },
 });

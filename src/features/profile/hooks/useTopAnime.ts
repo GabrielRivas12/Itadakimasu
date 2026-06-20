@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TopAnimeItem } from '../../../../services/firestore';
-import { getTopAnimeList, addToTopAnime, removeFromTopAnime, topAnimeEvents } from '../../../../services/animeTop';
+import { getTopAnimeList, addToTopAnime, removeFromTopAnime, updateTopAnimeRank, topAnimeEvents } from '../../../../services/animeTop';
 import { Anime } from '../../../../services/anilist';
 import { getUserList } from '../../../../services/animeList';
 
@@ -54,12 +54,18 @@ export const useTopAnime = () => {
     setTopList(updated);
   };
 
+  const handleReorder = async (reordered: TopAnimeItem[]) => {
+    const updated = await updateTopAnimeRank(reordered);
+    setTopList(updated);
+  };
+
   return {
     topList,
     loading,
     userList,
     handleAdd,
     handleRemove,
+    handleReorder,
     loadTop,
   };
 };
