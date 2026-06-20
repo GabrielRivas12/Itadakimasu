@@ -13,11 +13,11 @@ interface LibraryAnimeCardProps {
 
 export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnimeCardProps) {
   const { isWeb } = useResponsive();
-  
+
   if (!item || !item.anime) return null;
 
   const title = item.anime.title.romaji || item.anime.title.english || 'Anime Desconocido';
-  
+
   return (
     <TouchableOpacity
       style={[styles.card, width ? { width } : null, isWeb && styles.webCard]}
@@ -25,12 +25,12 @@ export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnim
       onPress={() => onPress(item.anime.id)}
     >
       <Image source={{ uri: item.anime.coverImage.large }} style={styles.cardImage} />
-      
+
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {title}
         </Text>
-        
+
         <View style={styles.metaRow}>
           {item.anime.averageScore && (
             <View style={styles.ratingBadge}>

@@ -104,6 +104,23 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="collection"
+        options={{
+          title: 'Mi Colección',
+          tabBarLabel: 'Colección',
+          headerShown: false,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
+              <Feather
+                name="book"
+                size={20}
+                color={color}
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Mi Perfil',

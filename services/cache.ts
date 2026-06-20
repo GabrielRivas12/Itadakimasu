@@ -9,6 +9,7 @@ export const cacheKeys = {
   ADULT_CONTENT: 'setting:adult_content',
   NOTIFICATIONS_ENABLED: 'setting:notifications_enabled',
   EPISODE_ORDER: 'setting:episode_order',
+  USER_TOP_ANIME: (uid: string) => `cache:user_top_anime:${uid}`,
 };
 
 export async function getIsAdultContentEnabled(): Promise<boolean> {
@@ -140,5 +141,22 @@ export async function cacheAnimeDetails(id: number, anime: Anime): Promise<void>
     await AsyncStorage.setItem(cacheKeys.ANIME_DETAILS(id), JSON.stringify(anime));
   } catch (error) {
     console.error('Error caching anime details:', error);
+  }
+}
+
+export async function getCachedTopAnime(uid: string): Promise<any[] | null> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.USER_TOP_ANIME(uid));
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheTopAnime(uid: string, list: any[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.USER_TOP_ANIME(uid), JSON.stringify(list));
+  } catch (error) {
+    console.error('Error caching top anime:', error);
   }
 }

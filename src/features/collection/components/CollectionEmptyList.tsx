@@ -2,12 +2,12 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface ProfileEmptyListProps {
+interface CollectionEmptyListProps {
   activeTab: string;
   onExplorePress: () => void;
 }
 
-export function ProfileEmptyList({ activeTab, onExplorePress }: ProfileEmptyListProps) {
+export function CollectionEmptyList({ activeTab, onExplorePress }: CollectionEmptyListProps) {
   return (
     <View style={styles.emptyContainer}>
       <Ionicons
