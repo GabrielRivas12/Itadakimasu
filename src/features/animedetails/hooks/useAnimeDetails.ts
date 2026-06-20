@@ -164,8 +164,6 @@ export const useAnimeDetails = () => {
       if (cachedAnime) {
         console.log(`[DEBUG] Usando cachedAnime para la vista inicial`);
         setAnime(cachedAnime);
-        // Quitamos loading si ya tenemos cache
-        setLoading(false);
       }
 
       setUserStatus(status);
@@ -186,11 +184,6 @@ export const useAnimeDetails = () => {
         }
       }
 
-      // Asegurarnos de que el loading se quite
-      if (currentAnime) {
-        setLoading(false);
-      }
-
       if (currentAnime?.description) {
         setLoadingSpanishSynopsis(true);
         try {
@@ -205,9 +198,12 @@ export const useAnimeDetails = () => {
           setLoadingSpanishSynopsis(false);
         }
       }
+
+      if (currentAnime) {
+        setLoading(false);
+      }
     } catch (error) {
       console.error('[DEBUG] Error en loadDetails:', error);
-    } finally {
       setLoading(false);
     }
   };

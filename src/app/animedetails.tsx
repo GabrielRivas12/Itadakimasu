@@ -1,2 +1,2 @@
-import { AnimeDetailsPage } from '../features/home/pages/AnimeDetailsPage';
+import { AnimeDetailsPage } from '../features/animedetails/pages/AnimeDetailsPage';
 export default AnimeDetailsPage;
