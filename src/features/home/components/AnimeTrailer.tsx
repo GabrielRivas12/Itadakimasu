@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,8 +7,10 @@ import {
   Linking,
   Platform,
   Image,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import YoutubeIframe from 'react-native-youtube-iframe';
 
 interface AnimeTrailerProps {
   trailer?: {
@@ -64,16 +66,28 @@ function TrailerWeb({ trailer }: { trailer: { id: string; site: string } }) {
 }
 
 function TrailerNative({ trailer }: { trailer: { id: string; site: string; thumbnail: string | null } }) {
+  const screenWidth = Dimensions.get('window').width;
+  const isYoutube = trailer.site === 'youtube';
   const watchUrl = getWatchUrl(trailer);
   const thumbnailUrl = getThumbnailUrl(trailer);
+  const playerHeight = (screenWidth - 32) * (9 / 16);
+
+  if (isYoutube) {
+    return (
+      <View style={styles.nativeContainer}>
+        <YoutubeIframe
+          videoId={trailer.id}
+          height={playerHeight}
+          play={true}
+        />
+      </View>
+    );
+  }
+
   if (!watchUrl) return null;
 
-  const handlePress = () => {
-    Linking.openURL(watchUrl);
-  };
-
   return (
-    <TouchableOpacity style={styles.nativeContainer} onPress={handlePress} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.nativeContainer} onPress={() => Linking.openURL(watchUrl)} activeOpacity={0.8}>
       {thumbnailUrl ? (
         <Image
           source={{ uri: thumbnailUrl }}
