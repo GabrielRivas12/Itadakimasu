@@ -172,6 +172,28 @@ export function onAuthStateChangedCallback(callback: (user: UserInfo | null) => 
   }
 }
 
+// ELIMINAR CUENTA DE FIREBASE
+export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (Platform.OS === 'web') {
+      const { deleteUser } = require('firebase/auth');
+      const { webAuth: authInstance } = getWebAuth();
+      const user = authInstance?.currentUser;
+      if (!user) throw new Error('No hay usuario autenticado');
+      await deleteUser(user);
+    } else {
+      const authMobile = require('@react-native-firebase/auth').default;
+      const user = authMobile().currentUser;
+      if (!user) throw new Error('No hay usuario autenticado');
+      await user.delete();
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al eliminar cuenta:', error);
+    return { success: false, error: error.message || 'Error al eliminar la cuenta' };
+  }
+}
+
 // OBTENER USUARIO ACTUAL
 export function getCurrentUser(): UserInfo | null {
   let user: any = null;

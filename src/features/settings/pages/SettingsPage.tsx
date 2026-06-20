@@ -185,13 +185,17 @@ export const SettingsPage = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <View style={styles.card}>
-            <View style={styles.settingItem}>
+            <TouchableOpacity 
+              style={styles.settingItem} 
+              onPress={() => router.push('/edit-profile')}
+              activeOpacity={0.7}
+            >
               <View style={styles.settingIconContainer}>
                 <Ionicons name="person-outline" size={22} color="#8b5cf6" />
               </View>
               <Text style={styles.settingLabel}>Editar Perfil</Text>
               <Ionicons name="chevron-forward" size={20} color="#475569" />
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.settingItem, styles.lastItem]} 
               onPress={() => router.push('/privacy')}

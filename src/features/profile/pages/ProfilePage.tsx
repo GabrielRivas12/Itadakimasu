@@ -43,14 +43,16 @@ export const ProfilePage = () => {
       >
         <View style={[
           styles.header,
-          isWeb && { paddingHorizontal: 0 },
-          isWeb && isMobile && { paddingTop: 20 }
+          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+          isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
         ]}>
-          <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>Mi Perfil</Text>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Mi Perfil</Text>
+              <Text style={styles.headerSubtitle}>Configuración de la cuenta</Text>
+            </View>
             <SettingsButton />
           </View>
-          <Text style={styles.headerSubtitle}>Configuración de la cuenta</Text>
         </View>
 
         {user ? (
@@ -101,16 +103,15 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
     paddingTop: 45,
     paddingBottom: 15,
     backgroundColor: '#0b0f19',
   },
-  headerTop: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
   },
   headerTitle: {
     color: '#ffffff',
