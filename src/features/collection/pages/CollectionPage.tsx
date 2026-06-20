@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo } from 'react';
 import {
   StyleSheet,
   FlatList,
@@ -6,8 +6,9 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { CollectionSkeleton } from '../components/CollectionSkeleton';
 import { StatsCard } from '../components/StatsCard';
 import { StatusTabs } from '../components/StatusTabs';
 import { LibraryAnimeCard } from '../components/LibraryAnimeCard';
@@ -30,20 +31,13 @@ export const CollectionPage = memo(function CollectionPage() {
     countPlanToWatch,
     handleRemove,
     handleAnimePress,
-    loadList,
   } = useCollection();
-
-  useFocusEffect(
-    useCallback(() => {
-      loadList(true);
-    }, [loadList])
-  );
 
   const { isWeb, getContentWidth, getColumns, isMobile } = useResponsive();
   const columns = getColumns(1, 1, 2, 2);
 
   if (isLoading) {
-    return <View style={styles.container} />;
+    return <CollectionSkeleton />;
   }
 
   const contentWidth = isWeb ? getContentWidth() : '100%';

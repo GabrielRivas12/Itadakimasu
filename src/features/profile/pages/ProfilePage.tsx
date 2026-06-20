@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserHeader } from '../components/UserHeader';
+import { ProfileSkeleton } from '../components/ProfileSkeleton';
 import { SettingsButton } from '../../settings/components/SettingsButton';
 import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { TopAnime } from '../components/TopAnime';
@@ -28,7 +29,7 @@ export const ProfilePage = () => {
   const contentWidth = isWeb ? getContentWidth() : '100%';
 
   if (isLoading) {
-    return <View style={styles.container} />;
+    return <ProfileSkeleton />;
   }
 
   return (

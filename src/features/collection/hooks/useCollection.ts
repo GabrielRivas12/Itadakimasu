@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   getUserList,
   UserListItem,
@@ -22,8 +22,11 @@ export const useCollection = () => {
 
   const loadList = useCallback(async (force = false) => {
     if (!force && initialized && sessionList.length > 0) {
-      setIsLoading(false);
       return;
+    }
+
+    if (force && sessionList.length === 0) {
+      setIsLoading(true);
     }
 
     try {
@@ -38,11 +41,12 @@ export const useCollection = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      loadList();
-    }
-  }, [user, loadList]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      loadList(true);
+    }, [user, loadList])
+  );
 
   useEffect(() => {
     const handleListUpdate = (updatedList: UserListItem[]) => {

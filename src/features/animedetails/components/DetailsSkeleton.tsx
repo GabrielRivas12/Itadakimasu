@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Animated } from 'react-native';
 
-function Pulse({ style }: { style?: any }) {
+function Pulse({ style, children }: { style?: any; children?: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -15,7 +15,7 @@ function Pulse({ style }: { style?: any }) {
     return () => animation.stop();
   }, []);
 
-  return <Animated.View style={[style, { opacity }]} />;
+  return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
 }
 
 export function SkeletonLoader() {

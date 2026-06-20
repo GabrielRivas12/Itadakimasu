@@ -4,7 +4,7 @@ import { StyleSheet, View, FlatList,
   TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
 import { AnimeGridCard } from '../../explore/components/AnimeGridCard';
-import { ExploreLoading } from '../../explore/components/ExploreStates';
+import { AiringSkeleton } from '../components/AiringSkeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { useAiring } from '../hooks/useAiring';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
@@ -58,9 +58,12 @@ export const AiringPage = memo(function AiringPage() {
       </View>
 
       {loading && results.length === 0 ? (
-        <ResponsiveContainer>
-          <ExploreLoading />
-        </ResponsiveContainer>
+        <View style={[
+          styles.flex,
+          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        ]}>
+          <AiringSkeleton />
+        </View>
       ) : (
         <View style={styles.flex}>
           <FlatList

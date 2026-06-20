@@ -3,7 +3,8 @@ import { StyleSheet, View, FlatList, ActivityIndicator, Text } from 'react-nativ
 import { SearchBar } from '../components/SearchBar';
 import { GenreFilters } from '../components/GenreFilters';
 import { AnimeGridCard } from '../components/AnimeGridCard';
-import { ExploreLoading, ExploreEmpty } from '../components/ExploreStates';
+import { ExploreEmpty } from '../components/ExploreStates';
+import { ExploreSkeleton } from '../components/ExploreSkeleton';
 import { useExplore } from '../hooks/useExplore';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
@@ -62,9 +63,12 @@ export const ExplorePage = memo(function ExplorePage() {
       </View>
 
       {loading && results.length === 0 ? (
-        <ResponsiveContainer>
-          <ExploreLoading />
-        </ResponsiveContainer>
+        <View style={[
+          styles.flex,
+          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        ]}>
+          <ExploreSkeleton />
+        </View>
       ) : (
         <View style={styles.flex}>
           <FlatList

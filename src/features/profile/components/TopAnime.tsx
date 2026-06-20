@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   FlatList,
+  Animated,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,6 +16,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { TopAnimeItem } from '../../../../services/firestore';
 import { Anime, searchAnime } from '../../../../services/anilist';
 import { useTopAnime } from '../hooks/useTopAnime';
+
+function Pulse({ style, children }: { style?: any; children?: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, []);
+
+  return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
+}
 
 export function TopAnime() {
   const { topList, loading, userList, handleAdd, handleRemove, handleReorder } = useTopAnime();
@@ -101,7 +119,16 @@ export function TopAnime() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#8b5cf6" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Pulse key={i} style={styles.skeletonCard}>
+              <Pulse style={styles.skeletonBadge} />
+              <Pulse style={styles.skeletonCover} />
+              <View style={styles.skeletonInfo}>
+                <Pulse style={styles.skeletonTitle} />
+                <Pulse style={[styles.skeletonMeta, { width: '60%' }]} />
+              </View>
+            </Pulse>
+          ))}
         </View>
       ) : topList.length === 0 ? (
         <View style={styles.emptyState}>
@@ -385,8 +412,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   loadingContainer: {
-    paddingVertical: 20,
+    gap: 8,
+  },
+  skeletonCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 8,
+    paddingLeft: 50,
+    gap: 10,
+    overflow: 'hidden',
+  },
+  skeletonBadge: {
+    position: 'absolute',
+    left: 8,
+    width: 38,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#0f172a',
+  },
+  skeletonCover: {
+    width: 40,
+    height: 56,
+    borderRadius: 6,
+    backgroundColor: '#0f172a',
+  },
+  skeletonInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  skeletonTitle: {
+    height: 14,
+    backgroundColor: '#0f172a',
+    borderRadius: 3,
+    width: '70%',
+  },
+  skeletonMeta: {
+    height: 11,
+    backgroundColor: '#0f172a',
+    borderRadius: 3,
   },
   emptyState: {
     alignItems: 'center',
