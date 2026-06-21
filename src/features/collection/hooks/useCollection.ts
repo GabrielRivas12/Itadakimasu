@@ -8,7 +8,7 @@ import {
   removeAnimeFromList,
   animeListEvents
 } from '../../../../services/animeList';
-import { getCurrentUser } from '../../../../services/auth';
+import { getCurrentUser, onAuthStateChangedCallback } from '../../../../services/auth';
 import { getPreloadedUserList, getPreloadPromise } from '../../../../services/dataPreloader';
 
 let sessionList: UserListItem[] = [];
@@ -24,12 +24,15 @@ export const useCollection = () => {
   const loadList = useCallback(async (force = false) => {
     const currentUser = getCurrentUser();
     if (!currentUser) {
+      // Clear stale data on logout (only if there was data before)
       if (sessionList.length > 0) {
         sessionList = [];
         initialized = false;
         setList([]);
+        setDataLoaded(true);
       }
-      setDataLoaded(true);
+      // If no data and no user (auth not restored yet), don't set dataLoaded
+      // Auth listener below will re-fetch when auth restores
       return;
     }
 
@@ -78,11 +81,25 @@ export const useCollection = () => {
       setList(updatedList);
     };
 
+    const unsubscribeAuth = onAuthStateChangedCallback((authUser) => {
+      if (authUser) {
+        // Auth restored after page refresh - fetch data
+        loadList(true);
+      } else {
+        // User logged out - clear stale data
+        sessionList = [];
+        initialized = false;
+        setList([]);
+        setDataLoaded(true);
+      }
+    });
+
     animeListEvents.on('listUpdated', handleListUpdate);
     return () => {
+      unsubscribeAuth();
       animeListEvents.off('listUpdated', handleListUpdate);
     };
-  }, []);
+  }, [loadList]);
 
   const handleRemove = (animeId: number, title: string) => {
     if (Platform.OS === 'web') {
