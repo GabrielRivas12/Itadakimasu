@@ -7,7 +7,6 @@ import Constants from 'expo-constants';
 const CURRENT_VERSION = Constants.expoConfig?.version || '1.0.0';
 const GITHUB_API_URL = 'https://api.github.com/repos/GabrielRivas12/Itadakimasu/releases/latest';
 
-// Función para comparar versiones semánticas (ej: 1.0.1 > 1.0.0)
 function isNewerVersion(newVer: string, currentVer: string) {
   const n = newVer.split('.').map(v => parseInt(v) || 0);
   const c = currentVer.split('.').map(v => parseInt(v) || 0);
@@ -34,7 +33,6 @@ export function UpdateNotification() {
         const now = Date.now();
         const cleanCurrentVersion = CURRENT_VERSION.replace(/[vV]/g, '').trim();
 
-        // 1. Mostrar actualización guardada si sigue vigente
         const savedUpdate = await AsyncStorage.getItem('@available_update');
         if (savedUpdate) {
           const { version, url } = JSON.parse(savedUpdate);
@@ -50,16 +48,13 @@ export function UpdateNotification() {
           }
         }
 
-        // 2. Ver si ya llegó el momento de verificar
         const nextCheck = await AsyncStorage.getItem('@next_update_check');
         if (nextCheck && now < parseInt(nextCheck)) return;
 
-        // 3. Consultar GitHub
         const response = await fetch(GITHUB_API_URL, {
           headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
 
-        // Siempre programar el próximo chequeo, aunque falle
         const scheduleNext = async () => {
           const minMs = 1 * 60 * 60 * 1000;
           const maxMs = 5 * 60 * 60 * 1000;

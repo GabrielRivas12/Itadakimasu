@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserHeader } from '../components/UserHeader';
 import { ProfileSkeleton } from '../components/ProfileSkeleton';
 import { SettingsButton } from '../../settings/components/SettingsButton';
-import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { TopAnime } from '../components/TopAnime';
 import { useProfile } from '../hooks/useProfile';
 import { useResponsive } from '../../../hooks/useResponsive';
@@ -87,8 +86,6 @@ export const ProfilePage = () => {
             </View>
           </View>
         )}
-
-        <UpdateNotification />
       </ScrollView>
     </View>
   );

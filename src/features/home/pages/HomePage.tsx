@@ -16,6 +16,7 @@ import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { DownloadApkButton } from '../components/DownloadApkButton';
+import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export function HomePage() {
@@ -72,6 +73,7 @@ export function HomePage() {
             <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
             <Text style={styles.sectionTitle}>Tendencias ahora</Text>
             <TrendingGrid trending={trending} onPress={handleAnimePress} />
+            <UpdateNotification />
             {loadingMoreState && (
               <View style={styles.loadingMoreContainer}>
                 <ActivityIndicator size="small" color="#8b5cf6" />
