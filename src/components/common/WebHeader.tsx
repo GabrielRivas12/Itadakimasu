@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { name: 'Inicio', path: '/home', icon: 'home' },
   { name: 'En Emisión', path: '/airing', icon: 'radio' },
   { name: 'Explorar', path: '/explore', icon: 'search' },
+  { name: 'Colección', path: '/collection', icon: 'book' },
   { name: 'Perfil', path: '/profile', icon: 'person' },
 ];
 

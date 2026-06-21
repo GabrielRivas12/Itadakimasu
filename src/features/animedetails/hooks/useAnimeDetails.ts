@@ -9,7 +9,7 @@ import {
   removeAnimeFromList,
   UserListStatus,
 } from '../../../../services/animeList';
-import { getCachedAnimeDetails, cacheAnimeDetails, getIsAdultContentEnabled } from '../../../../services/cache';
+import { getCachedAnimeDetails, cacheAnimeDetails, getIsAdultContentEnabled, getEpisodeOrder } from '../../../../services/cache';
 import {
   searchAnime1V,
   getAnime1VInfo,
@@ -18,6 +18,7 @@ import {
   Anime1VInfo,
   Anime1VStreamLink,
 } from '../../../../services/anime1v';
+import { recordWatchSession } from '../../../../services/streak';
 import { SearchResult } from '../types/animeDetails';
 import {
   normalizeTitleStrict,
@@ -42,6 +43,7 @@ export const useAnimeDetails = () => {
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isAdultContentEnabled, setIsAdultContentEnabled] = useState<boolean>(true);
+  const [episodeOrder, setEpisodeOrder] = useState<'asc' | 'desc'>('asc');
 
   // Anime1V states
   const [anime1VInfo, setAnime1VInfo] = useState<Anime1VInfo | null>(null);
@@ -61,6 +63,8 @@ export const useAnimeDetails = () => {
   const EPISODES_PER_PAGE = 50;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const watchSessionStartRef = useRef<number | null>(null);
+  const accumulatedWatchTimeRef = useRef(0);
 
   const animeId = typeof id === 'string' ? parseInt(id, 10) : Array.isArray(id) ? parseInt(id[0], 10) : null;
 
@@ -81,15 +85,34 @@ export const useAnimeDetails = () => {
     }
   }, [anime, isAdultContentEnabled]);
 
+  // Cargar preferencia de orden de episodios
+  useEffect(() => {
+    const loadOrder = async () => {
+      const order = await getEpisodeOrder();
+      setEpisodeOrder(order);
+    };
+    loadOrder();
+  }, []);
+
   // Inicializar displayedEpisodes cuando se carga anime1VInfo
   useEffect(() => {
     if (anime1VInfo && anime1VInfo.episodes) {
-      const initialEpisodes = anime1VInfo.episodes.slice(0, EPISODES_PER_PAGE);
-      setDisplayedEpisodes(initialEpisodes);
-      setCurrentPage(1);
-      setHasMoreEpisodes(anime1VInfo.episodes.length > EPISODES_PER_PAGE);
+      const total = anime1VInfo.episodes.length;
+      if (episodeOrder === 'desc') {
+        const totalPages = Math.ceil(total / EPISODES_PER_PAGE);
+        const start = Math.max(0, total - EPISODES_PER_PAGE);
+        const slice = anime1VInfo.episodes.slice(start).reverse();
+        setDisplayedEpisodes(slice);
+        setCurrentPage(totalPages);
+        setHasMoreEpisodes(start > 0);
+      } else {
+        const initialEpisodes = anime1VInfo.episodes.slice(0, EPISODES_PER_PAGE);
+        setDisplayedEpisodes(initialEpisodes);
+        setCurrentPage(1);
+        setHasMoreEpisodes(total > EPISODES_PER_PAGE);
+      }
     }
-  }, [anime1VInfo]);
+  }, [anime1VInfo, episodeOrder]);
 
   useEffect(() => {
     if (!loading) {
@@ -102,6 +125,29 @@ export const useAnimeDetails = () => {
       fadeAnim.setValue(0);
     }
   }, [loading]);
+
+  useEffect(() => {
+    if (watchSessionStartRef.current !== null) {
+      const elapsed = (Date.now() - watchSessionStartRef.current) / 1000;
+      accumulatedWatchTimeRef.current += elapsed;
+    }
+    if (streamUrl) {
+      watchSessionStartRef.current = Date.now();
+    } else {
+      watchSessionStartRef.current = null;
+    }
+  }, [streamUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (watchSessionStartRef.current !== null) {
+        accumulatedWatchTimeRef.current += (Date.now() - watchSessionStartRef.current) / 1000;
+      }
+      if (accumulatedWatchTimeRef.current >= 120) {
+        recordWatchSession(Math.round(accumulatedWatchTimeRef.current));
+      }
+    };
+  }, []);
 
   const loadDetails = async (id: number) => {
     try {
@@ -144,15 +190,13 @@ export const useAnimeDetails = () => {
       if (cachedAnime) {
         console.log(`[DEBUG] Usando cachedAnime para la vista inicial`);
         setAnime(cachedAnime);
-        // Quitamos loading si ya tenemos cache
-        setLoading(false);
       }
 
       setUserStatus(status);
       setUserProgress(progress);
 
-      // Si no tenemos la info completa (personajes/relaciones), la buscamos
-      if (!currentAnime || !currentAnime.characters || !currentAnime.relations) {
+      // Si no tenemos la info completa (personajes/relaciones/trailer), la buscamos
+      if (!currentAnime || !currentAnime.characters || !currentAnime.relations || !currentAnime.trailer) {
         console.log(`[DEBUG] Buscando detalles completos en AniList...`);
         const details = await fetchAnimeDetails(id);
 
@@ -164,11 +208,6 @@ export const useAnimeDetails = () => {
         } else {
           console.log(`[DEBUG] No se pudieron obtener detalles de AniList`);
         }
-      }
-
-      // Asegurarnos de que el loading se quite
-      if (currentAnime) {
-        setLoading(false);
       }
 
       if (currentAnime?.description) {
@@ -185,9 +224,12 @@ export const useAnimeDetails = () => {
           setLoadingSpanishSynopsis(false);
         }
       }
+
+      if (currentAnime) {
+        setLoading(false);
+      }
     } catch (error) {
       console.error('[DEBUG] Error en loadDetails:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -198,19 +240,26 @@ export const useAnimeDetails = () => {
     setIsLoadingMore(true);
 
     try {
-      const nextPage = currentPage + 1;
-      const endIndex = nextPage * EPISODES_PER_PAGE;
-
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      if (anime1VInfo.episodes.length > endIndex) {
-        const newEpisodes = anime1VInfo.episodes.slice(0, endIndex);
-        setDisplayedEpisodes(newEpisodes);
-        setCurrentPage(nextPage);
-        setHasMoreEpisodes(anime1VInfo.episodes.length > endIndex);
+      const total = anime1VInfo.episodes.length;
+
+      if (episodeOrder === 'desc') {
+        const prevPage = currentPage - 1;
+        const totalPages = Math.ceil(total / EPISODES_PER_PAGE);
+        const end = total - (totalPages - prevPage) * EPISODES_PER_PAGE;
+        const start = Math.max(0, end - EPISODES_PER_PAGE);
+        const slice = anime1VInfo.episodes.slice(start, end).reverse();
+        setDisplayedEpisodes(prev => [...prev, ...slice]);
+        setCurrentPage(prevPage);
+        setHasMoreEpisodes(start > 0);
       } else {
-        setDisplayedEpisodes(anime1VInfo.episodes);
-        setHasMoreEpisodes(false);
+        const nextPage = currentPage + 1;
+        const endIndex = nextPage * EPISODES_PER_PAGE;
+        const slice = anime1VInfo.episodes.slice(currentPage * EPISODES_PER_PAGE, endIndex);
+        setDisplayedEpisodes(prev => [...prev, ...slice]);
+        setCurrentPage(nextPage);
+        setHasMoreEpisodes(total > endIndex);
       }
     } catch (error) {
       console.error('Error loading more episodes:', error);

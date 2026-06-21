@@ -17,18 +17,24 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
+import { useResponsive } from '../../../hooks/useResponsive';
 import { 
   getIsAdultContentEnabled, 
   setIsAdultContentEnabled,
   getIsNotificationsEnabled,
-  setIsNotificationsEnabled
+  setIsNotificationsEnabled,
+  getEpisodeOrder,
+  setEpisodeOrder
 } from '../../../../services/cache';
+import { inicializarNotificaciones } from '../../../../services/notification';
 
 export const SettingsPage = () => {
   const router = useRouter();
+  const { isWeb, getContentWidth, isMobile } = useResponsive();
+  const contentWidth = isWeb ? getContentWidth() : '100%';
   const [isAdultContentEnabled, setAdultContentEnabled] = useState(false);
   const [isNotificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [episodeOrder, setEpisodeOrderState] = useState<'asc' | 'desc'>('asc');
   
   // Modal state
   const [isReportModalVisible, setReportModalVisible] = useState(false);
@@ -40,17 +46,25 @@ export const SettingsPage = () => {
   }, []);
 
   const loadSettings = async () => {
-    const [adultEnabled, notificationsEnabled] = await Promise.all([
+    const [adultEnabled, notificationsEnabled, order] = await Promise.all([
       getIsAdultContentEnabled(),
-      getIsNotificationsEnabled()
+      getIsNotificationsEnabled(),
+      getEpisodeOrder()
     ]);
     setAdultContentEnabled(adultEnabled);
     setNotificationsEnabled(notificationsEnabled);
+    setEpisodeOrderState(order);
   };
 
   const handleToggleAdultContent = async (value: boolean) => {
     setAdultContentEnabled(value);
     await setIsAdultContentEnabled(value);
+  };
+
+  const handleToggleEpisodeOrder = async () => {
+    const newOrder = episodeOrder === 'asc' ? 'desc' : 'asc';
+    setEpisodeOrderState(newOrder);
+    await setEpisodeOrder(newOrder);
   };
 
   const handleToggleNotifications = async (value: boolean) => {
@@ -84,6 +98,9 @@ export const SettingsPage = () => {
 
     setNotificationsEnabled(value);
     await setIsNotificationsEnabled(value);
+    if (value) {
+      await inicializarNotificaciones();
+    }
   };
 
   const handleSendReport = () => {
@@ -107,14 +124,23 @@ export const SettingsPage = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[
+        styles.header,
+        isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+      ]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Configuración</Text>
       </View>
       
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+        ]}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aplicación</Text>
           <View style={styles.card}>
@@ -148,15 +174,43 @@ export const SettingsPage = () => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Reproducción</Text>
+          <View style={styles.card}>
+            <View style={[styles.settingItem, styles.lastItem]}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="swap-vertical-outline" size={22} color="#8b5cf6" />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Orden de episodios</Text>
+                <Text style={styles.settingValue}>
+                  {episodeOrder === 'asc' ? 'Ascendente' : 'Descendente'}
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#2d3748', true: '#8b5cf6' }}
+                thumbColor={episodeOrder === 'desc' ? '#ffffff' : '#94a3b8'}
+                ios_backgroundColor="#2d3748"
+                onValueChange={handleToggleEpisodeOrder}
+                value={episodeOrder === 'desc'}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <View style={styles.card}>
-            <View style={styles.settingItem}>
+            <TouchableOpacity 
+              style={styles.settingItem} 
+              onPress={() => router.push('/edit-profile')}
+              activeOpacity={0.7}
+            >
               <View style={styles.settingIconContainer}>
                 <Ionicons name="person-outline" size={22} color="#8b5cf6" />
               </View>
-              <Text style={styles.settingLabel}>Editar Perfil</Text>
+              <Text style={styles.settingLabel}>Información de la cuenta</Text>
               <Ionicons name="chevron-forward" size={20} color="#475569" />
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.settingItem, styles.lastItem]} 
               onPress={() => router.push('/privacy')}
@@ -221,7 +275,10 @@ export const SettingsPage = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
-          <View style={styles.modalContent}>
+          <View style={[
+            styles.modalContent,
+            isWeb && { maxWidth: 500, alignSelf: 'center', width: '100%' },
+          ]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Reportar un Error</Text>
               <TouchableOpacity onPress={() => setReportModalVisible(false)}>
@@ -318,6 +375,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#2d3748',
+    gap: 12,
   },
   lastItem: {
     borderBottomWidth: 0,

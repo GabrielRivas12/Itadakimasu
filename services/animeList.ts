@@ -99,7 +99,6 @@ export async function getUserList(): Promise<UserListItem[]> {
     if (user) {
       // Si el caché está vacío, esperamos a la red obligatoriamente para la primera carga
       if (localList.length === 0) {
-        console.log(`[Cache] Cache vacío para ${user}, esperando a Firestore...`);
         const remoteList = await fetchUserListFromFirestore();
         if (remoteList && remoteList.length > 0) {
           const enrichedRemote = await enrichUserList(remoteList);
@@ -224,7 +223,6 @@ export async function clearLocalList() {
     const user = getUserId();
     const currentKey = getStorageKey(user);
     await storage.removeItem(currentKey);
-    console.log(`Cache local eliminado para la clave: ${currentKey}`);
   } catch (e) {
     console.error('Error al limpiar el caché local:', e);
   }

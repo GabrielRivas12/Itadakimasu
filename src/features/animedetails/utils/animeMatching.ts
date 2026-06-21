@@ -30,6 +30,7 @@ const SPECIAL_ARCS_MAP: Record<string, string> = {
   'boku no hero academia 5': 'my hero academia 7',
   'boku no hero academia 6': 'my hero academia 7',
   'boku no hero academia 7': 'my hero academia 7',
+  'yozakura-san chi no daisakusen 2nd season' : 'yozakura-san chi no daisakusen 2nd season ',
 };
 
 const RX_NFD = /[\u0300-\u036f]/g;

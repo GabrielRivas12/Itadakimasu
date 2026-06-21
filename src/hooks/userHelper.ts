@@ -5,7 +5,7 @@ export function getUserId(): string | null {
     const { getAuth } = require('firebase/auth');
     return getAuth().currentUser?.uid || null;
   } else {
-    const authMobile = require('@react-native-firebase/auth').default;
-    return authMobile().currentUser?.uid || null;
+    const { getAuth } = require('@react-native-firebase/auth');
+    return getAuth().currentUser?.uid || null;
   }
 }

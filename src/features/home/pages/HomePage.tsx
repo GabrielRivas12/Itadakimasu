@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Animated,
 } from 'react-native';
+import { preloadAllData } from '../../../../services/dataPreloader';
 import { FeaturedBanner } from '../components/FeaturedBanner';
 import { ContinueWatching } from '../components/ContinueWatching';
 import { TrendingGrid } from '../components/TrendingGrid';
@@ -15,6 +16,8 @@ import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { DownloadApkButton } from '../components/DownloadApkButton';
+import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
+import { StreakBadge } from '../components/StreakBadge';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export function HomePage() {
@@ -32,6 +35,8 @@ export function HomePage() {
     handleScroll,
   } = useHome();
 
+  useEffect(() => { preloadAllData(); }, []);
+
   const { isWeb, getContentWidth, isMobile } = useResponsive();
 
   return (
@@ -46,7 +51,10 @@ export function HomePage() {
             <Text style={styles.headerTitle}>Inicio</Text>
             <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
           </View>
-          {isWeb && isMobile && <DownloadApkButton />}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <StreakBadge />
+            {isWeb && isMobile && <DownloadApkButton />}
+          </View>
         </View>
       </View>
       {loading ? (
@@ -69,6 +77,7 @@ export function HomePage() {
             <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
             <Text style={styles.sectionTitle}>Tendencias ahora</Text>
             <TrendingGrid trending={trending} onPress={handleAnimePress} />
+            <UpdateNotification />
             {loadingMoreState && (
               <View style={styles.loadingMoreContainer}>
                 <ActivityIndicator size="small" color="#8b5cf6" />

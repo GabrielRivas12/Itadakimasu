@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, View, ActivityIndicator, TouchableOpacity,
-  Text, Platform, BackHandler, StatusBar
+  Text, Platform, BackHandler, StatusBar, Dimensions
 } from 'react-native';
 import Video from 'react-native-video';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,7 +44,9 @@ async function enterImmersiveMode() {
 
 async function exitImmersiveMode() {
   try {
-    if (Platform.OS !== 'web') {
+    const { width, height } = Dimensions.get('window');
+    const esTablet = Math.min(width, height) >= 768;
+    if (Platform.OS !== 'web' && !esTablet) {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     }
     StatusBar.setTranslucent(true);

@@ -13,11 +13,11 @@ interface LibraryAnimeCardProps {
 
 export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnimeCardProps) {
   const { isWeb } = useResponsive();
-  
+
   if (!item || !item.anime) return null;
 
   const title = item.anime.title.romaji || item.anime.title.english || 'Anime Desconocido';
-  
+
   return (
     <TouchableOpacity
       style={[styles.card, width ? { width } : null, isWeb && styles.webCard]}
@@ -25,21 +25,26 @@ export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnim
       onPress={() => onPress(item.anime.id)}
     >
       <Image source={{ uri: item.anime.coverImage.large }} style={styles.cardImage} />
-      
+
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {title}
         </Text>
-        
+
         <View style={styles.metaRow}>
           {item.anime.averageScore && (
             <View style={styles.ratingBadge}>
               <Text style={styles.ratingText}>★ {(item.anime.averageScore / 10).toFixed(1)}</Text>
             </View>
           )}
-          <Text style={styles.episodesText}>
-            {item.anime.episodes ? `${item.anime.episodes} Eps` : 'En emisión'}
-          </Text>
+          {item.anime.episodes ? (
+            <View style={styles.episodesRow}>
+              <Ionicons name="tv-outline" size={14} color="#94a3b8" />
+              <Text style={styles.episodesText}>{item.anime.episodes}</Text>
+            </View>
+          ) : (
+            <Text style={styles.episodesText}>En emisión</Text>
+          )}
         </View>
 
         <View style={styles.genreTagsContainer}>
@@ -110,6 +115,11 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  episodesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   episodesText: {
     color: '#94a3b8',

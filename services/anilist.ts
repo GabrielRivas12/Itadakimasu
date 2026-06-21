@@ -48,6 +48,11 @@ export interface Anime {
   type: string;
   isAdult?: boolean;
   description?: string;
+  trailer?: {
+    id: string;
+    site: string;
+    thumbnail: string | null;
+  };
   status?: string;
   startDate?: {
     year: number | null;
@@ -360,6 +365,11 @@ query($id: Int) {
     genres
     isAdult
     description
+    trailer {
+      id
+      site
+      thumbnail
+    }
     type
     season
     seasonYear

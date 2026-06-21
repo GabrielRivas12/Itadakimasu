@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 import { clearLocalList, mergeGuestListIntoUser } from './animeList';
+import { clearAllCaches } from './dataPreloader';
+import { clearStreakCache } from './streak';
 import { asegurarFirebaseApp } from './firebaseConfig';
 
 export interface UserInfo {
@@ -16,7 +18,7 @@ let googleProviderWeb: any = null;
 // Función para obtener la instancia web
 function getWebAuth() {
   if (Platform.OS === 'web' && !webAuth) {
-    asegurarFirebaseApp(); //  ASEGURAMOS INICIALIZACIÓN
+    asegurarFirebaseApp(); // ASEGURAMOS INICIALIZACIÓN
     const { getAuth, GoogleAuthProvider } = require('firebase/auth');
     webAuth = getAuth();
     googleProviderWeb = new GoogleAuthProvider();
@@ -33,12 +35,12 @@ if (Platform.OS !== 'web') {
   });
 }
 
-//INICIO DE SESIÓN CON GOOGLE
+// INICIO DE SESIÓN CON GOOGLE
 export async function signInWithGoogle(): Promise<UserInfo | null> {
   try {
     let user: any = null;
 
-    //  WEB
+    // WEB
     if (Platform.OS === 'web') {
       const { signInWithPopup } = require('firebase/auth');
       const { webAuth: authInstance, googleProviderWeb: provider } = getWebAuth();
@@ -50,11 +52,11 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
       const result = await signInWithPopup(authInstance, provider);
       user = result.user;
     }
-    //  MÓVIL
+    // MÓVIL
     else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-      const authMobile = require('@react-native-firebase/auth').default;
-      const { GoogleAuthProvider } = require('@react-native-firebase/auth');
+      // Corrección Modular Nativa
+      const { getAuth, GoogleAuthProvider, signInWithCredential } = require('@react-native-firebase/auth');
 
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const response = await GoogleSignin.signIn();
@@ -65,7 +67,8 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
       }
 
       const googleCredential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await authMobile().signInWithCredential(googleCredential);
+      // Usamos signInWithCredential pasando getAuth()
+      const userCredential = await signInWithCredential(getAuth(), googleCredential);
       user = userCredential.user;
     }
 
@@ -91,7 +94,11 @@ export async function signOutGoogle(): Promise<void> {
   try {
     console.log('Iniciando proceso de cierre de sesión...');
 
-    // 1. Limpiar el caché local del usuario
+    // 1. Limpiar la caché en memoria del preloader
+    clearAllCaches();
+    clearStreakCache();
+
+    // 2. Limpiar el caché local del usuario (móvil)
     if (Platform.OS !== 'web') {
       try {
         await clearLocalList();
@@ -100,7 +107,7 @@ export async function signOutGoogle(): Promise<void> {
       }
     }
 
-    // 2. Cerrar sesión según plataforma
+    // 3. Cerrar sesión según plataforma
     if (Platform.OS === 'web') {
       const { signOut } = require('firebase/auth');
       const { webAuth: authInstance } = getWebAuth();
@@ -109,22 +116,21 @@ export async function signOutGoogle(): Promise<void> {
       }
     } else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-      const authMobile = require('@react-native-firebase/auth').default;
+      // Corrección Modular Nativa
+      const { getAuth, signOut } = require('@react-native-firebase/auth');
 
       // Intentar cerrar sesión de Google 
       try {
-        const isSignedIn = await GoogleSignin.isSignedIn();
-        if (isSignedIn) {
-          await GoogleSignin.signOut();
-        }
+        await GoogleSignin.signOut();
       } catch (e) {
         console.warn('Error al cerrar sesión en Google Sign-In:', e);
       }
 
       // Cerrar sesión en Auth Móvil
       try {
-        if (authMobile().currentUser) {
-          await authMobile().signOut();
+        const authMobile = getAuth();
+        if (authMobile.currentUser) {
+          await signOut(authMobile);
         }
       } catch (e) {
         console.error('Error al cerrar sesión en Firebase Auth Móvil:', e);
@@ -155,9 +161,9 @@ export function onAuthStateChangedCallback(callback: (user: UserInfo | null) => 
       }
     });
   } else {
-    const authMobile = require('@react-native-firebase/auth').default;
-    const { onAuthStateChanged } = require('@react-native-firebase/auth');
-    return onAuthStateChanged(authMobile(), (user: any) => {
+    // Corrección Modular Nativa
+    const { getAuth, onAuthStateChanged } = require('@react-native-firebase/auth');
+    return onAuthStateChanged(getAuth(), (user: any) => {
       if (user) {
         callback({
           uid: user.uid,
@@ -172,6 +178,30 @@ export function onAuthStateChangedCallback(callback: (user: UserInfo | null) => 
   }
 }
 
+// ELIMINAR CUENTA DE FIREBASE
+export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (Platform.OS === 'web') {
+      const { deleteUser } = require('firebase/auth');
+      const { webAuth: authInstance } = getWebAuth();
+      const user = authInstance?.currentUser;
+      if (!user) throw new Error('No hay usuario autenticado');
+      await deleteUser(user);
+    } else {
+      // Corrección Modular Nativa
+      const { getAuth, deleteUser } = require('@react-native-firebase/auth');
+      const authMobile = getAuth();
+      const user = authMobile.currentUser;
+      if (!user) throw new Error('No hay usuario autenticado');
+      await deleteUser(user);
+    }
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al eliminar cuenta:', error);
+    return { success: false, error: error.message || 'Error al eliminar la cuenta' };
+  }
+}
+
 // OBTENER USUARIO ACTUAL
 export function getCurrentUser(): UserInfo | null {
   let user: any = null;
@@ -180,8 +210,9 @@ export function getCurrentUser(): UserInfo | null {
     const { webAuth: authInstance } = getWebAuth();
     user = authInstance?.currentUser;
   } else {
-    const authMobile = require('@react-native-firebase/auth').default;
-    user = authMobile().currentUser;
+    // Corrección Modular Nativa
+    const { getAuth } = require('@react-native-firebase/auth');
+    user = getAuth().currentUser;
   }
 
   if (user) {

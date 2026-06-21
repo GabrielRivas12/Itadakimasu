@@ -1,174 +1,115 @@
-import React, { memo, useCallback } from 'react';
+import React from 'react';
 import {
   StyleSheet,
-  FlatList,
   View,
   Text,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { UserHeader } from '../components/UserHeader';
+import { ProfileSkeleton } from '../components/ProfileSkeleton';
 import { SettingsButton } from '../../settings/components/SettingsButton';
-import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
-import { StatsCard } from '../components/StatsCard';
-import { StatusTabs } from '../components/StatusTabs';
-import { LibraryAnimeCard } from '../components/LibraryAnimeCard';
-import { ProfileEmptyList } from '../components/ProfileEmptyList';
+import { TopAnime } from '../components/TopAnime';
 import { useProfile } from '../hooks/useProfile';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
-export const ProfilePage = memo(function ProfilePage() {
+export const ProfilePage = () => {
   usePortraitOrientation();
-  const router = useRouter();
   const {
     user,
     isLoading,
-    activeTab,
-    setActiveTab,
-    filteredList,
-    countInProcess,
-    countCompleted,
-    countPlanToWatch,
     handleLogin,
     handleLogout,
-    handleRemove,
-    handleAnimePress,
-    loadList,
   } = useProfile();
 
-  useFocusEffect(
-    useCallback(() => {
-      loadList(true);
-    }, [loadList])
-  );
-
-  const { isWeb, getContentWidth, getColumns, isMobile } = useResponsive();
-  const columns = getColumns(1, 1, 2, 2);
+  const { isWeb, getContentWidth, isMobile } = useResponsive();
+  const contentWidth = isWeb ? getContentWidth() : '100%';
 
   if (isLoading) {
-    return <View style={styles.container} />;
+    return <ProfileSkeleton />;
   }
-
-  const contentWidth = isWeb ? getContentWidth() : '100%';
 
   return (
     <View style={styles.container}>
-      <FlatList
-        key={columns}
-        data={filteredList}
-        keyExtractor={(item) => item.anime.id.toString()}
-        numColumns={columns}
+      <ScrollView
         contentContainerStyle={[
-          styles.listContent,
+          styles.scrollContent,
           isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
           isWeb && isMobile && { paddingHorizontal: 16 }
         ]}
-        columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View style={isWeb && { width: '100%', marginBottom: 10 }}>
-            <View style={[
-              styles.header,
-              isWeb && { paddingHorizontal: 0 },
-              isWeb && isMobile && { paddingTop: 20 }
-            ]}>
-              <View style={styles.headerTop}>
-                <Text style={styles.headerTitle}>Mi Perfil</Text>
-                <SettingsButton />
-              </View>
-              <Text style={styles.headerSubtitle}>Gestiona tu colección</Text>
+      >
+        <View style={[
+          styles.header,
+          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+          isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+        ]}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Mi Perfil</Text>
+              <Text style={styles.headerSubtitle}>Configuración de la cuenta</Text>
+            </View>
+            <SettingsButton />
+          </View>
+        </View>
+
+        {user ? (
+          <View style={[styles.sectionContainer, isWeb && { paddingHorizontal: 0 }]}>
+            <View style={styles.userRow}>
+              <UserHeader
+                name={user.name || 'Usuario'}
+                role="Cuenta sincronizada con Google"
+                avatarUrl={user.photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+              />
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Ionicons name="log-out-outline" size={24} color="#ef4444" />
+              </TouchableOpacity>
             </View>
 
-            {user ? (
-              <View style={[styles.headerContainer, isWeb && { paddingHorizontal: 0 }]}>
-                <UserHeader
-                  name={user.name || 'Usuario'}
-                  role="Cuenta sincronizada con Google"
-                  avatarUrl={user.photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
-                />
-                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                  <Ionicons name="log-out-outline" size={24} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={[styles.loginContainer, isWeb && { paddingHorizontal: 0 }]}>
-                <View style={[styles.loginCard, isWeb && { maxWidth: 600, marginHorizontal: 'auto', width: '100%' }]}>
-                  <Text style={styles.loginText}>
-                    Inicia sesión con tu cuenta de Google para tener tu lista en todos tus dispositivos
-                  </Text>
-                  <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-                    <Ionicons name="logo-google" size={20} color="#ffffff" style={styles.buttonIcon} />
-                    <Text style={styles.loginButtonText}>Iniciar sesión con Google</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+            <TopAnime />
 
-            <UpdateNotification />
-
-            <View style={isWeb && { paddingHorizontal: 0 }}>
-              <StatsCard
-                inProcess={countInProcess}
-                completed={countCompleted}
-                planToWatch={countPlanToWatch}
-              />
-
-              <StatusTabs
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-              />
+          </View>
+        ) : (
+          <View style={[styles.loginContainer, isWeb && { paddingHorizontal: 0 }]}>
+            <View style={[styles.loginCard, isWeb && { maxWidth: 600, marginHorizontal: 'auto', width: '100%' }]}>
+              <Ionicons name="person-circle-outline" size={64} color="#475569" />
+              <Text style={styles.loginTitle}>Bienvenido</Text>
+              <Text style={styles.loginText}>
+                Inicia sesión con tu cuenta de Google para tener tu lista en todos tus dispositivos
+              </Text>
+              <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+                <Ionicons name="logo-google" size={20} color="#ffffff" style={styles.buttonIcon} />
+                <Text style={styles.loginButtonText}>Iniciar sesión con Google</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        }
-        ListEmptyComponent={
-          <ProfileEmptyList
-            activeTab={activeTab}
-            onExplorePress={() => router.push('/explore')}
-          />
-        }
-        renderItem={({ item }) => (
-          <LibraryAnimeCard
-            item={item}
-            onPress={handleAnimePress}
-            onRemove={handleRemove}
-            width={columns > 1 ? `${100 / columns - 1}%` : undefined}
-          />
         )}
-      />
+      </ScrollView>
     </View>
   );
-});
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0b0f19',
   },
-  flex: {
-    flex: 1,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingRight: 0,
-  },
-  logoutButton: {
-    padding: 8,
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
   },
   header: {
-    paddingHorizontal: 0,
+    paddingHorizontal: 4,
     paddingTop: 45,
     paddingBottom: 15,
     backgroundColor: '#0b0f19',
   },
-  headerTop: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
   },
   headerTitle: {
     color: '#ffffff',
@@ -180,12 +121,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+  sectionContainer: {
+    marginBottom: 24,
   },
-  gridRow: {
+  userRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  logoutButton: {
+    padding: 8,
+  },
+  infoCard: {
+    backgroundColor: '#161b2c',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2d3748',
+    overflow: 'hidden',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d3748',
+    gap: 12,
+  },
+  infoRowLast: {
+    borderBottomWidth: 0,
+  },
+  infoText: {
+    color: '#cbd5e1',
+    fontSize: 14,
   },
   loginContainer: {
     paddingVertical: 10,
@@ -194,10 +161,17 @@ const styles = StyleSheet.create({
   loginCard: {
     backgroundColor: '#161b2c',
     borderRadius: 16,
-    padding: 24,
+    padding: 32,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2d3748',
+  },
+  loginTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
   },
   loginText: {
     color: '#94a3b8',

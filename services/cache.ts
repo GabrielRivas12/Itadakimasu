@@ -8,6 +8,8 @@ export const cacheKeys = {
   ANIME_DETAILS: (id: number) => `cache:anime_details:${id}`,
   ADULT_CONTENT: 'setting:adult_content',
   NOTIFICATIONS_ENABLED: 'setting:notifications_enabled',
+  EPISODE_ORDER: 'setting:episode_order',
+  USER_TOP_ANIME: (uid: string) => `cache:user_top_anime:${uid}`,
 };
 
 export async function getIsAdultContentEnabled(): Promise<boolean> {
@@ -30,9 +32,13 @@ export async function setIsAdultContentEnabled(enabled: boolean): Promise<void> 
 export async function getIsNotificationsEnabled(): Promise<boolean> {
   try {
     const data = await AsyncStorage.getItem(cacheKeys.NOTIFICATIONS_ENABLED);
+    if (data === null) {
+      await setIsNotificationsEnabled(true);
+      return true;
+    }
     return data === 'true';
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -41,6 +47,23 @@ export async function setIsNotificationsEnabled(enabled: boolean): Promise<void>
     await AsyncStorage.setItem(cacheKeys.NOTIFICATIONS_ENABLED, enabled ? 'true' : 'false');
   } catch (error) {
     console.error('Error saving notifications setting:', error);
+  }
+}
+
+export async function getEpisodeOrder(): Promise<'asc' | 'desc'> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.EPISODE_ORDER);
+    return data === 'desc' ? 'desc' : 'asc';
+  } catch {
+    return 'asc';
+  }
+}
+
+export async function setEpisodeOrder(order: 'asc' | 'desc'): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.EPISODE_ORDER, order);
+  } catch (error) {
+    console.error('Error saving episode order setting:', error);
   }
 }
 
@@ -122,5 +145,22 @@ export async function cacheAnimeDetails(id: number, anime: Anime): Promise<void>
     await AsyncStorage.setItem(cacheKeys.ANIME_DETAILS(id), JSON.stringify(anime));
   } catch (error) {
     console.error('Error caching anime details:', error);
+  }
+}
+
+export async function getCachedTopAnime(uid: string): Promise<any[] | null> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.USER_TOP_ANIME(uid));
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheTopAnime(uid: string, list: any[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.USER_TOP_ANIME(uid), JSON.stringify(list));
+  } catch (error) {
+    console.error('Error caching top anime:', error);
   }
 }
