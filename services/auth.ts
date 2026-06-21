@@ -17,7 +17,7 @@ let googleProviderWeb: any = null;
 // Función para obtener la instancia web
 function getWebAuth() {
   if (Platform.OS === 'web' && !webAuth) {
-    asegurarFirebaseApp(); //  ASEGURAMOS INICIALIZACIÓN
+    asegurarFirebaseApp(); // ASEGURAMOS INICIALIZACIÓN
     const { getAuth, GoogleAuthProvider } = require('firebase/auth');
     webAuth = getAuth();
     googleProviderWeb = new GoogleAuthProvider();
@@ -34,12 +34,12 @@ if (Platform.OS !== 'web') {
   });
 }
 
-//INICIO DE SESIÓN CON GOOGLE
+// INICIO DE SESIÓN CON GOOGLE
 export async function signInWithGoogle(): Promise<UserInfo | null> {
   try {
     let user: any = null;
 
-    //  WEB
+    // WEB
     if (Platform.OS === 'web') {
       const { signInWithPopup } = require('firebase/auth');
       const { webAuth: authInstance, googleProviderWeb: provider } = getWebAuth();
@@ -51,11 +51,11 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
       const result = await signInWithPopup(authInstance, provider);
       user = result.user;
     }
-    //  MÓVIL
+    // MÓVIL
     else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-      const authMobile = require('@react-native-firebase/auth').default;
-      const { GoogleAuthProvider } = require('@react-native-firebase/auth');
+      // Corrección Modular Nativa
+      const { getAuth, GoogleAuthProvider, signInWithCredential } = require('@react-native-firebase/auth');
 
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const response = await GoogleSignin.signIn();
@@ -66,7 +66,8 @@ export async function signInWithGoogle(): Promise<UserInfo | null> {
       }
 
       const googleCredential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await authMobile().signInWithCredential(googleCredential);
+      // Usamos signInWithCredential pasando getAuth()
+      const userCredential = await signInWithCredential(getAuth(), googleCredential);
       user = userCredential.user;
     }
 
@@ -113,7 +114,8 @@ export async function signOutGoogle(): Promise<void> {
       }
     } else {
       const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-      const authMobile = require('@react-native-firebase/auth').default;
+      // Corrección Modular Nativa
+      const { getAuth, signOut } = require('@react-native-firebase/auth');
 
       // Intentar cerrar sesión de Google 
       try {
@@ -127,8 +129,9 @@ export async function signOutGoogle(): Promise<void> {
 
       // Cerrar sesión en Auth Móvil
       try {
-        if (authMobile().currentUser) {
-          await authMobile().signOut();
+        const authMobile = getAuth();
+        if (authMobile.currentUser) {
+          await signOut(authMobile);
         }
       } catch (e) {
         console.error('Error al cerrar sesión en Firebase Auth Móvil:', e);
@@ -159,9 +162,9 @@ export function onAuthStateChangedCallback(callback: (user: UserInfo | null) => 
       }
     });
   } else {
-    const authMobile = require('@react-native-firebase/auth').default;
-    const { onAuthStateChanged } = require('@react-native-firebase/auth');
-    return onAuthStateChanged(authMobile(), (user: any) => {
+    // Corrección Modular Nativa
+    const { getAuth, onAuthStateChanged } = require('@react-native-firebase/auth');
+    return onAuthStateChanged(getAuth(), (user: any) => {
       if (user) {
         callback({
           uid: user.uid,
@@ -186,10 +189,12 @@ export async function deleteAccount(): Promise<{ success: boolean; error?: strin
       if (!user) throw new Error('No hay usuario autenticado');
       await deleteUser(user);
     } else {
-      const authMobile = require('@react-native-firebase/auth').default;
-      const user = authMobile().currentUser;
+      // Corrección Modular Nativa
+      const { getAuth, deleteUser } = require('@react-native-firebase/auth');
+      const authMobile = getAuth();
+      const user = authMobile.currentUser;
       if (!user) throw new Error('No hay usuario autenticado');
-      await user.delete();
+      await deleteUser(user);
     }
     return { success: true };
   } catch (error: any) {
@@ -206,8 +211,9 @@ export function getCurrentUser(): UserInfo | null {
     const { webAuth: authInstance } = getWebAuth();
     user = authInstance?.currentUser;
   } else {
-    const authMobile = require('@react-native-firebase/auth').default;
-    user = authMobile().currentUser;
+    // Corrección Modular Nativa
+    const { getAuth } = require('@react-native-firebase/auth');
+    user = getAuth().currentUser;
   }
 
   if (user) {

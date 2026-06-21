@@ -3,6 +3,18 @@ import { UserListItem } from './animeList';
 import { Anime } from './anilist';
 import { asegurarFirebaseApp } from './firebaseConfig';
 
+// Importaciones modulares para React Native Firebase (Elimina las advertencias)
+import firestore, { 
+  getFirestore,
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  deleteDoc, 
+  updateDoc, 
+  serverTimestamp 
+} from '@react-native-firebase/firestore';
+
 // Instancia de Firestore para Web diferida
 let webDb: any = null;
 function getWebFirestore() {
@@ -60,30 +72,27 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
     console.log(`Sincronizando anime ${animeId} (${item.anime.title?.romaji})...`);
 
     if (Platform.OS === 'web') {
-      const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
+      const { doc: webDoc, setDoc: webSetDoc, serverTimestamp: webServerTimestamp } = require('firebase/firestore');
       const db = getWebFirestore();
       
+      const docRef = webDoc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, animeId);
+      await webSetDoc(docRef, {
+        ...cleanItem,
+        animeId: Number(animeId),
+        userId: user.uid,
+        updatedAt: webServerTimestamp(),
+      }, { merge: true });
+    } else {
+      // Uso de la API modular nativa
+      const db = getFirestore();
       const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, animeId);
+      
       await setDoc(docRef, {
         ...cleanItem,
         animeId: Number(animeId),
         userId: user.uid,
         updatedAt: serverTimestamp(),
       }, { merge: true });
-    } else {
-      const firestore = require('@react-native-firebase/firestore').default;
-
-      await firestore()
-        .collection(ROOT_COLLECTION)
-        .doc(user.uid)
-        .collection(SUB_COLLECTION)
-        .doc(animeId)
-        .set({
-          ...cleanItem,
-          animeId: Number(animeId),
-          userId: user.uid,
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
     }
     console.log(`Sincronización exitosa para ID: ${animeId}`);
   } catch (error) {
@@ -91,7 +100,7 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
   }
 }
 
-//Obtiene la lista de usuario de Firestore
+// Obtiene la lista de usuario de Firestore
 export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
   try {
     const { getCurrentUser } = require('./auth');
@@ -101,16 +110,15 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
     asegurarFirebaseApp();
 
     if (Platform.OS === 'web') {
-      const { collection, getDocs } = require('firebase/firestore');
+      const { collection: webCollection, getDocs: webGetDocs } = require('firebase/firestore');
       const db = getWebFirestore();
       
-      const q = collection(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION);
-      const querySnapshot = await getDocs(q);
+      const q = webCollection(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION);
+      const querySnapshot = await webGetDocs(q);
       
       const list: UserListItem[] = [];
       querySnapshot.forEach((docSnapshot: any) => {
         const data = docSnapshot.data();
-        // Convertir Timestamp a string ISO si es necesario
         if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
           data.updatedAt = data.updatedAt.toDate().toISOString();
         }
@@ -121,17 +129,13 @@ export async function fetchUserListFromFirestore(): Promise<UserListItem[]> {
       });
       return list;
     } else {
-      const firestore = require('@react-native-firebase/firestore').default;
-      
-      const snapshot = await firestore()
-        .collection(ROOT_COLLECTION)
-        .doc(user.uid)
-        .collection(SUB_COLLECTION)
-        .get();
+      // Uso de la API modular nativa
+      const db = getFirestore();
+      const q = collection(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION);
+      const snapshot = await getDocs(q);
 
       return snapshot.docs.map((docSnapshot: any) => {
         const data = docSnapshot.data();
-        // Convertir Timestamp a string ISO si es necesario en móvil también
         if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
           data.updatedAt = data.updatedAt.toDate().toISOString();
         }
@@ -160,18 +164,15 @@ export async function removeFromFirestore(animeId: number): Promise<void> {
     console.log(`Eliminando anime ${id}...`);
 
     if (Platform.OS === 'web') {
-      const { doc, deleteDoc } = require('firebase/firestore');
+      const { doc: webDoc, deleteDoc: webDeleteDoc } = require('firebase/firestore');
       const db = getWebFirestore();
+      const docRef = webDoc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
+      await webDeleteDoc(docRef);
+    } else {
+      // Uso de la API modular nativa
+     const db = getFirestore();
       const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
       await deleteDoc(docRef);
-    } else {
-      const firestore = require('@react-native-firebase/firestore').default;
-      await firestore()
-        .collection(ROOT_COLLECTION)
-        .doc(user.uid)
-        .collection(SUB_COLLECTION)
-        .doc(id)
-        .delete();
     }
     console.log(`Anime eliminado con éxito.`);
   } catch (error) {
@@ -192,25 +193,21 @@ export async function updateProgressInFirestore(animeId: number, progress: numbe
     console.log(`⏳ [Firestore] Actualizando progreso de ${id} a ${progress}...`);
 
     if (Platform.OS === 'web') {
-      const { doc, updateDoc, serverTimestamp } = require('firebase/firestore');
+      const { doc: webDoc, updateDoc: webUpdateDoc, serverTimestamp: webServerTimestamp } = require('firebase/firestore');
       const db = getWebFirestore();
+      const docRef = webDoc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
+      await webUpdateDoc(docRef, {
+        progress,
+        updatedAt: webServerTimestamp(),
+      });
+    } else {
+      // Uso de la API modular nativa
+      const db = getFirestore();
       const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
       await updateDoc(docRef, {
         progress,
         updatedAt: serverTimestamp(),
       });
-    } else {
-      const firestore = require('@react-native-firebase/firestore').default;
-
-      await firestore()
-        .collection(ROOT_COLLECTION)
-        .doc(user.uid)
-        .collection(SUB_COLLECTION)
-        .doc(id)
-        .update({
-          progress,
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-        });
     }
     console.log(`Progreso actualizado para ID: ${id}`);
   } catch (error) {
@@ -233,26 +230,27 @@ export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<vo
     asegurarFirebaseApp();
 
     if (Platform.OS === 'web') {
-      const { doc, setDoc, serverTimestamp } = require('firebase/firestore');
+      const { doc: webDoc, setDoc: webSetDoc, serverTimestamp: webServerTimestamp } = require('firebase/firestore');
       const db = getWebFirestore();
       const batch = items.map(item => {
         const { ...data } = item;
         const clean = sanitizeObject(data);
-        const ref = doc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
-        return setDoc(ref, { ...clean, userId: user.uid, updatedAt: serverTimestamp() }, { merge: true });
+        const ref = webDoc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
+        return webSetDoc(ref, { ...clean, userId: user.uid, updatedAt: webServerTimestamp() }, { merge: true });
       });
       await Promise.all(batch);
     } else {
-      const firestore = require('@react-native-firebase/firestore').default;
+      // Uso de la API modular nativa
+      const db = getFirestore();
       const batch = items.map(item => {
         const { ...data } = item;
         const clean = sanitizeObject(data);
-        return firestore()
-          .collection(ROOT_COLLECTION)
-          .doc(user.uid)
-          .collection(TOP_SUB_COLLECTION)
-          .doc(String(item.animeId))
-          .set({ ...clean, userId: user.uid, updatedAt: firestore.FieldValue.serverTimestamp() }, { merge: true });
+        const docRef = doc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
+        return setDoc(docRef, { 
+          ...clean, 
+          userId: user.uid, 
+          updatedAt: serverTimestamp() 
+        }, { merge: true });
       });
       await Promise.all(batch);
     }
@@ -270,10 +268,10 @@ export async function fetchTopAnimeFromFirestore(): Promise<TopAnimeItem[]> {
     asegurarFirebaseApp();
 
     if (Platform.OS === 'web') {
-      const { collection, getDocs } = require('firebase/firestore');
+      const { collection: webCollection, getDocs: webGetDocs } = require('firebase/firestore');
       const db = getWebFirestore();
-      const q = collection(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION);
-      const querySnapshot = await getDocs(q);
+      const q = webCollection(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION);
+      const querySnapshot = await webGetDocs(q);
       const list: TopAnimeItem[] = [];
       querySnapshot.forEach((docSnapshot: any) => {
         const data = docSnapshot.data();
@@ -287,12 +285,11 @@ export async function fetchTopAnimeFromFirestore(): Promise<TopAnimeItem[]> {
       });
       return list;
     } else {
-      const firestore = require('@react-native-firebase/firestore').default;
-      const snapshot = await firestore()
-        .collection(ROOT_COLLECTION)
-        .doc(user.uid)
-        .collection(TOP_SUB_COLLECTION)
-        .get();
+      // Uso de la API modular nativa
+      const db = getFirestore();
+      const q = collection(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION);
+      const snapshot = await getDocs(q);
+      
       return snapshot.docs.map((docSnapshot: any) => {
         const data = docSnapshot.data();
         if (data.updatedAt && typeof data.updatedAt.toDate === 'function') {
@@ -319,17 +316,14 @@ export async function removeTopAnimeFromFirestore(animeId: number): Promise<void
     asegurarFirebaseApp();
 
     if (Platform.OS === 'web') {
-      const { doc, deleteDoc } = require('firebase/firestore');
+      const { doc: webDoc, deleteDoc: webDeleteDoc } = require('firebase/firestore');
       const db = getWebFirestore();
-      await deleteDoc(doc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(animeId)));
+      await webDeleteDoc(webDoc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(animeId)));
     } else {
-      const firestore = require('@react-native-firebase/firestore').default;
-      await firestore()
-        .collection(ROOT_COLLECTION)
-        .doc(user.uid)
-        .collection(TOP_SUB_COLLECTION)
-        .doc(String(animeId))
-        .delete();
+      // Uso de la API modular nativa
+      const db = getFirestore();
+      const docRef = doc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(animeId));
+      await deleteDoc(docRef);
     }
   } catch (error) {
     console.error('Error eliminando top anime:', error);
