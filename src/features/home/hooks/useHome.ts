@@ -123,7 +123,7 @@ export const useHome = () => {
 
     // Autenticación en web, para evitar fetch innecesarios del listado de usuario
     const unsubscribeAuth = onAuthStateChangedCallback(async (user) => {
-      console.log(`[useHome] Auth state changed. User: ${user ? 'Logged In' : 'Guest'}`);
+      //console.log(`[useHome] Auth state changed. User: ${user ? 'Logged In' : 'Guest'}`);
 
       // Limpiar datos de sesión si el usuario se desloguea
       isWaitingAuth.current = false;

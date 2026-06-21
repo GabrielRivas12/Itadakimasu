@@ -4,7 +4,7 @@ import { Anime } from './anilist';
 import { asegurarFirebaseApp } from './firebaseConfig';
 
 // Importaciones modulares para React Native Firebase (Elimina las advertencias)
-import firestore, { 
+import { 
   getFirestore,
   collection, 
   doc, 
