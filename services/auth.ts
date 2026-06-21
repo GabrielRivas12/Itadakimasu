@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { clearLocalList, mergeGuestListIntoUser } from './animeList';
+import { clearAllCaches } from './dataPreloader';
 import { asegurarFirebaseApp } from './firebaseConfig';
 
 export interface UserInfo {
@@ -91,7 +92,10 @@ export async function signOutGoogle(): Promise<void> {
   try {
     console.log('Iniciando proceso de cierre de sesión...');
 
-    // 1. Limpiar el caché local del usuario
+    // 1. Limpiar la caché en memoria del preloader
+    clearAllCaches();
+
+    // 2. Limpiar el caché local del usuario (móvil)
     if (Platform.OS !== 'web') {
       try {
         await clearLocalList();
@@ -100,7 +104,7 @@ export async function signOutGoogle(): Promise<void> {
       }
     }
 
-    // 2. Cerrar sesión según plataforma
+    // 3. Cerrar sesión según plataforma
     if (Platform.OS === 'web') {
       const { signOut } = require('firebase/auth');
       const { webAuth: authInstance } = getWebAuth();

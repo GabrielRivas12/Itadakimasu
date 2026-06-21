@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { CollectionSkeleton } from '../components/CollectionSkeleton';
 import { StatsCard } from '../components/StatsCard';
 import { StatusTabs } from '../components/StatusTabs';
 import { LibraryAnimeCard } from '../components/LibraryAnimeCard';
@@ -22,7 +21,7 @@ export const CollectionPage = memo(function CollectionPage() {
   const router = useRouter();
   const {
     user,
-    isLoading,
+    dataLoaded,
     activeTab,
     setActiveTab,
     filteredList,
@@ -35,11 +34,6 @@ export const CollectionPage = memo(function CollectionPage() {
 
   const { isWeb, getContentWidth, getColumns, isMobile } = useResponsive();
   const columns = getColumns(1, 1, 2, 2);
-
-  if (isLoading) {
-    return <CollectionSkeleton />;
-  }
-
   const contentWidth = isWeb ? getContentWidth() : '100%';
 
   return (
@@ -93,10 +87,12 @@ export const CollectionPage = memo(function CollectionPage() {
           </View>
         }
         ListEmptyComponent={
-          <CollectionEmptyList
-            activeTab={activeTab}
-            onExplorePress={() => router.push('/explore')}
-          />
+          dataLoaded ? (
+            <CollectionEmptyList
+              activeTab={activeTab}
+              onExplorePress={() => router.push('/explore')}
+            />
+          ) : null
         }
         renderItem={({ item }) => (
           <LibraryAnimeCard

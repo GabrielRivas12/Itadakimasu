@@ -9,6 +9,7 @@ import {
   animeListEvents
 } from '../../../../services/animeList';
 import { getCurrentUser } from '../../../../services/auth';
+import { getPreloadedUserList, getPreloadPromise } from '../../../../services/dataPreloader';
 
 let sessionList: UserListItem[] = [];
 let initialized = false;
@@ -17,18 +18,42 @@ export const useCollection = () => {
   const router = useRouter();
   const [list, setList] = useState<UserListItem[]>(sessionList);
   const [activeTab, setActiveTab] = useState<UserListStatus>('En Proceso');
-  const [isLoading, setIsLoading] = useState(!initialized);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const user = getCurrentUser();
 
   const loadList = useCallback(async (force = false) => {
-    if (!force && initialized && sessionList.length > 0) {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      if (sessionList.length > 0) {
+        sessionList = [];
+        initialized = false;
+        setList([]);
+      }
+      setDataLoaded(true);
       return;
     }
 
-    if (force && sessionList.length === 0) {
-      setIsLoading(true);
+    if (!force && initialized) {
+      return;
     }
 
+    // First load: try preloader cache
+    if (!initialized) {
+      const preloadPromise = getPreloadPromise();
+      if (preloadPromise) {
+        await preloadPromise;
+        const cached = getPreloadedUserList();
+        if (cached) {
+          sessionList = cached;
+          setList(cached);
+          initialized = true;
+          setDataLoaded(true);
+          return;
+        }
+      }
+    }
+
+    // Fetch fresh data (Firestore sync in background via getUserList)
     try {
       const userList = await getUserList();
       sessionList = userList;
@@ -37,15 +62,14 @@ export const useCollection = () => {
     } catch (e) {
       console.error('Error loading collection list:', e);
     } finally {
-      setIsLoading(false);
+      setDataLoaded(true);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (!user) return;
       loadList(true);
-    }, [user, loadList])
+    }, [loadList])
   );
 
   useEffect(() => {
@@ -99,7 +123,7 @@ export const useCollection = () => {
 
   return {
     user,
-    isLoading,
+    dataLoaded,
     activeTab,
     setActiveTab,
     filteredList,

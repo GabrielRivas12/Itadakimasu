@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Animated,
 } from 'react-native';
+import { preloadAllData } from '../../../../services/dataPreloader';
 import { FeaturedBanner } from '../components/FeaturedBanner';
 import { ContinueWatching } from '../components/ContinueWatching';
 import { TrendingGrid } from '../components/TrendingGrid';
@@ -31,6 +32,8 @@ export function HomePage() {
     handleAnimePress,
     handleScroll,
   } = useHome();
+
+  useEffect(() => { preloadAllData(); }, []);
 
   const { isWeb, getContentWidth, isMobile } = useResponsive();
 

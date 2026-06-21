@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { TopAnimeItem } from '../../../../services/firestore';
 import { getTopAnimeList, addToTopAnime, removeFromTopAnime, updateTopAnimeRank, topAnimeEvents } from '../../../../services/animeTop';
 import { Anime } from '../../../../services/anilist';
+import { getUserId } from '../../../hooks/userHelper';
 import { getUserList } from '../../../../services/animeList';
+import { getPreloadedTopAnime, getPreloadPromise } from '../../../../services/dataPreloader';
 
 export const useTopAnime = () => {
   const [topList, setTopList] = useState<TopAnimeItem[]>([]);
@@ -10,6 +12,24 @@ export const useTopAnime = () => {
   const [userList, setUserList] = useState<{ animeId: number; anime: Anime }[]>([]);
 
   const loadTop = useCallback(async () => {
+    if (!getUserId()) {
+      setTopList([]);
+      setLoading(false);
+      return;
+    }
+
+    // Try preloader cache first
+    const preloadPromise = getPreloadPromise();
+    if (preloadPromise) {
+      await preloadPromise;
+      const cached = getPreloadedTopAnime();
+      if (cached) {
+        setTopList(cached);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const list = await getTopAnimeList();
       setTopList(list);
