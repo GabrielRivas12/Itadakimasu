@@ -18,6 +18,7 @@ import {
   Anime1VInfo,
   Anime1VStreamLink,
 } from '../../../../services/anime1v';
+import { recordWatchSession } from '../../../../services/streak';
 import { SearchResult } from '../types/animeDetails';
 import {
   normalizeTitleStrict,
@@ -62,6 +63,8 @@ export const useAnimeDetails = () => {
   const EPISODES_PER_PAGE = 50;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const watchSessionStartRef = useRef<number | null>(null);
+  const accumulatedWatchTimeRef = useRef(0);
 
   const animeId = typeof id === 'string' ? parseInt(id, 10) : Array.isArray(id) ? parseInt(id[0], 10) : null;
 
@@ -122,6 +125,29 @@ export const useAnimeDetails = () => {
       fadeAnim.setValue(0);
     }
   }, [loading]);
+
+  useEffect(() => {
+    if (watchSessionStartRef.current !== null) {
+      const elapsed = (Date.now() - watchSessionStartRef.current) / 1000;
+      accumulatedWatchTimeRef.current += elapsed;
+    }
+    if (streamUrl) {
+      watchSessionStartRef.current = Date.now();
+    } else {
+      watchSessionStartRef.current = null;
+    }
+  }, [streamUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (watchSessionStartRef.current !== null) {
+        accumulatedWatchTimeRef.current += (Date.now() - watchSessionStartRef.current) / 1000;
+      }
+      if (accumulatedWatchTimeRef.current >= 120) {
+        recordWatchSession(Math.round(accumulatedWatchTimeRef.current));
+      }
+    };
+  }, []);
 
   const loadDetails = async (id: number) => {
     try {

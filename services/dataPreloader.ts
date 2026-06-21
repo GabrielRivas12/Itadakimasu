@@ -1,5 +1,6 @@
 import { getUserList, UserListItem } from './animeList';
 import { getTopAnimeList } from './animeTop';
+import { loadStreakFromFirestore } from './streak';
 import { getUserId } from '../src/hooks/userHelper';
 
 let cachedUserList: UserListItem[] | null = null;
@@ -21,6 +22,7 @@ export async function preloadAllData(): Promise<void> {
       const [userList, topAnime] = await Promise.all([
         getUserList(),
         getTopAnimeList(),
+        loadStreakFromFirestore(),
       ]);
       cachedUserList = userList;
       cachedTopAnime = topAnime;

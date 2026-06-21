@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { clearLocalList, mergeGuestListIntoUser } from './animeList';
 import { clearAllCaches } from './dataPreloader';
+import { clearStreakCache } from './streak';
 import { asegurarFirebaseApp } from './firebaseConfig';
 
 export interface UserInfo {
@@ -95,6 +96,7 @@ export async function signOutGoogle(): Promise<void> {
 
     // 1. Limpiar la caché en memoria del preloader
     clearAllCaches();
+    clearStreakCache();
 
     // 2. Limpiar el caché local del usuario (móvil)
     if (Platform.OS !== 'web') {
@@ -119,10 +121,7 @@ export async function signOutGoogle(): Promise<void> {
 
       // Intentar cerrar sesión de Google 
       try {
-        const isSignedIn = await GoogleSignin.isSignedIn();
-        if (isSignedIn) {
-          await GoogleSignin.signOut();
-        }
+        await GoogleSignin.signOut();
       } catch (e) {
         console.warn('Error al cerrar sesión en Google Sign-In:', e);
       }

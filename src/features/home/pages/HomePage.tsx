@@ -17,6 +17,7 @@ import { ResponsiveContainer } from '../../../components/common/ResponsiveContai
 import { useResponsive } from '../../../hooks/useResponsive';
 import { DownloadApkButton } from '../components/DownloadApkButton';
 import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
+import { StreakBadge } from '../components/StreakBadge';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
 export function HomePage() {
@@ -50,7 +51,10 @@ export function HomePage() {
             <Text style={styles.headerTitle}>Inicio</Text>
             <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
           </View>
-          {isWeb && isMobile && <DownloadApkButton />}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <StreakBadge />
+            {isWeb && isMobile && <DownloadApkButton />}
+          </View>
         </View>
       </View>
       {loading ? (
