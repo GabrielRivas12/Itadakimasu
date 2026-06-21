@@ -32,9 +32,13 @@ export async function setIsAdultContentEnabled(enabled: boolean): Promise<void> 
 export async function getIsNotificationsEnabled(): Promise<boolean> {
   try {
     const data = await AsyncStorage.getItem(cacheKeys.NOTIFICATIONS_ENABLED);
+    if (data === null) {
+      await setIsNotificationsEnabled(true);
+      return true;
+    }
     return data === 'true';
   } catch {
-    return false;
+    return true;
   }
 }
 

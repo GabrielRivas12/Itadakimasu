@@ -5,44 +5,49 @@ import { useStreak } from '../hooks/useStreak';
 
 export function StreakBadge() {
   const streak = useStreak();
-  const flameScale = useRef(new Animated.Value(1)).current;
-  const flameOpacity = useRef(new Animated.Value(1)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const flameRotate = useRef(new Animated.Value(0)).current;
+  const flameBob = useRef(new Animated.Value(0)).current;
+  const glowOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     if (streak && streak.currentStreak > 0) {
-      const flicker = Animated.parallel([
+      const rotateAnim = Animated.loop(
         Animated.sequence([
-          Animated.timing(flameScale, { toValue: 1.08, duration: 150, useNativeDriver: true }),
-          Animated.timing(flameScale, { toValue: 0.95, duration: 120, useNativeDriver: true }),
-          Animated.timing(flameScale, { toValue: 1.04, duration: 100, useNativeDriver: true }),
-          Animated.timing(flameScale, { toValue: 1, duration: 130, useNativeDriver: true }),
+          Animated.timing(flameRotate, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(flameRotate, { toValue: -1, duration: 250, useNativeDriver: true }),
+          Animated.timing(flameRotate, { toValue: 0.6, duration: 200, useNativeDriver: true }),
+          Animated.timing(flameRotate, { toValue: -0.6, duration: 180, useNativeDriver: true }),
+          Animated.timing(flameRotate, { toValue: 0, duration: 220, useNativeDriver: true }),
         ]),
-        Animated.sequence([
-          Animated.timing(flameOpacity, { toValue: 0.75, duration: 100, useNativeDriver: true }),
-          Animated.timing(flameOpacity, { toValue: 1, duration: 140, useNativeDriver: true }),
-          Animated.timing(flameOpacity, { toValue: 0.85, duration: 80, useNativeDriver: true }),
-          Animated.timing(flameOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
-        ]),
-        Animated.sequence([
-          Animated.timing(glowOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
-          Animated.timing(glowOpacity, { toValue: 0.3, duration: 100, useNativeDriver: true }),
-          Animated.timing(glowOpacity, { toValue: 0.7, duration: 80, useNativeDriver: true }),
-          Animated.timing(glowOpacity, { toValue: 0.5, duration: 100, useNativeDriver: true }),
-        ]),
-      ]);
+        { iterations: 3 }
+      );
 
-      const anim = Animated.loop(flicker, { iterations: 3 });
-      anim.start(() => {
-        flameScale.setValue(1);
-        flameOpacity.setValue(1);
-        glowOpacity.setValue(0);
-      });
-      return () => anim.stop();
+      const bobAnim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(flameBob, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.timing(flameBob, { toValue: 0, duration: 350, useNativeDriver: true }),
+        ]),
+        { iterations: 4 }
+      );
+
+      const glowAnim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(glowOpacity, { toValue: 0.2, duration: 400, useNativeDriver: true }),
+        ]),
+        { iterations: 3 }
+      );
+
+      const anim = Animated.parallel([rotateAnim, bobAnim, glowAnim], { stopTogether: true });
+      anim.start();
+
+      return () => {
+        anim.stop();
+      };
     } else {
-      flameScale.setValue(1);
-      flameOpacity.setValue(1);
-      glowOpacity.setValue(0);
+      flameRotate.setValue(0);
+      flameBob.setValue(0);
+      glowOpacity.setValue(0.3);
     }
   }, [streak?.currentStreak]);
 
@@ -54,13 +59,25 @@ export function StreakBadge() {
     );
   }
 
+  const rotation = flameRotate.interpolate({
+    inputRange: [-1, 1],
+    outputRange: ['-8deg', '8deg'],
+  });
+
+  const bobY = flameBob.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -3],
+  });
+
   return (
     <View style={styles.container}>
       <View style={styles.iconWrapper}>
         <Animated.View style={[styles.glow, { opacity: glowOpacity }]} />
         <Animated.View style={{
-          transform: [{ scale: flameScale }],
-          opacity: flameOpacity,
+          transform: [
+            { rotate: rotation },
+            { translateY: bobY },
+          ],
         }}>
           <Ionicons name="flame" size={22} color="#f97316" />
         </Animated.View>

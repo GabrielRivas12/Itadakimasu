@@ -26,6 +26,7 @@ import {
   getEpisodeOrder,
   setEpisodeOrder
 } from '../../../../services/cache';
+import { inicializarNotificaciones } from '../../../../services/notification';
 
 export const SettingsPage = () => {
   const router = useRouter();
@@ -97,6 +98,9 @@ export const SettingsPage = () => {
 
     setNotificationsEnabled(value);
     await setIsNotificationsEnabled(value);
+    if (value) {
+      await inicializarNotificaciones();
+    }
   };
 
   const handleSendReport = () => {
@@ -204,7 +208,7 @@ export const SettingsPage = () => {
               <View style={styles.settingIconContainer}>
                 <Ionicons name="person-outline" size={22} color="#8b5cf6" />
               </View>
-              <Text style={styles.settingLabel}>Editar Perfil</Text>
+              <Text style={styles.settingLabel}>Información de la cuenta</Text>
               <Ionicons name="chevron-forward" size={20} color="#475569" />
             </TouchableOpacity>
             <TouchableOpacity 
@@ -371,6 +375,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#2d3748',
+    gap: 12,
   },
   lastItem: {
     borderBottomWidth: 0,

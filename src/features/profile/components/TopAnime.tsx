@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TopAnimeItem } from '../../../../services/firestore';
 import { Anime, searchAnime } from '../../../../services/anilist';
 import { useTopAnime } from '../hooks/useTopAnime';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 function Pulse({ style, children }: { style?: any; children?: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0.3)).current;
@@ -36,6 +37,7 @@ function Pulse({ style, children }: { style?: any; children?: React.ReactNode })
 
 export function TopAnime() {
   const { topList, loading, userList, handleAdd, handleRemove, handleReorder } = useTopAnime();
+  const { isWeb } = useResponsive();
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [modalTab, setModalTab] = useState<'manage' | 'lista' | 'buscar'>('manage');
@@ -196,7 +198,7 @@ export function TopAnime() {
 
       <Modal visible={showModal} transparent animationType="fade" onRequestClose={() => setShowModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, isWeb && styles.modalContentWeb]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {modalTab === 'manage' ? 'Editar Top 10' : 'Agregar a Top 10'}
@@ -350,7 +352,7 @@ export function TopAnime() {
 
       <Modal visible={rankPickerVisible} transparent animationType="fade" onRequestClose={() => setRankPickerVisible(false)}>
         <View style={styles.rankPickerOverlay}>
-          <View style={styles.rankPickerContent}>
+          <View style={[styles.rankPickerContent, isWeb && styles.rankPickerContentWeb]}>
             <Text style={styles.rankPickerTitle}>Mover a posición</Text>
             <View style={styles.rankPickerGrid}>
               {Array.from({ length: topList.length }, (_, i) => i + 1).map(pos => (
@@ -583,6 +585,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
   },
+  modalContentWeb: {
+    maxWidth: 480,
+    alignSelf: 'center',
+    width: '100%',
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -752,6 +759,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
     alignItems: 'center',
+  },
+  rankPickerContentWeb: {
+    maxWidth: 400,
+    width: '100%',
   },
   rankPickerTitle: {
     color: '#ffffff',

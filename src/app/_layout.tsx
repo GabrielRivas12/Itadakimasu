@@ -12,6 +12,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { WebHeader } from '../components/common/WebHeader';
 import { WebAdBanner } from '../components/common/WebAdBanner';
+import { useEffect, useRef } from 'react';
+import {
+  inicializarNotificaciones,
+  suscribirseANotificaciones,
+  getNotificacionInicial,
+  onNotificacionAbierta,
+} from '../../services/notification';
+import { getIsNotificationsEnabled } from '../../services/cache';
 
 export default function RootLayout() {
   const { isWeb, isMobile } = useResponsive();
@@ -19,6 +27,39 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
   });
+  const notificacionInicialManejada = useRef(false);
+
+  useEffect(() => {
+    const init = async () => {
+      const enabled = await getIsNotificationsEnabled();
+      if (enabled) {
+        await inicializarNotificaciones();
+      }
+    };
+    init();
+
+    const unsuscribe = suscribirseANotificaciones((mensaje) => {
+      console.log('[Notificaciones] Recibida en la app:', mensaje);
+    });
+
+    const unsuscribeOpened = onNotificacionAbierta((mensaje) => {
+      console.log('[Notificaciones] Abierta desde notificación:', mensaje);
+    });
+
+    if (!notificacionInicialManejada.current) {
+      notificacionInicialManejada.current = true;
+      getNotificacionInicial().then((mensaje) => {
+        if (mensaje) {
+          console.log('[Notificaciones] App abierta desde notificación (killada):', mensaje);
+        }
+      });
+    }
+
+    return () => {
+      unsuscribe();
+      unsuscribeOpened();
+    };
+  }, []);
 
   if (!fontsLoaded && !fontError) {
     return <View style={{ flex: 1, backgroundColor: '#0b0f19' }} />;
