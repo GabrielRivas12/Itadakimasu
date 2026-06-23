@@ -10,7 +10,11 @@
   </url>
 
   <url>
-    <loc>https://itadakimasu.online/home/anime/</loc>
+    <loc>https://itadakimasu.online/trending</loc>
+  </url>
+
+  <url>
+    <loc>https://itadakimasu.online/trending-season</loc>
   </url>
  
   <url>
