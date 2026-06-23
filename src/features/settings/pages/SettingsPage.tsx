@@ -51,8 +51,22 @@ export const SettingsPage = () => {
       getIsNotificationsEnabled(),
       getEpisodeOrder()
     ]);
+
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      const hasPermission = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      if (!hasPermission && notificationsEnabled) {
+        setNotificationsEnabled(false);
+        await setIsNotificationsEnabled(false);
+      } else {
+        setNotificationsEnabled(notificationsEnabled);
+      }
+    } else {
+      setNotificationsEnabled(notificationsEnabled);
+    }
+
     setAdultContentEnabled(adultEnabled);
-    setNotificationsEnabled(notificationsEnabled);
     setEpisodeOrderState(order);
   };
 
