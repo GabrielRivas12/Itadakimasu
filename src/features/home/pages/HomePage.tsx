@@ -32,7 +32,7 @@ export function HomePage() {
     fadeAnim,
     onRefresh,
     handleAnimePress,
-    handleScroll,
+    loadMoreTrending,
   } = useHome();
 
   useEffect(() => { preloadAllData(); }, []);
@@ -65,8 +65,6 @@ export function HomePage() {
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <ResponsiveContainer
             contentContainerStyle={styles.scrollContent}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />
             }
@@ -75,8 +73,8 @@ export function HomePage() {
               <FeaturedBanner featured={featured} onPress={handleAnimePress} />
             )}
             <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
-            <Text style={styles.sectionTitle}>Tendencias ahora</Text>
-            <TrendingGrid trending={trending} onPress={handleAnimePress} />
+            {!isWeb && <Text style={styles.sectionTitle}>Tendencias ahora</Text>}
+            <TrendingGrid trending={trending} onPress={handleAnimePress} onLoadMore={loadMoreTrending} />
             <UpdateNotification />
             {loadingMoreState && (
               <View style={styles.loadingMoreContainer}>

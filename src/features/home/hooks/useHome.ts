@@ -162,20 +162,44 @@ export const useHome = () => {
     }
   }, [loading]);
 
-  const loadMoreData = async () => {
+  const fetchPage = async (page: number): Promise<Anime[]> => {
+    const data = await fetchTrendingAnime(page, 10);
+    if (data.length < 10) hasMoreRef.current = false;
+    return data;
+  };
+
+  const loadMoreTrending = async () => {
     if (loadingMoreRef.current || !hasMoreRef.current) return;
     loadingMoreRef.current = true;
-    setLoadingMoreState(true);
+
     try {
       const nextPage = pageRef.current + 1;
-      const trendingData = await fetchTrendingAnime(nextPage, 10);
-      if (trendingData.length < 10) hasMoreRef.current = false;
-      if (trendingData.length > 0) {
-        setTrending((prev) => [...prev, ...trendingData]);
+      const newData = await fetchPage(nextPage);
+
+      if (newData.length > 0) {
+        setTrending((prev) => {
+          const existingIds = new Set(prev.map(a => a.id));
+          const unique = newData.filter(a => !existingIds.has(a.id));
+          if (unique.length === 0) return prev;
+          return [...prev, ...unique];
+        });
         pageRef.current = nextPage;
+
+        if (hasMoreRef.current) {
+          fetchPage(nextPage + 1).then((prefetched) => {
+            if (prefetched.length > 0) {
+              setTrending((prev) => {
+                const existingIds = new Set(prev.map(a => a.id));
+                const unique = prefetched.filter(a => !existingIds.has(a.id));
+                if (unique.length === 0) return prev;
+                return [...prev, ...unique];
+              });
+            }
+          });
+        }
       }
     } catch (error) {
-      console.error('Error loading more trending anime:', error);
+      console.error('Error loading more trending:', error);
     } finally {
       loadingMoreRef.current = false;
       setLoadingMoreState(false);
@@ -191,13 +215,6 @@ export const useHome = () => {
     router.push({ pathname: '/animedetails', params: { id } });
   };
 
-  const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 150;
-    const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
-    if (isNearBottom) loadMoreData();
-  };
-
   return {
     trending,
     continueWatching,
@@ -208,6 +225,6 @@ export const useHome = () => {
     fadeAnim,
     onRefresh,
     handleAnimePress,
-    handleScroll,
+    loadMoreTrending,
   };
 };
