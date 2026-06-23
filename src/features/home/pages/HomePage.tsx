@@ -6,7 +6,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Animated,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { preloadAllData } from '../../../../services/dataPreloader';
 import { FeaturedBanner } from '../components/FeaturedBanner';
 import { ContinueWatching } from '../components/ContinueWatching';
@@ -17,11 +21,12 @@ import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { fetchSeasonalTrendingAnime, Anime } from '../../../../services/anilist';
-import { getCachedSeasonalList, cacheSeasonalList } from '../../../../services/cache';
+import { getCachedSeasonalList, cacheSeasonalList, setIsNotificationsEnabled } from '../../../../services/cache';
 import { DownloadApkButton } from '../components/DownloadApkButton';
 import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { StreakBadge } from '../components/StreakBadge';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
+import { inicializarNotificaciones } from '../../../../services/notification';
 
 export function HomePage() {
   usePortraitOrientation();
@@ -82,6 +87,36 @@ export function HomePage() {
   }, []);
 
   useEffect(() => { preloadAllData(); }, []);
+
+  useEffect(() => {
+    const checkAppVersion = async () => {
+      try {
+        const currentVersion = Constants.expoConfig?.version || '1.0.0';
+        const storedVersion = await AsyncStorage.getItem('@app_version');
+
+        if (storedVersion !== currentVersion) {
+          if (Platform.OS === 'android' && Platform.Version >= 33) {
+            const granted = await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+            );
+            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+              await inicializarNotificaciones();
+              await setIsNotificationsEnabled(true);
+            } else {
+              await setIsNotificationsEnabled(false);
+            }
+          } else if (Platform.OS !== 'web') {
+            const token = await inicializarNotificaciones();
+            await setIsNotificationsEnabled(token !== null);
+          }
+          await AsyncStorage.setItem('@app_version', currentVersion);
+        }
+      } catch (e) {
+        console.error('Error checking app version:', e);
+      }
+    };
+    checkAppVersion();
+  }, []);
 
   const { isWeb, getContentWidth, isMobile } = useResponsive();
 

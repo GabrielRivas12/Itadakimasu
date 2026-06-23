@@ -34,8 +34,8 @@ export async function getIsNotificationsEnabled(): Promise<boolean> {
   try {
     const data = await AsyncStorage.getItem(cacheKeys.NOTIFICATIONS_ENABLED);
     if (data === null) {
-      await setIsNotificationsEnabled(true);
-      return true;
+      await setIsNotificationsEnabled(false);
+      return false;
     }
     return data === 'true';
   } catch {
