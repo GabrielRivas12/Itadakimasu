@@ -88,7 +88,7 @@ export function HomePage() {
   return (
     <View style={styles.container}>
       <View style={[
-        styles.header, 
+        styles.header,
         isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
         isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
       ]}>
@@ -119,11 +119,11 @@ export function HomePage() {
               <FeaturedBanner featured={featured} onPress={handleAnimePress} />
             )}
             <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
+            <UpdateNotification />
             {!isWeb && <Text style={styles.sectionTitleSeason}>Tendencias de temporada</Text>}
             <TrendingSeason trending={seasonal} onPress={handleAnimePress} onLoadMore={loadMoreSeasonal} />
             {!isWeb && <Text style={styles.sectionTitle}>Tendencias ahora</Text>}
             <TrendingGrid trending={trending} onPress={handleAnimePress} onLoadMore={loadMoreTrending} />
-            <UpdateNotification />
             {loadingMoreState && (
               <View style={styles.loadingMoreContainer}>
                 <ActivityIndicator size="small" color="#8b5cf6" />
