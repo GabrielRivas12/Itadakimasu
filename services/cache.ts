@@ -4,6 +4,7 @@ import { Anime } from './anilist';
 export const cacheKeys = {
   TRENDING_BANNER: 'cache:trending_banner',
   TRENDING_LIST: 'cache:trending_list',
+  SEASONAL_LIST: 'cache:seasonal_list',
   CONTINUE_WATCHING: 'cache:continue_watching',
   ANIME_DETAILS: (id: number) => `cache:anime_details:${id}`,
   ADULT_CONTENT: 'setting:adult_content',
@@ -162,5 +163,22 @@ export async function cacheTopAnime(uid: string, list: any[]): Promise<void> {
     await AsyncStorage.setItem(cacheKeys.USER_TOP_ANIME(uid), JSON.stringify(list));
   } catch (error) {
     console.error('Error caching top anime:', error);
+  }
+}
+
+export async function getCachedSeasonalList(): Promise<Anime[] | null> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.SEASONAL_LIST);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheSeasonalList(list: Anime[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.SEASONAL_LIST, JSON.stringify(list));
+  } catch (error) {
+    console.error('Error caching seasonal list:', error);
   }
 }

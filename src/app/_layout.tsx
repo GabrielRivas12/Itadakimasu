@@ -84,6 +84,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
           <Stack.Screen name="animedetails" options={{ animation: 'none' }} />
           <Stack.Screen name="trending" options={{ animation: 'none' }} />
+          <Stack.Screen name="trending-season" options={{ animation: 'none' }} />
           <Stack.Screen name="(settings)/settings" options={{ animation: 'none' }} />
           <Stack.Screen name="(settings)/edit-profile" options={{ animation: 'none' }} />
           <Stack.Screen name="(settings)/privacy" options={{ animation: 'none' }} />
