@@ -158,7 +158,7 @@ export async function recordWatchSession(secondsWatched: number): Promise<void> 
   if (streak.lastWatchDate === yesterday) {
     streak.currentStreak += 1;
   } else if (streak.lastWatchDate && streak.lastWatchDate !== today) {
-    streak.currentStreak = 1;
+    streak.currentStreak = 0;
   } else {
     streak.currentStreak = 1;
   }

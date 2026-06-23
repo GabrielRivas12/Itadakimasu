@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, DimensionValue } from 'react-native';
 import { Anime } from '../../../../services/anilist';
-import { useResponsive } from '../../../hooks/useResponsive';
 
 interface AnimeGridCardProps {
   item: Anime;
@@ -10,8 +9,6 @@ interface AnimeGridCardProps {
 }
 
 export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress, width }: AnimeGridCardProps) {
-  const { isWeb, isMobile } = useResponsive();
-  
   return (
     <TouchableOpacity
       style={[styles.card, width ? { width } : null]}
@@ -19,7 +16,7 @@ export const AnimeGridCard = memo(function AnimeGridCard({ item, onPress, width 
     >
       <Image 
         source={{ uri: item.coverImage.large }} 
-        style={[styles.cardImage, isMobile && { height: 180 }]} 
+        style={styles.cardImage}
       />
       <View style={styles.cardBadge}>
         <Text style={styles.cardBadgeText}>{item.type}</Text>
@@ -58,7 +55,7 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    height: 240,
+    aspectRatio: 2 / 3,
   },
   cardBadge: {
     position: 'absolute',

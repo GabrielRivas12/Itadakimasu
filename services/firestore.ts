@@ -219,6 +219,8 @@ export interface TopAnimeItem {
   animeId: number;
   rank: number;
   addedAt: string;
+  updatedAt: string;
+  anime?: Anime;
 }
 
 export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<void> {
@@ -233,8 +235,8 @@ export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<vo
       const { doc: webDoc, setDoc: webSetDoc, serverTimestamp: webServerTimestamp } = require('firebase/firestore');
       const db = getWebFirestore();
       const batch = items.map(item => {
-        const { ...data } = item;
-        const clean = sanitizeObject(data);
+        const { anime, ...cleanData } = item;
+        const clean = sanitizeObject(cleanData);
         const ref = webDoc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
         return webSetDoc(ref, { ...clean, userId: user.uid, updatedAt: webServerTimestamp() }, { merge: true });
       });
@@ -243,8 +245,8 @@ export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<vo
       // Uso de la API modular nativa
       const db = getFirestore();
       const batch = items.map(item => {
-        const { ...data } = item;
-        const clean = sanitizeObject(data);
+        const { anime, ...cleanData } = item;
+        const clean = sanitizeObject(cleanData);
         const docRef = doc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
         return setDoc(docRef, { 
           ...clean, 

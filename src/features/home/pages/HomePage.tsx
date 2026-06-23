@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,10 +11,13 @@ import { preloadAllData } from '../../../../services/dataPreloader';
 import { FeaturedBanner } from '../components/FeaturedBanner';
 import { ContinueWatching } from '../components/ContinueWatching';
 import { TrendingGrid } from '../components/TrendingGrid';
+import { TrendingSeason } from '../components/TrendingSeason';
 import { HomeSkeleton } from '../components/HomeSkeleton';
 import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
+import { fetchSeasonalTrendingAnime, Anime } from '../../../../services/anilist';
+import { getCachedSeasonalList, cacheSeasonalList } from '../../../../services/cache';
 import { DownloadApkButton } from '../components/DownloadApkButton';
 import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { StreakBadge } from '../components/StreakBadge';
@@ -32,8 +35,51 @@ export function HomePage() {
     fadeAnim,
     onRefresh,
     handleAnimePress,
-    handleScroll,
+    loadMoreTrending,
   } = useHome();
+
+  const [seasonal, setSeasonal] = useState<Anime[]>([]);
+  const seasonalPageRef = useRef(1);
+  const seasonalHasMoreRef = useRef(true);
+  const seasonalLoadingMoreRef = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      const cached = await getCachedSeasonalList();
+      if (cached && cached.length > 0) {
+        setSeasonal(cached);
+      }
+
+      const fresh = await fetchSeasonalTrendingAnime(1, 10);
+      if (fresh.length > 0) {
+        setSeasonal(fresh);
+        seasonalHasMoreRef.current = fresh.length >= 10;
+        await cacheSeasonalList(fresh);
+      }
+    })();
+  }, []);
+
+  const loadMoreSeasonal = useCallback(async () => {
+    if (seasonalLoadingMoreRef.current || !seasonalHasMoreRef.current) return;
+    seasonalLoadingMoreRef.current = true;
+    try {
+      const nextPage = seasonalPageRef.current + 1;
+      const data = await fetchSeasonalTrendingAnime(nextPage, 10);
+      if (data.length > 0) {
+        setSeasonal((prev) => {
+          const existingIds = new Set(prev.map(a => a.id));
+          const unique = data.filter(a => !existingIds.has(a.id));
+          return [...prev, ...unique];
+        });
+        seasonalPageRef.current = nextPage;
+        if (data.length < 10) seasonalHasMoreRef.current = false;
+      }
+    } catch (e) {
+      console.error('Error loading more seasonal:', e);
+    } finally {
+      seasonalLoadingMoreRef.current = false;
+    }
+  }, []);
 
   useEffect(() => { preloadAllData(); }, []);
 
@@ -65,8 +111,6 @@ export function HomePage() {
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <ResponsiveContainer
             contentContainerStyle={styles.scrollContent}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />
             }
@@ -75,8 +119,10 @@ export function HomePage() {
               <FeaturedBanner featured={featured} onPress={handleAnimePress} />
             )}
             <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
-            <Text style={styles.sectionTitle}>Tendencias ahora</Text>
-            <TrendingGrid trending={trending} onPress={handleAnimePress} />
+            {!isWeb && <Text style={styles.sectionTitleSeason}>Tendencias de temporada</Text>}
+            <TrendingSeason trending={seasonal} onPress={handleAnimePress} onLoadMore={loadMoreSeasonal} />
+            {!isWeb && <Text style={styles.sectionTitle}>Tendencias ahora</Text>}
+            <TrendingGrid trending={trending} onPress={handleAnimePress} onLoadMore={loadMoreTrending} />
             <UpdateNotification />
             {loadingMoreState && (
               <View style={styles.loadingMoreContainer}>
@@ -125,6 +171,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginHorizontal: 16,
     marginTop: 24,
+    marginBottom: 16,
+  },
+  sectionTitleSeason: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginHorizontal: 16,
+    marginTop: 8,
     marginBottom: 16,
   },
   loadingMoreContainer: {

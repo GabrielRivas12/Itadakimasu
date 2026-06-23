@@ -3,14 +3,21 @@ import { StyleSheet, View, Text, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStreak } from '../hooks/useStreak';
 
+function getToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function StreakBadge() {
   const streak = useStreak();
   const flameRotate = useRef(new Animated.Value(0)).current;
   const flameBob = useRef(new Animated.Value(0)).current;
   const glowOpacity = useRef(new Animated.Value(0.3)).current;
 
+  const isActive = streak !== null && streak.currentStreak > 0 && streak.lastWatchDate === getToday();
+
   useEffect(() => {
-    if (streak && streak.currentStreak > 0) {
+    if (isActive) {
       const rotateAnim = Animated.loop(
         Animated.sequence([
           Animated.timing(flameRotate, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -49,12 +56,24 @@ export function StreakBadge() {
       flameBob.setValue(0);
       glowOpacity.setValue(0.3);
     }
-  }, [streak?.currentStreak]);
+  }, [isActive]);
 
-  if (!streak || streak.currentStreak === 0) {
+  const hasStreak = streak !== null && streak.currentStreak > 0;
+  const isInactiveToday = hasStreak && streak.lastWatchDate !== getToday();
+
+  if (!hasStreak) {
     return (
       <View style={styles.container}>
         <Ionicons name="flame-outline" size={22} color="#475569" />
+      </View>
+    );
+  }
+
+  if (isInactiveToday) {
+    return (
+      <View style={styles.container}>
+        <Ionicons name="flame-outline" size={22} color="#475569" />
+        <Text style={styles.counterGray}>{streak.currentStreak}</Text>
       </View>
     );
   }
@@ -112,6 +131,11 @@ const styles = StyleSheet.create({
   },
   counter: {
     color: '#f97316',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  counterGray: {
+    color: '#475569',
     fontSize: 14,
     fontWeight: 'bold',
   },

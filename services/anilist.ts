@@ -217,6 +217,71 @@ query($page: Int, $perPage: Int) {
   }
 }
 
+export function getCurrentSeason(): { season: AnimeSeason; year: number } {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  let season: AnimeSeason;
+  if (month >= 1 && month <= 3) season = 'WINTER';
+  else if (month >= 4 && month <= 6) season = 'SPRING';
+  else if (month >= 7 && month <= 9) season = 'SUMMER';
+  else season = 'FALL';
+
+  return { season, year };
+}
+
+export async function fetchSeasonalTrendingAnime(page = 1, perPage = 10): Promise<Anime[]> {
+  const { season, year } = getCurrentSeason();
+
+  const query = `
+query($page: Int, $perPage: Int, $season: MediaSeason, $seasonYear: Int) {
+  Page(page: $page, perPage: $perPage) {
+    media(season: $season, seasonYear: $seasonYear, sort: TRENDING_DESC, type: ANIME) {
+      id
+      idMal
+      title {
+        romaji
+        english
+        native
+      }
+      coverImage {
+        large
+        medium
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      description
+    }
+  }
+}
+`;
+
+  try {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { page, perPage, season, seasonYear: year },
+      }),
+    });
+
+    const json = await response.json();
+    return json?.data?.Page?.media || [];
+  } catch (error) {
+    console.error('Error fetching seasonal trending anime:', error);
+    return [];
+  }
+}
+
 export async function fetchPopularAnime(page = 1, perPage = 10): Promise<Anime[]> {
   const query = `
 query($page: Int, $perPage: Int) {

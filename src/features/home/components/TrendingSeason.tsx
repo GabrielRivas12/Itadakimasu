@@ -5,14 +5,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { Anime } from '../../../../services/anilist';
 import { useResponsive } from '../../../hooks/useResponsive';
 
+export function getSeasonLabel(): string {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  let season: string;
+  if (month >= 1 && month <= 3) season = 'Invierno';
+  else if (month >= 4 && month <= 6) season = 'Primavera';
+  else if (month >= 7 && month <= 9) season = 'Verano';
+  else season = 'Otoño';
+  return `${season} ${now.getFullYear()}`;
+}
 
-interface TrendingGridProps {
+interface TrendingSeasonProps {
   trending: Anime[];
   onPress: (id: number) => void;
   onLoadMore?: () => void;
 }
 
-function WebTrendingGrid({ trending, onPress }: { trending: Anime[]; onPress: (id: number) => void }) {
+function WebTrendingSeason({ trending, onPress }: { trending: Anime[]; onPress: (id: number) => void }) {
   const router = useRouter();
   const { getColumns } = useResponsive();
   const columns = getColumns(2, 4, 4, 5);
@@ -21,8 +31,8 @@ function WebTrendingGrid({ trending, onPress }: { trending: Anime[]; onPress: (i
   return (
     <View style={styles.webContainer}>
       <View style={styles.webHeader}>
-        <Text style={styles.sectionTitle}>Tendencias</Text>
-        <TouchableOpacity style={styles.verMasButton} onPress={() => router.push('/trending')}>
+        <Text style={styles.sectionTitle}>Tendencias de temporada {getSeasonLabel()}</Text>
+        <TouchableOpacity style={styles.verMasButton} onPress={() => router.push('/trending-season')}>
           <Text style={styles.verMasText}>Ver más</Text>
           <Ionicons name="chevron-forward" size={14} color="#8b5cf6" />
         </TouchableOpacity>
@@ -31,25 +41,25 @@ function WebTrendingGrid({ trending, onPress }: { trending: Anime[]; onPress: (i
         {display.map((item) => (
           <TouchableOpacity
             key={item.id}
-            style={[styles.webCard, { width: `${100 / columns - 2}%` }]}
+            style={[styles.card, { width: `${100 / columns - 2}%` }]}
             onPress={() => onPress(item.id)}
             activeOpacity={0.8}
           >
             <Image
               source={{ uri: item.coverImage.large }}
-              style={styles.webCardImage}
+              style={styles.cardImage}
             />
             {item.averageScore && (
               <View style={styles.ratingBadge}>
                 <Text style={styles.ratingText}>★ {(item.averageScore / 10).toFixed(1)}</Text>
               </View>
             )}
-            <View style={styles.webCardContent}>
-              <Text style={styles.webCardTitle} numberOfLines={1}>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
                 {item.title.romaji || item.title.english}
               </Text>
-              <Text style={styles.webCardEpisodeInfo}>
-                {item.episodes ? `${item.episodes} Episodios` : 'En emisión'}
+              <Text style={styles.cardEpisodeInfo}>
+                {item.episodes ? `${item.episodes} episodios` : 'En emisión'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -59,7 +69,7 @@ function WebTrendingGrid({ trending, onPress }: { trending: Anime[]; onPress: (i
   );
 }
 
-function MobileTrendingGrid({ trending, onPress, onLoadMore }: TrendingGridProps) {
+function MobileTrendingSeason({ trending, onPress, onLoadMore }: TrendingSeasonProps) {
   const handleScroll = useCallback((event: any) => {
     if (!onLoadMore) return;
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -98,7 +108,7 @@ function MobileTrendingGrid({ trending, onPress, onLoadMore }: TrendingGridProps
               {item.title.romaji || item.title.english}
             </Text>
             <Text style={styles.mobileEpisodeInfo}>
-              {item.episodes ? `${item.episodes} Episodios` : 'En emisión'}
+              {item.episodes ? `${item.episodes} episodios` : 'En emisión'}
             </Text>
           </View>
         </TouchableOpacity>
@@ -107,14 +117,14 @@ function MobileTrendingGrid({ trending, onPress, onLoadMore }: TrendingGridProps
   );
 }
 
-export const TrendingGrid = memo(function TrendingGrid(props: TrendingGridProps) {
+export const TrendingSeason = memo(function TrendingSeason(props: TrendingSeasonProps) {
   const { isWeb } = useResponsive();
 
   if (isWeb) {
-    return <WebTrendingGrid trending={props.trending} onPress={props.onPress} />;
+    return <WebTrendingSeason trending={props.trending} onPress={props.onPress} />;
   }
 
-  return <MobileTrendingGrid {...props} />;
+  return <MobileTrendingSeason {...props} />;
 });
 
 const styles = StyleSheet.create({
@@ -149,7 +159,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     justifyContent: 'flex-start',
   },
-  webCard: {
+  card: {
     marginHorizontal: '1%',
     marginBottom: 16,
     backgroundColor: '#1e293b',
@@ -158,20 +168,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
   },
-  webCardImage: {
+  cardImage: {
     width: '100%',
     aspectRatio: 2 / 3,
   },
-  webCardContent: {
+  cardContent: {
     padding: 10,
   },
-  webCardTitle: {
+  cardTitle: {
     color: '#f8fafc',
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  webCardEpisodeInfo: {
+  cardEpisodeInfo: {
     color: '#94a3b8',
     fontSize: 12,
   },
