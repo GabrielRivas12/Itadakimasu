@@ -6,6 +6,8 @@ import { getUserId } from '../src/hooks/userHelper';
 
 export const streakEvents = new EventEmitter();
 
+let validatedToday = false;
+
 const STREAK_CACHE_KEY = '@streak_data';
 const STREAK_FIRESTORE_PATH = 'streak';
 const MIN_WATCH_SECONDS = 120;
@@ -130,16 +132,49 @@ async function syncToFirestore(data: StreakData): Promise<void> {
   }
 }
 
+async function validateAndResetStreak(streak: StreakData): Promise<boolean> {
+  const today = getToday();
+  const yesterday = yesterdayOf(today);
+
+  if (streak.lastWatchDate && streak.lastWatchDate !== today && streak.lastWatchDate !== yesterday) {
+    streak.currentStreak = 0;
+    return true;
+  }
+  return false;
+}
+
 export async function getStreak(): Promise<StreakData> {
   const cached = await getFromCache();
-  if (cached) return cached;
+  if (cached) {
+    if (!validatedToday) {
+      validatedToday = true;
+      const wasReset = await validateAndResetStreak(cached);
+      if (wasReset) {
+        await saveToCache(cached);
+        syncToFirestore(cached);
+        streakEvents.emit('streakUpdated', cached);
+      }
+    }
+    return cached;
+  }
 
   const remote = await getFromFirestore();
   if (remote) {
-    await saveToCache(remote);
+    if (!validatedToday) {
+      validatedToday = true;
+      const wasReset = await validateAndResetStreak(remote);
+      await saveToCache(remote);
+      if (wasReset) {
+        syncToFirestore(remote);
+        streakEvents.emit('streakUpdated', remote);
+      }
+    } else {
+      await saveToCache(remote);
+    }
     return remote;
   }
 
+  validatedToday = true;
   return getDefaultStreak();
 }
 
@@ -189,5 +224,6 @@ export async function clearStreakCache(): Promise<void> {
   } catch (e) {
     console.error('Error clearing streak cache:', e);
   }
+  validatedToday = false;
   streakEvents.emit('streakUpdated', getDefaultStreak());
 }
