@@ -62,7 +62,7 @@ export function WebAdBanner({ type = 'auto' }: WebAdBannerProps) {
   `;
 
   // Determinar si la ruta actual muestra la barra de navegación inferior (Bottom Tabs)
-  const isTabRoute = ['/home', '/airing', '/explore', '/profile'].some(route => pathname.startsWith(route));
+  const isTabRoute = ['/home', '/airing', '/explore', '/profile', '/collection'].some(route => pathname.startsWith(route));
 
   return (
     <Animated.View style={[styles.floatingContainer, { opacity: fadeAnim, bottom: (isMobile && isTabRoute) ? 95 : 25 }]}>
