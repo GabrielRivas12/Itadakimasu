@@ -25,9 +25,10 @@ function getToday(): string {
 }
 
 function yesterdayOf(dateStr: string): string {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() - 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function getDefaultStreak(): StreakData {
@@ -151,7 +152,6 @@ export async function getStreak(): Promise<StreakData> {
       const wasReset = await validateAndResetStreak(cached);
       if (wasReset) {
         await saveToCache(cached);
-        syncToFirestore(cached);
         streakEvents.emit('streakUpdated', cached);
       }
     }
@@ -163,11 +163,10 @@ export async function getStreak(): Promise<StreakData> {
     if (!validatedToday) {
       validatedToday = true;
       const wasReset = await validateAndResetStreak(remote);
-      await saveToCache(remote);
       if (wasReset) {
-        syncToFirestore(remote);
         streakEvents.emit('streakUpdated', remote);
       }
+      await saveToCache(remote);
     } else {
       await saveToCache(remote);
     }
@@ -184,7 +183,7 @@ export async function recordWatchSession(secondsWatched: number): Promise<void> 
   const streak = await getStreak();
   const today = getToday();
 
-  if (streak.lastWatchDate === today) {
+  if (streak.lastWatchDate === today && streak.currentStreak > 0) {
     return;
   }
 
@@ -192,8 +191,6 @@ export async function recordWatchSession(secondsWatched: number): Promise<void> 
 
   if (streak.lastWatchDate === yesterday) {
     streak.currentStreak += 1;
-  } else if (streak.lastWatchDate && streak.lastWatchDate !== today) {
-    streak.currentStreak = 0;
   } else {
     streak.currentStreak = 1;
   }
