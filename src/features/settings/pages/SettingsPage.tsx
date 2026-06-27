@@ -24,7 +24,9 @@ import {
   getIsNotificationsEnabled,
   setIsNotificationsEnabled,
   getEpisodeOrder,
-  setEpisodeOrder
+  setEpisodeOrder,
+  getPlayerType,
+  setPlayerType
 } from '../../../../services/cache';
 import { inicializarNotificaciones } from '../../../../services/notification';
 
@@ -35,6 +37,7 @@ export const SettingsPage = () => {
   const [isAdultContentEnabled, setAdultContentEnabled] = useState(false);
   const [isNotificationsEnabled, setNotificationsEnabled] = useState(false);
   const [episodeOrder, setEpisodeOrderState] = useState<'asc' | 'desc'>('asc');
+  const [playerType, setPlayerTypeState] = useState<'native' | 'webview'>('native');
   
   // Modal state
   const [isReportModalVisible, setReportModalVisible] = useState(false);
@@ -68,11 +71,20 @@ export const SettingsPage = () => {
 
     setAdultContentEnabled(adultEnabled);
     setEpisodeOrderState(order);
+
+    const player = await getPlayerType();
+    setPlayerTypeState(player);
   };
 
   const handleToggleAdultContent = async (value: boolean) => {
     setAdultContentEnabled(value);
     await setIsAdultContentEnabled(value);
+  };
+
+  const handleTogglePlayerType = async () => {
+    const newType = playerType === 'native' ? 'webview' : 'native';
+    setPlayerTypeState(newType);
+    await setPlayerType(newType);
   };
 
   const handleToggleEpisodeOrder = async () => {
@@ -190,7 +202,7 @@ export const SettingsPage = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Reproducción</Text>
           <View style={styles.card}>
-            <View style={[styles.settingItem, styles.lastItem]}>
+            <View style={styles.settingItem}>
               <View style={styles.settingIconContainer}>
                 <Ionicons name="swap-vertical-outline" size={22} color="#8b5cf6" />
               </View>
@@ -206,6 +218,24 @@ export const SettingsPage = () => {
                 ios_backgroundColor="#2d3748"
                 onValueChange={handleToggleEpisodeOrder}
                 value={episodeOrder === 'desc'}
+              />
+            </View>
+            <View style={[styles.settingItem, styles.lastItem]}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="videocam-outline" size={22} color="#8b5cf6" />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Reproductor</Text>
+                <Text style={styles.settingValue}>
+                  {playerType === 'native' ? 'Nativo' : 'WebView'}
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#2d3748', true: '#8b5cf6' }}
+                thumbColor={playerType === 'webview' ? '#ffffff' : '#94a3b8'}
+                ios_backgroundColor="#2d3748"
+                onValueChange={handleTogglePlayerType}
+                value={playerType === 'webview'}
               />
             </View>
           </View>

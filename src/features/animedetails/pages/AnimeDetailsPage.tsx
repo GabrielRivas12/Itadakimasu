@@ -31,11 +31,13 @@ import { ResponsiveContainer } from '../../../components/common/ResponsiveContai
 import { useResponsive } from '../../../hooks/useResponsive';
 import NotFoundScreen from '../../../app/+not-found';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
+import { getPlayerType } from '../../../../services/cache';
 
 export function AnimeDetailsPage() {
   usePortraitOrientation();
   const router = useRouter();
   const [nativePlayerFailed, setNativePlayerFailed] = React.useState(false);
+  const [preferredPlayer, setPreferredPlayer] = React.useState<'native' | 'webview'>('native');
   const { isWeb, getContentWidth, width, isMobile, isWebDesktop } = useResponsive();
 
   // Calcular margen dinámico para alinear con el contenido centrado en web
@@ -74,6 +76,10 @@ export function AnimeDetailsPage() {
     selectedServerName,
     handleServerChange,
   } = useAnimeDetails();
+
+  React.useEffect(() => {
+    getPlayerType().then(setPreferredPlayer);
+  }, []);
 
   React.useEffect(() => {
     setNativePlayerFailed(false);
@@ -275,7 +281,7 @@ export function AnimeDetailsPage() {
                     </View>
                   ) : displayedEpisodes.length > 0 ? (
                     <>
-                      {isWeb || nativePlayerFailed ? (
+                      {isWeb || preferredPlayer === 'webview' || nativePlayerFailed ? (
                         <EpisodePlayer url={streamUrl} />
                       ) : (
                         <View style={{ marginBottom: 12 }}>

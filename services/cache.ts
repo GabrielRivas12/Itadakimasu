@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform, Dimensions } from 'react-native';
 import { Anime } from './anilist';
 
 export const cacheKeys = {
@@ -10,6 +11,7 @@ export const cacheKeys = {
   ADULT_CONTENT: 'setting:adult_content',
   NOTIFICATIONS_ENABLED: 'setting:notifications_enabled',
   EPISODE_ORDER: 'setting:episode_order',
+  PLAYER_TYPE: 'setting:player_type',
   USER_TOP_ANIME: (uid: string) => `cache:user_top_anime:${uid}`,
 };
 
@@ -65,6 +67,34 @@ export async function setEpisodeOrder(order: 'asc' | 'desc'): Promise<void> {
     await AsyncStorage.setItem(cacheKeys.EPISODE_ORDER, order);
   } catch (error) {
     console.error('Error saving episode order setting:', error);
+  }
+}
+
+export async function getPlayerType(): Promise<'native' | 'webview'> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.PLAYER_TYPE);
+    if (data === 'webview' || data === 'native') {
+      return data;
+    }
+    if (Platform.OS === 'android') {
+      const { width } = Dimensions.get('window');
+      return width >= 600 ? 'webview' : 'native';
+    }
+    return 'native';
+  } catch {
+    if (Platform.OS === 'android') {
+      const { width } = Dimensions.get('window');
+      return width >= 600 ? 'webview' : 'native';
+    }
+    return 'native';
+  }
+}
+
+export async function setPlayerType(type: 'native' | 'webview'): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.PLAYER_TYPE, type);
+  } catch (error) {
+    console.error('Error saving player type setting:', error);
   }
 }
 
