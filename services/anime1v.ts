@@ -8,7 +8,10 @@ export interface Anime1VSearchResult {
   url: string;
   image: string | null;
   backdrop: string | null;
-  type: string;
+  type: string | number;
+  hasEpisodes?: boolean;
+  titleScore?: number;
+  seasonMatch?: boolean;
 }
 
 export interface Anime1VEpisode {

@@ -172,7 +172,8 @@ export const NativeEpisodePlayer: React.FC<NativeEpisodePlayerProps> = ({ url, o
       const isStreamwishFamily = targetUrl.includes('ghbrisk.com') ||
         targetUrl.includes('streamwish.com') ||
         targetUrl.includes('strw.com') ||
-        targetUrl.includes('awish.pro');
+        targetUrl.includes('awish.pro') ||
+        targetUrl.includes('sfastwish.com');
 
       if (isStreamwishFamily) {
         console.log(`[NativePlayer] Scraping HTML y desempaquetando Streamwish/ghbrisk: ${targetUrl}`);
