@@ -19,12 +19,7 @@ import {
   Anime1VStreamLink,
 } from '../../../../services/anime1v';
 import { recordWatchSession } from '../../../../services/streak';
-import { SearchResult } from '../types/animeDetails';
-import {
-  normalizeTitleStrict,
-  buildSearchQueriesStrict,
-  calculateMatchScoreStrict
-} from '../utils/animeMatching';
+import { buildSearchQueriesStrict } from '../utils/animeMatching';
 
 export const useAnimeDetails = () => {
   const { id } = useLocalSearchParams();
@@ -286,22 +281,12 @@ export const useAnimeDetails = () => {
         return;
       }
 
-      const animeNormalized = normalizeTitleStrict(mainTitle);
       const queries = buildSearchQueriesStrict(anime);
       console.log(`[DEBUG] Queries de búsqueda: ${JSON.stringify(queries)}`);
 
-      let bestMatch: SearchResult | null = null;
       let bestMatchInfo: Anime1VInfo | null = null;
 
-      // Limitamos el tiempo total de búsqueda 
-      const searchStartTime = Date.now();
-      const MAX_SEARCH_TIME = 20000; // 20 segundos máximo para el debug
-
       for (const query of queries) {
-        if (Date.now() - searchStartTime > MAX_SEARCH_TIME) {
-          console.log(`[DEBUG] Timeout de búsqueda alcanzado (${MAX_SEARCH_TIME}ms)`);
-          break;
-        }
         if (!query || query.trim().length < 2) continue;
 
         console.log(`[DEBUG] Ejecutando búsqueda API para: "${query}"`);
@@ -310,56 +295,63 @@ export const useAnimeDetails = () => {
         if (results && results.length > 0) {
           console.log(`[DEBUG] API retornó ${results.length} resultados para "${query}"`);
 
-          for (const result of results) {
-            const resultNormalized = normalizeTitleStrict(result.title);
-            const matchResult = calculateMatchScoreStrict(animeNormalized, resultNormalized);
+          const normalizeTitle = (t: string) => t.toLowerCase().replace(/\s+/g, '');
+          const searchNormalized = normalizeTitle(query);
 
-            console.log(`[DEBUG] Comparando: "${result.title}" | Score: ${matchResult.score.toFixed(3)} | Matched: ${matchResult.matched}`);
+          const normalizeFuzzy = (t: string) =>
+            t.toLowerCase()
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-z0-9]/g, '');
 
-            if (matchResult.matched || matchResult.score > 0.1) {
-              // Usamos un límite razonable basado en los episodios que conocemos de AniList
-              const limitHint = anime.episodes ? Math.max(anime.episodes + 10, 50) : 500;
-              console.log(`[DEBUG] Obteniendo info de episodios para "${result.title}" (limit: ${limitHint})`);
-              const info = await getAnime1VInfo(result.url, limitHint);
+          const levenshtein = (a: string, b: string): number => {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            const m = [];
+            for (let i = 0; i <= b.length; i++) m[i] = [i];
+            for (let j = 0; j <= a.length; j++) m[0][j] = j;
+            for (let i = 1; i <= b.length; i++)
+              for (let j = 1; j <= a.length; j++)
+                m[i][j] = b[i-1] === a[j-1] ? m[i-1][j-1] : Math.min(m[i-1][j-1], m[i][j-1], m[i-1][j]) + 1;
+            return m[b.length][a.length];
+          };
 
-              if (info && info.episodes && info.episodes.length > 0) {
-                const infoNormalized = normalizeTitleStrict(info.title);
-                const finalMatch = calculateMatchScoreStrict(animeNormalized, infoNormalized);
+          const isCloseMatch = (title: string): boolean => {
+            const norm = normalizeTitle(title);
+            if (norm === searchNormalized) return true;
+            const fuzzyA = normalizeFuzzy(query);
+            const fuzzyB = normalizeFuzzy(title);
+            if (fuzzyA === fuzzyB) return true;
+            if (fuzzyA.includes(fuzzyB) || fuzzyB.includes(fuzzyA)) return true;
+            const maxLen = Math.max(fuzzyA.length, fuzzyB.length);
+            return levenshtein(fuzzyA, fuzzyB) <= Math.max(2, Math.floor(maxLen * 0.15));
+          };
 
-                console.log(`[DEBUG] Score final con info detallada: ${finalMatch.score.toFixed(3)}`);
+          const matches = results.filter(r => isCloseMatch(r.title));
 
-                if (finalMatch.matched && finalMatch.score >= 0.25) {
-                  if (!bestMatch || finalMatch.score > bestMatch.score) {
-                    bestMatch = {
-                      item: result,
-                      score: finalMatch.score,
-                      matchType: finalMatch.matchType
-                    };
-                    bestMatchInfo = info;
-                    console.log(`[DEBUG] Nuevo mejor match encontrado: "${info.title}"`);
-                  }
-                  // Si es casi perfecto, paramos de buscar en este query
-                  if (finalMatch.score >= 0.9) break;
-                }
-              } else {
-                console.log(`[DEBUG] Info de episodes vacía o nula para "${result.title}"`);
-              }
+          if (matches.length > 0) {
+            const bestResult = matches.find(r => r.hasEpisodes) ?? matches[0];
+            const limitHint = anime.episodes ? Math.max(anime.episodes + 10, 50) : 500;
+            console.log(`[DEBUG] Obteniendo info de episodios para "${bestResult.title}" (limit: ${limitHint})`);
+            const info = await getAnime1VInfo(bestResult.url, limitHint);
+
+            if (info) {
+              bestMatchInfo = info;
+              console.log(`[DEBUG] Match encontrado: "${info.title}"`);
             }
           }
-          // Si encontramos algo muy bueno, no probamos más queries
-          if (bestMatch && bestMatch.score >= 0.8) break;
+          if (bestMatchInfo) break;
         } else {
           console.log(`[DEBUG] Sin resultados para query "${query}"`);
         }
       }
 
-      if (!bestMatch || !bestMatchInfo) {
+      if (!bestMatchInfo) {
         console.log(`[DEBUG] searchAndLoadAnime1V END: No se encontró match`);
         setContentNotAvailable(true);
         return;
       }
 
-      console.log(`[DEBUG] Match final aceptado: "${bestMatchInfo.title}" (Score: ${bestMatch.score.toFixed(3)})`);
+      console.log(`[DEBUG] Match final aceptado: "${bestMatchInfo.title}"`);
       setAnime1VInfo(bestMatchInfo);
 
       const initialIndex = userProgress > 0 && userProgress <= bestMatchInfo.episodes.length
