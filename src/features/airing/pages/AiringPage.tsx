@@ -3,11 +3,10 @@ import { StyleSheet, View, FlatList,
   ActivityIndicator, Text,
   TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
-import { AnimeGridCard } from '../../explore/components/AnimeGridCard';
+import { AiringGridCard } from '../components/AiringGridCard';
 import { AiringSkeleton } from '../components/AiringSkeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { useAiring } from '../hooks/useAiring';
-import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
@@ -38,7 +37,7 @@ export const AiringPage = memo(function AiringPage() {
           <View>
             <Text style={styles.headerTitle}>En Emisión</Text>
             <Text style={styles.headerSubtitle}>
-              {isAdult ? 'Contenido para Adultos' : 'Últimas actualizaciones'}
+              {isAdult ? 'Contenido para Adultos' : 'Últimos episodios'}
             </Text>
           </View>
           {isAdultSettingEnabled && (
@@ -69,7 +68,7 @@ export const AiringPage = memo(function AiringPage() {
           <FlatList
             key={columns}
             data={results}
-            keyExtractor={(item, index) => `${item.id}-${index}`}
+            keyExtractor={(item, index) => `${item.anime.id}-${item.slug}-${index}`}
             numColumns={columns}
             contentContainerStyle={[
               styles.gridContent,
@@ -79,7 +78,7 @@ export const AiringPage = memo(function AiringPage() {
             columnWrapperStyle={styles.gridRow}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
-              <AnimeGridCard
+              <AiringGridCard
                 item={item}
                 onPress={handleAnimePress}
                 width={`${100 / columns - 2}%`}
