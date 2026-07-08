@@ -212,4 +212,53 @@ export async function resolveAnime1VStreams(
     "/api/v1/anime/resolve",
     { urls: JSON.stringify(urls) }
   );
+}
+
+export interface LatestEpisode {
+  title: string;
+  slug: string;
+  url: string;
+  image: string;
+  episode: number;
+  dateLabel: string;
+  timestamp: string;
+  provider: string;
+  malId: number | null;
+}
+
+export async function fetchLatestEpisodes(isAdult: boolean = false): Promise<LatestEpisode[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (isAdult) {
+      params.provider = 'hentaila';
+    }
+
+    const queryParams = new URLSearchParams({
+      ...params,
+      apiKey: API_KEY ?? "",
+    }).toString();
+
+    const response = await Promise.race([
+      fetch(`${BASE_URL}/api/v1/anime/latest-episodes?${queryParams}`),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('fetch timeout')), 10000)
+      ),
+    ]) as Response;
+
+    if (!response.ok) return [];
+    const text = await response.text();
+    let json: any;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return [];
+    }
+    if (json?.success && json?.data?.results) {
+      return json.data.results;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching latest episodes:', error);
+    return [];
+  }
 }

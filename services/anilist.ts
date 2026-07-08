@@ -168,6 +168,78 @@ query($ids: [Int]) {
   }
 }
 
+export async function fetchAnimesByMalIds(malIds: number[], isAdult: boolean = false): Promise<Anime[]> {
+  if (!malIds.length) return [];
+
+  const query = `
+query($malIds: [Int], $isAdult: Boolean) {
+  Page(page: 1, perPage: 50) {
+    media(idMal_in: $malIds, type: ANIME, isAdult: $isAdult) {
+      id
+      idMal
+      title {
+        romaji
+        english
+        native
+      }
+      coverImage {
+        large
+        medium
+        extraLarge
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      status
+      startDate {
+        year
+        month
+        day
+      }
+      studios {
+        nodes {
+          name
+        }
+      }
+      season
+      seasonYear
+      description
+      duration
+      source
+      nextAiringEpisode {
+        airingAt
+        timeUntilAiring
+        episode
+      }
+    }
+  }
+}
+`;
+
+  try {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { malIds, isAdult },
+      }),
+    });
+
+    const json = await response.json();
+    return json?.data?.Page?.media || [];
+  } catch (error) {
+    console.error('Error fetching animes by malIds:', error);
+    return [];
+  }
+}
+
 export async function fetchTrendingAnime(page = 1, perPage = 10): Promise<Anime[]> {
   const query = `
 query($page: Int, $perPage: Int) {
@@ -516,6 +588,81 @@ query($id: Int) {
     return json?.data?.Media || null;
   } catch (error) {
     console.error('Error fetching anime details:', error);
+    return null;
+  }
+}
+
+export async function searchAnimeByTitle(title: string, isAdult: boolean = false): Promise<Anime | null> {
+  const safeTitle = title.length > 80 ? title.slice(0, 80) : title;
+
+  const query = `
+query($search: String, $isAdult: Boolean) {
+  Page(page: 1, perPage: 1) {
+    media(search: $search, type: ANIME, isAdult: $isAdult) {
+      id
+      idMal
+      title {
+        romaji
+        english
+        native
+      }
+      coverImage {
+        large
+        medium
+        extraLarge
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      description
+      status
+      startDate {
+        year
+        month
+        day
+      }
+      studios {
+        nodes {
+          name
+        }
+      }
+      season
+      seasonYear
+    }
+  }
+}
+`;
+
+  try {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { search: safeTitle, isAdult },
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const text = await response.text();
+    let json: any;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return null;
+    }
+
+    const media = json?.data?.Page?.media;
+    return media && media.length > 0 ? media[0] : null;
+  } catch (error) {
+    console.error(`Error searching anime by title "${title}":`, error);
     return null;
   }
 }
