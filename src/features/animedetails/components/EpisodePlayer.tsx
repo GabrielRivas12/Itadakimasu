@@ -9,6 +9,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { resolveAnime1VStream, buildVideoProxyUrl, isValidMediaUrl, isDirectMediaUrl } from '../../../../services/anime1v';
 
 interface EpisodePlayerProps {
   url: string | null;
@@ -25,6 +26,7 @@ const ALLOWED_DOMAINS = [
 const isAllowedUrl = (requestUrl: string): boolean => {
   if (requestUrl.startsWith('blob:') || requestUrl.startsWith('data:') || requestUrl === 'about:blank') return true;
   if (requestUrl.match(/\.(mp4|m3u8|webm|ogg|ts)(\?|$)/i)) return true;
+  if (requestUrl.includes('/api/v1/anime/video-proxy')) return true;
   return ALLOWED_DOMAINS.some(d => requestUrl.includes(d));
 };
 
@@ -282,23 +284,63 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   const [key, setKey] = useState(0);
   const [blockedPopup, setBlockedPopup] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [webUrl, setWebUrl] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
 
   const webViewRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
-  const prevUrlRef = useRef<string | null>(null);
   const isFullscreenRef = useRef(false);
   // Guardamos el valor ANTERIOR de isFullscreen para que el efecto sepa
   // exactamente qué transición ocurrió (false→true o true→false).
   const prevFullscreenRef = useRef(false);
 
+  // Resolver URLs embed (PlayerZilla) -> stream directo vía /resolve
   useEffect(() => {
-    if (url !== null && url !== prevUrlRef.current) {
-      prevUrlRef.current = url;
-      setError(false);
-      setLoading(true);
-      setKey(k => k + 1);
+    if (url === null) {
+      setWebUrl(null);
+      setResolving(false);
+      return;
     }
+
+    const isDirect = isDirectMediaUrl(url);
+
+    if (isDirect) {
+      setResolving(false);
+      setWebUrl(url);
+      return;
+    }
+
+    let cancelled = false;
+    setResolving(true);
+
+    resolveAnime1VStream(url)
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.success && res.streamUrl && (res.mediaType === 'hls' || res.mediaType === 'mp4') && isValidMediaUrl(res.streamUrl)) {
+          setWebUrl(res.mediaType === 'hls' ? buildVideoProxyUrl(res.streamUrl) : res.streamUrl);
+        } else {
+          setWebUrl(url);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setWebUrl(url);
+      })
+      .finally(() => {
+        if (!cancelled) setResolving(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [url]);
+
+  // Remontar el WebView cuando cambia la URL a cargar
+  useEffect(() => {
+    if (webUrl === null) return;
+    setError(false);
+    setLoading(true);
+    setKey(k => k + 1);
+  }, [webUrl]);
 
   useEffect(() => {
     isFullscreenRef.current = isFullscreen;
@@ -368,10 +410,18 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
 
   return (
     <View style={[styles.container, isFullscreen && styles.containerFullscreen]}>
-      <WebView
+      {resolving && (
+        <View style={[styles.overlay, styles.centered]}>
+          <ActivityIndicator size="large" color="#8b5cf6" />
+          <Text style={styles.errorText}>Extrayendo video directo...</Text>
+        </View>
+      )}
+
+      {!resolving && webUrl && (
+        <WebView
         key={key}
         ref={webViewRef}
-        source={{ uri: activeUrl }}
+        source={{ uri: webUrl }}
         style={styles.webview}
 
         allowsFullscreenVideo
@@ -398,7 +448,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
 
         onShouldStartLoadWithRequest={(req) => {
           const { url: reqUrl, navigationType, isTopFrame } = req;
-          if (reqUrl === activeUrl) return true;
+          if (reqUrl === webUrl) return true;
           if (reqUrl.match(/\.(mp4|m3u8|webm|ogg|ts)(\?|$)/i)) return true;
           if (reqUrl.startsWith('blob:') || reqUrl.startsWith('data:')) return true;
           if (isTopFrame && !isAllowedUrl(reqUrl)) {
@@ -417,7 +467,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         onNavigationStateChange={(nav) => {
           canGoBackRef.current = nav.canGoBack;
           if (
-            nav.url !== activeUrl &&
+            nav.url !== webUrl &&
             !isAllowedUrl(nav.url) &&
             !nav.url.match(/\.(mp4|m3u8)/i)
           ) {
@@ -433,8 +483,9 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
           setError(true);
         }}
       />
+      )}
 
-      {loading && !error && (
+      {loading && !error && !resolving && (
         <View style={[styles.overlay, styles.centered]} pointerEvents="none">
           <ActivityIndicator size="large" color="#8b5cf6" />
         </View>

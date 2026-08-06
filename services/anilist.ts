@@ -240,6 +240,103 @@ query($malIds: [Int], $isAdult: Boolean) {
   }
 }
 
+const ANILIST_BY_TITLE_QUERY = `
+query($search: String, $isAdult: Boolean) {
+  Page(page: 1, perPage: 1) {
+    media(search: $search, type: ANIME, isAdult: $isAdult) {
+      id
+      idMal
+      title {
+        romaji
+        english
+        native
+      }
+      coverImage {
+        large
+        medium
+        extraLarge
+      }
+      bannerImage
+      averageScore
+      episodes
+      genres
+      type
+      isAdult
+      status
+      startDate {
+        year
+        month
+        day
+      }
+      studios {
+        nodes {
+          name
+        }
+      }
+      season
+      seasonYear
+      description
+      duration
+      source
+      nextAiringEpisode {
+        airingAt
+        timeUntilAiring
+        episode
+      }
+    }
+  }
+}
+`;
+
+async function fetchAnimeBySingleTitle(
+  title: string,
+  isAdult: boolean
+): Promise<Anime | null> {
+  const safeTitle = title.length > 80 ? title.slice(0, 80) : title;
+
+  try {
+    const response = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query: ANILIST_BY_TITLE_QUERY,
+        variables: { search: safeTitle, isAdult },
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const text = await response.text();
+    let json: any;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return null;
+    }
+
+    const media = json?.data?.Page?.media;
+    return media && media.length > 0 ? media[0] : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAnimesByTitles(
+  titles: string[],
+  isAdult: boolean = false
+): Promise<(Anime | null)[]> {
+  if (!titles.length) return [];
+
+  const results = await Promise.all(
+    titles.map(title => fetchAnimeBySingleTitle(title, isAdult))
+  );
+
+  return results;
+}
+
 export async function fetchTrendingAnime(page = 1, perPage = 10): Promise<Anime[]> {
   const query = `
 query($page: Int, $perPage: Int) {

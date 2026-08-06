@@ -196,22 +196,82 @@ export interface Anime1VResolvedStream {
   resolvedFrom: string;
 }
 
+async function fetchResolvedStream(
+  params: Record<string, string>
+): Promise<Anime1VResolvedStream | null> {
+  try {
+    const queryParams = new URLSearchParams({
+      ...params,
+      apiKey: API_KEY ?? "",
+    }).toString();
+
+    const response = await fetch(`${BASE_URL}/api/v1/anime/resolve?${queryParams}`);
+
+    if (!response.ok) {
+      console.log(`HTTP ERROR ${response.status} en /resolve con params: ${JSON.stringify(params)}`);
+      return null;
+    }
+
+    const text = await response.text();
+
+    try {
+      const json = JSON.parse(text);
+
+      // /resolve responde plano: { success, server, mediaType, streamUrl, resolvedFrom }
+      if (json?.success && typeof json.streamUrl === 'string') {
+        return json as Anime1VResolvedStream;
+      }
+
+      // Compatibilidad: respuesta envuelta en { success, data: { ... } }
+      if (json?.success && json?.data?.streamUrl) {
+        return json.data as Anime1VResolvedStream;
+      }
+
+      console.log("API respondió success=false en /resolve:", json);
+      return null;
+    } catch (err) {
+      console.log("Respuesta no es JSON (probable HTML):", text.slice(0, 200));
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching Anime1V resolve:", error);
+    return null;
+  }
+}
+
 export async function resolveAnime1VStream(
   url: string
 ): Promise<Anime1VResolvedStream | null> {
-  return await fetchFromApi<Anime1VResolvedStream>(
-    "/api/v1/anime/resolve",
-    { url }
-  );
+  return await fetchResolvedStream({ url });
 }
 
 export async function resolveAnime1VStreams(
   urls: string[]
 ): Promise<Anime1VResolvedStream | null> {
-  return await fetchFromApi<Anime1VResolvedStream>(
-    "/api/v1/anime/resolve",
-    { urls: JSON.stringify(urls) }
-  );
+  return await fetchResolvedStream({ urls: JSON.stringify(urls) });
+}
+
+export function buildVideoProxyUrl(streamUrl: string): string {
+  return `${BASE_URL}/api/v1/anime/video-proxy?url=${encodeURIComponent(streamUrl)}`;
+}
+
+const NON_MEDIA_EXT_RE = /\.(css|js|json|xml|html?|txt|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|map|php|asp|aspx|jsp)(\?|#|$)/i;
+const MEDIA_EXT_RE = /\.(m3u8|mp4|mkv|webm|ts|m4v|mov|ogv|ogg|avi)(\?|#|$)/i;
+
+export function isDirectMediaUrl(url: string | null): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return MEDIA_EXT_RE.test(lower) || lower.includes('/api/v1/anime/video-proxy');
+}
+
+export function isValidMediaUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  if (lower.startsWith('data:') || lower.startsWith('blob:')) return false;
+  if (NON_MEDIA_EXT_RE.test(lower)) return false;
+  if (MEDIA_EXT_RE.test(lower)) return true;
+  if (/\/m3u8\//.test(lower)) return true;
+  return false;
 }
 
 export interface LatestEpisode {
