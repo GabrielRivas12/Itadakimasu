@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { fetchLatestEpisodes, LatestEpisode } from '../../../../services/anime1v';
-import { fetchAnimesByMalIds, Anime } from '../../../../services/anilist';
+import { fetchAnimesByMalIds, fetchAnimesByTitles, Anime } from '../../../../services/anilist';
 import { getIsAdultContentEnabled } from '../../../../services/cache';
 import { AnimeWithEpisode } from '../types/airing';
 
@@ -70,8 +70,34 @@ export const useAiring = () => {
         if (a.idMal) malIdToAnime.set(a.idMal, a);
       }
 
+      const episodesNeedingTitleSearch: { index: number; ep: LatestEpisode }[] = [];
+      for (let i = 0; i < uniqueEpisodes.length; i++) {
+        const ep = uniqueEpisodes[i];
+        if (ep.malId) {
+          const found = malIdToAnime.get(ep.malId);
+          if (!found) {
+            episodesNeedingTitleSearch.push({ index: i, ep });
+          }
+        } else {
+          episodesNeedingTitleSearch.push({ index: i, ep });
+        }
+      }
+
+      let titleSearchResults = new Map<number, Anime>();
+      if (episodesNeedingTitleSearch.length > 0) {
+        const titlesToSearch = episodesNeedingTitleSearch.map(({ ep }) => ep.title);
+        const results = await fetchAnimesByTitles(titlesToSearch, adult);
+        
+        for (let i = 0; i < episodesNeedingTitleSearch.length; i++) {
+          const anime = results[i];
+          if (anime) {
+            titleSearchResults.set(episodesNeedingTitleSearch[i].index, anime);
+          }
+        }
+      }
+
       const resultsArr: AnimeWithEpisode[] = [];
-      const seenIds = new Set<number>();
+      const seenAnilistIds = new Set<number>();
 
       for (let i = 0; i < uniqueEpisodes.length; i++) {
         const ep = uniqueEpisodes[i];
@@ -82,19 +108,26 @@ export const useAiring = () => {
         }
 
         if (!anime) {
+          anime = titleSearchResults.get(i) || null;
+        }
+
+        if (!anime) {
           anime = makeFallbackAnime(ep, i);
         }
 
-        if (anime.id < 0 || !seenIds.has(anime.id)) {
-          if (anime.id >= 0) seenIds.add(anime.id);
-          resultsArr.push({
-            anime,
-            episode: ep.episode,
-            dateLabel: adult ? '' : ep.dateLabel,
-            slug: ep.slug,
-            timestamp: ep.timestamp,
-          });
+        const isFallback = anime.id < 0;
+        if (!isFallback) {
+          if (seenAnilistIds.has(anime.id)) continue;
+          seenAnilistIds.add(anime.id);
         }
+
+        resultsArr.push({
+          anime,
+          episode: ep.episode,
+          dateLabel: adult ? '' : ep.dateLabel,
+          slug: ep.slug,
+          timestamp: ep.timestamp,
+        });
       }
 
       setAllResults(resultsArr);

@@ -32,12 +32,23 @@ import { useResponsive } from '../../../hooks/useResponsive';
 import NotFoundScreen from '../../../app/+not-found';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 import { getPlayerType } from '../../../../services/cache';
+import {
+  resolveAnime1VStream,
+  resolveAnime1VStreams,
+  buildVideoProxyUrl,
+  isValidMediaUrl,
+  isDirectMediaUrl,
+} from '../../../../services/anime1v';
 
 export function AnimeDetailsPage() {
   usePortraitOrientation();
   const router = useRouter();
   const [nativePlayerFailed, setNativePlayerFailed] = React.useState(false);
   const [preferredPlayer, setPreferredPlayer] = React.useState<'native' | 'webview'>('native');
+  const [nativePlaybackUrl, setNativePlaybackUrl] = React.useState<string | null>(null);
+  const [nativeResolving, setNativeResolving] = React.useState(false);
+  const [nativeResolveFailed, setNativeResolveFailed] = React.useState(false);
+  const [nativeRetryTick, setNativeRetryTick] = React.useState(0);
   const { isWeb, getContentWidth, width, isMobile, isWebDesktop } = useResponsive();
 
   // Calcular margen dinámico para alinear con el contenido centrado en web
@@ -84,6 +95,75 @@ export function AnimeDetailsPage() {
   React.useEffect(() => {
     setNativePlayerFailed(false);
   }, [streamUrl]);
+
+  React.useEffect(() => {
+    if (preferredPlayer !== 'native' || nativePlayerFailed || isWeb) {
+      setNativePlaybackUrl(null);
+      setNativeResolving(false);
+      setNativeResolveFailed(false);
+      return;
+    }
+
+    if (!streamUrl) {
+      setNativePlaybackUrl(null);
+      setNativeResolving(false);
+      setNativeResolveFailed(false);
+      return;
+    }
+
+    const isDirect = isDirectMediaUrl(streamUrl);
+    if (isDirect) {
+      setNativePlaybackUrl(streamUrl);
+      setNativeResolving(false);
+      setNativeResolveFailed(false);
+      return;
+    }
+
+    let cancelled = false;
+    setNativeResolving(true);
+    setNativeResolveFailed(false);
+
+    const buildPlayableUrl = (mediaType: string, resolvedUrl: string) =>
+      mediaType === 'hls' ? buildVideoProxyUrl(resolvedUrl) : resolvedUrl;
+
+    (async () => {
+      try {
+        // 1) Intentar el servidor actualmente seleccionado
+        const selected = await resolveAnime1VStream(streamUrl);
+        if (cancelled) return;
+        if (selected?.success && selected.streamUrl && isValidMediaUrl(selected.streamUrl)) {
+          setNativePlaybackUrl(buildPlayableUrl(selected.mediaType, selected.streamUrl));
+          return;
+        }
+
+        // 2) Si falla, cascada con el resto de servidores (paralelo en el backend)
+        const others = availableServers.map(s => s.url).filter(u => u !== streamUrl);
+        if (others.length > 0) {
+          const cascaded = await resolveAnime1VStreams(others);
+          if (cancelled) return;
+          if (cascaded?.success && cascaded.streamUrl && isValidMediaUrl(cascaded.streamUrl)) {
+            setNativePlaybackUrl(buildPlayableUrl(cascaded.mediaType, cascaded.streamUrl));
+            return;
+          }
+        }
+
+        setNativePlaybackUrl(null);
+        setNativeResolveFailed(true);
+      } catch (err) {
+        console.error('[NativeResolve] Error:', err);
+        if (!cancelled) {
+          setNativePlaybackUrl(null);
+          setNativeResolveFailed(true);
+        }
+      } finally {
+        if (!cancelled) setNativeResolving(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [streamUrl, availableServers, preferredPlayer, nativePlayerFailed, nativeRetryTick, isWeb]);
 
   if (!loading && anime?.isAdult && !isAdultContentEnabled) {
     return <NotFoundScreen />;
@@ -285,9 +365,15 @@ export function AnimeDetailsPage() {
                         <EpisodePlayer url={streamUrl} />
                       ) : (
                         <View style={{ marginBottom: 12 }}>
-                          <NativeEpisodePlayer 
-                            url={streamUrl} 
-                            onError={() => setNativePlayerFailed(true)} 
+                          <NativeEpisodePlayer
+                            url={nativePlaybackUrl}
+                            resolving={nativeResolving}
+                            resolveFailed={nativeResolveFailed}
+                            onError={() => setNativePlayerFailed(true)}
+                            onRetry={() => {
+                              setNativeResolveFailed(false);
+                              setNativeRetryTick((t) => t + 1);
+                            }}
                           />
                         </View>
                       )}

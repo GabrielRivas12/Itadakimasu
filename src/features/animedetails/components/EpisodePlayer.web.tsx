@@ -1,5 +1,7 @@
+import Hls from 'hls.js';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { resolveAnime1VStream, buildVideoProxyUrl, isValidMediaUrl } from '../../../../services/anime1v';
 
 interface EpisodePlayerProps {
   url: string | null;
@@ -14,55 +16,40 @@ const AD_OVERLAY_KEYWORDS = [
 ];
 
 const MP4UPLOAD_AD_SELECTORS = [
-  // Overlays z-index altísimos
   '[style*="z-index: 2147483647"]',
   '[style*="z-index:2147483647"]',
   '[style*="z-index: 2147483646"]',
-  // Capas de anuncios
   '#ad-layer', '#ad_layer', '.ad-layer', '.ad_layer',
   '#ads-overlay', '.ads-overlay',
   '#pop-overlay', '.pop-overlay', '.pop_overlay',
-  // Banners
   '#banner', '.banner-ad', '.ad-banner',
-  // Iframes de anuncios embebidos
   'iframe[src*="adserver"]', 'iframe[src*="googlesyndication"]',
   'iframe[src*="doubleclick"]', 'iframe[src*="adsystem"]',
   'iframe[src*="amazon-adsystem"]', 'iframe[src*="adnxs"]',
   'iframe[src*="moatads"]', 'iframe[src*="openx"]',
-  // Scripts de popunders
   'script[src*="popunder"]', 'script[src*="popcash"]',
   'script[src*="adcash"]', 'script[src*="exoclick"]',
   'script[src*="trafficjunky"]', 'script[src*="hilltopads"]',
-  // Elementos típicos de MP4Upload
   '.jw-overlays', '#jw-overlays',
   'a[href*="mp4upload"][target="_blank"]',
   'a[href*="go.php"]', 'a[href*="out.php"]', 'a[href*="click.php"]',
-  // Divs de click-through falsos sobre el video
   'div[onclick*="open"]', 'div[onclick*="window.open"]',
-  // Capas de visita requerida
   '#overlay_container', '.overlay_container',
   '#pre-overlay', '.pre-overlay',
-  // Contenedores de publicidad genérica
   '.advertisement', '#advertisement', '[id*="google_ads"]',
   '[class*="google-ad"]', '[id*="div-gpt-ad"]',
   '.leaderboard', '.skyscraper', '.interstitial',
 ];
 
-// Script inyectado en el iframe — bloqueo
 const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
 (function() {
   if (window.__antiAdInjected) return;
   window.__antiAdInjected = true;
-
   const AD_KEYWORDS = ${JSON.stringify(adKeywords)};
   const AD_SELECTORS = ${JSON.stringify(adSelectors)};
-
-  // ── 1. Bloquear APIs de navegación ────────────────────────────────────────
   const noop = () => ({ focus: () => {}, close: () => {} });
   window.open = noop;
   try { Object.defineProperty(window, 'open', { value: noop, writable: false, configurable: false }); } catch(_) {}
-
-  // Bloquear redirecciones por JS
   const _pushState    = history.pushState.bind(history);
   const _replaceState = history.replaceState.bind(history);
   Object.defineProperty(window, 'location', {
@@ -70,12 +57,8 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
     set: (v) => { console.warn('[AntiAd] location redirect bloqueado:', v); },
     configurable: true,
   });
-
-  // Bloquear document.write (usado para inyectar banners)
   document.write    = () => {};
   document.writeln  = () => {};
-
-  // ── 2. Interceptar addEventListener para bloquear popunders ──────────────
   const origAddEvent = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function(type, listener, opts) {
     if (type === 'click' || type === 'mousedown' || type === 'touchstart') {
@@ -93,8 +76,6 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
     }
     return origAddEvent.call(this, type, listener, opts);
   };
-
-  // ── 3. Eliminar selectores conocidos de anuncios ─────────────────────────
   function removeBySelectors() {
     AD_SELECTORS.forEach(sel => {
       try {
@@ -105,18 +86,13 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
       } catch(_) {}
     });
   }
-
-  // ── 4. Eliminar overlays por geometría + texto ────────────────────────────
   function isAdOverlay(el) {
     if (!el || !el.tagName || el.tagName === 'VIDEO' || el.tagName === 'HTML' || el.tagName === 'BODY') return false;
     const style = window.getComputedStyle(el);
     const pos   = style.position;
     const zi    = parseInt(style.zIndex || '0', 10);
-
     if (pos !== 'absolute' && pos !== 'fixed') return false;
     if (style.display === 'none' || style.visibility === 'hidden') return false;
-
-    // Capas grandes con z-index sospechoso
     const bigW = el.offsetWidth  > window.innerWidth  * 0.4;
     const bigH = el.offsetHeight > window.innerHeight * 0.4;
     if (zi > 100 && bigW && bigH) {
@@ -128,16 +104,12 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
       });
       if (hasKw || hasExtLink || text.length === 0) return true;
     }
-
-    // Capas transparentes gigantes (click-through de popunder)
     const bg = style.backgroundColor;
     const op = parseFloat(style.opacity);
     const isTransparent = op < 0.05 || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent';
     if (isTransparent && bigW && bigH && pos === 'absolute') return true;
-
     return false;
   }
-
   function removeAdOverlays() {
     document.querySelectorAll('div,section,aside,article,a,center,span,table').forEach(el => {
       if (isAdOverlay(el)) {
@@ -146,8 +118,6 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
       }
     });
   }
-
-  // ── 5. Bloquear iframes de anuncios nuevos ────────────────────────────────
   function blockAdIframes() {
     document.querySelectorAll('iframe').forEach(fr => {
       const src = fr.src || fr.getAttribute('src') || '';
@@ -162,22 +132,17 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
       }
     });
   }
-
-  // ── 6. Observador de mutaciones ───────────────────────────────────────────
   const observer = new MutationObserver(() => {
     removeBySelectors();
     removeAdOverlays();
     blockAdIframes();
   });
-
   function startObserver() {
     const root = document.body || document.documentElement;
     if (root) {
       observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style','class'] });
     }
   }
-
-  // ── 7. Interceptar creación dinámica de elementos ─────────────────────────
   const origCreateElement = document.createElement.bind(document);
   document.createElement = function(tag) {
     const el = origCreateElement(tag);
@@ -196,8 +161,6 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
     }
     return el;
   };
-
-  // ── Correr todo ───────────────────────────────────────────────────────────
   removeBySelectors();
   removeAdOverlays();
   blockAdIframes();
@@ -207,7 +170,6 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
     removeAdOverlays();
     blockAdIframes();
   }, 800);
-
   console.log('[AntiAd] v2 — Protección completa activa.');
 })();
 `;
@@ -239,39 +201,172 @@ ${IFRAME_CLEANER_SCRIPT}
 </html>`;
 }
 
+type PlayerState = 'loading' | 'stream_ready' | 'iframe' | 'error';
+
 export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
-  const [loading, setLoading] = useState(true);
-  const [blocked, setBlocked] = useState(false);
+  const [playerState, setPlayerState] = useState<PlayerState>('loading');
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'hls' | 'mp4' | null>(null);
+  const [resolving, setResolving] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const blockedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cleanerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const shieldRef = useRef<HTMLDivElement>(null);
 
-  const isMp4Upload = url?.toLowerCase().includes('mp4upload') ?? false;
-
-  useEffect(() => () => {
-    if (blockedTimerRef.current) clearTimeout(blockedTimerRef.current);
-    if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
-  }, []);
-
+  const [blocked, setBlocked] = useState(false);
   const [forceLoadIframe, setForceLoadIframe] = useState(false);
+
+  const isMp4Upload = url?.toLowerCase().includes('mp4upload') ?? false;
   const isMega = (url?.toLowerCase().includes('mega.nz') || url?.toLowerCase().includes('mega.co.nz')) ?? false;
   const isAndroid = typeof window !== 'undefined' && /Android/i.test(navigator.userAgent);
   const showMegaAndroidUI = isMega && isAndroid && !forceLoadIframe;
 
-  useEffect(() => {
-    if (url) {
-      setLoading(true);
-      setBlocked(false);
-      setForceLoadIframe(false);
+  /* ---------- helpers ---------- */
+
+  const stopHls = useCallback(() => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
     }
-  }, [url]);
+  }, []);
+
+  const stopVideo = useCallback(() => {
+    stopHls();
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.removeAttribute('src');
+      videoRef.current.load();
+    }
+  }, [stopHls]);
 
   const showBlocked = useCallback(() => {
     setBlocked(true);
     if (blockedTimerRef.current) clearTimeout(blockedTimerRef.current);
     blockedTimerRef.current = setTimeout(() => setBlocked(false), 1500);
   }, []);
+
+  /* ---------- effects ---------- */
+
+  useEffect(() => {
+    if (!url) {
+      setResolving(false);
+      setPlayerState('loading');
+      return;
+    }
+
+    const lowerUrl = url.toLowerCase();
+    const isHls = lowerUrl.endsWith('.m3u8') || lowerUrl.includes('.m3u8?');
+    const isMp4 = lowerUrl.endsWith('.mp4') || lowerUrl.includes('.mp4?');
+
+    if (isHls || isMp4) {
+      setResolving(false);
+      setStreamUrl(url);
+      setMediaType(isHls ? 'hls' : 'mp4');
+      setPlayerState('stream_ready');
+      return;
+    }
+
+    let cancelled = false;
+    setResolving(true);
+
+    resolveAnime1VStream(url)
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.success && res.streamUrl && (res.mediaType === 'hls' || res.mediaType === 'mp4') && isValidMediaUrl(res.streamUrl)) {
+          if (res.mediaType === 'hls') {
+            setStreamUrl(buildVideoProxyUrl(res.streamUrl));
+            setMediaType('hls');
+          } else {
+            setStreamUrl(res.streamUrl);
+            setMediaType('mp4');
+          }
+          setPlayerState('stream_ready');
+        } else {
+          setPlayerState('iframe');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPlayerState('iframe');
+      })
+      .finally(() => {
+        if (!cancelled) setResolving(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  /* Iniciar reproductor cuando stream_ready */
+  useEffect(() => {
+    if (playerState !== 'stream_ready' || !streamUrl || !videoRef.current) return;
+
+    console.log('[EpisodePlayer] stream_ready effect:', { mediaType, hasVideo: !!videoRef.current, url: streamUrl.substring(0, 80) });
+    stopHls();
+
+    if (mediaType === 'hls') {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          maxMaxBufferLength: 30,
+          enableWorker: true,
+          manifestLoadingMaxRetry: 3,
+          levelLoadingMaxRetry: 3,
+          fragLoadingMaxRetry: 3,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(streamUrl);
+        hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log('[EpisodePlayer] HLS MANIFEST_PARSED, playing...');
+          videoRef.current?.play().catch(() => {});
+        });
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          console.warn('[EpisodePlayer] HLS error:', data.type, data.details, data.fatal ? 'FATAL' : 'non-fatal');
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              console.warn('[EpisodePlayer] HLS network error, attempting retry...');
+              hls.startLoad();
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              console.warn('[EpisodePlayer] HLS media error, attempting recovery...');
+              hls.recoverMediaError();
+            } else {
+              console.error('[EpisodePlayer] HLS unrecoverable error, falling back to iframe');
+              hls.destroy();
+              hlsRef.current = null;
+              setPlayerState('iframe');
+            }
+          }
+        });
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        videoRef.current.src = streamUrl;
+      }
+    } else {
+      const vid = videoRef.current;
+      const onError = () => {
+        console.warn('[EpisodePlayer] Video error, details:', vid.error?.code, vid.error?.message);
+        setPlayerState('iframe');
+      };
+      vid.addEventListener('error', onError);
+      vid.src = streamUrl;
+      vid.load();
+      vid.play().catch(() => {});
+      return () => {
+        vid.removeEventListener('error', onError);
+      };
+    }
+  }, [playerState, streamUrl, mediaType, stopHls]);
+
+  /* cleanup on unmount */
+  useEffect(() => () => {
+    stopVideo();
+    if (blockedTimerRef.current) clearTimeout(blockedTimerRef.current);
+    if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
+  }, [stopVideo]);
+
+  /* ---------- iframe ad-block ---------- */
 
   const injectCleaner = useCallback(() => {
     const iframe = iframeRef.current;
@@ -280,22 +375,17 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
       const iDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
       if (!iDoc?.body) return;
       if ((iDoc as any).__antiAdInjected) return;
-
       const script = iDoc.createElement('script');
       script.textContent = IFRAME_CLEANER_SCRIPT;
       (iDoc.head ?? iDoc.documentElement).appendChild(script);
-    } catch (_) {
-    }
+    } catch (_) {}
   }, []);
 
   const handleIframeLoad = useCallback(() => {
-    setLoading(false);
-    if (!isMp4Upload) return;
     injectCleaner();
-
+    if (!isMp4Upload) return;
     if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
     cleanerIntervalRef.current = setInterval(injectCleaner, 1000);
-
     setTimeout(() => {
       if (cleanerIntervalRef.current) clearInterval(cleanerIntervalRef.current);
     }, 60_000);
@@ -304,33 +394,27 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
   const handleShieldClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-
     try {
       const rect = iframe.getBoundingClientRect();
       const iDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
-
       if (!iDoc) {
         const shield = e.currentTarget as HTMLDivElement;
         shield.style.pointerEvents = 'none';
         setTimeout(() => { shield.style.pointerEvents = 'auto'; }, isMp4Upload ? 60 : 140);
         return;
       }
-
       const relX = e.clientX - rect.left;
       const relY = e.clientY - rect.top;
       const el = iDoc.elementFromPoint(relX, relY) as HTMLElement | null;
       if (!el) return;
-
       const tag = el.tagName.toUpperCase();
       const href = (el as HTMLAnchorElement).href || '';
       const text = (el.innerText || el.textContent || '').toLowerCase();
       const iHost = (iframe.src || '').split('/').slice(0, 3).join('/');
-
       const isExtLink = href.startsWith('http') && !href.includes(iHost);
       const isAdText = AD_OVERLAY_KEYWORDS.some(k => text.includes(k));
       const isVideo = tag === 'VIDEO' || tag === 'HTML' || tag === 'BODY';
       const isAd = isExtLink || (isAdText && !isVideo);
-
       if (isAd) {
         showBlocked();
         let node: HTMLElement | null = el;
@@ -368,7 +452,6 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
 
   useEffect(() => {
     if (!isMp4Upload) return;
-
     const handleDocClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -386,6 +469,8 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     return () => document.removeEventListener('click', handleDocClick, true);
   }, [isMp4Upload, url, showBlocked]);
 
+  /* ---------- render ---------- */
+
   if (!url) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -394,17 +479,14 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     );
   }
 
+  /* Mega en Android */
   if (showMegaAndroidUI) {
     const handleOpenMega = () => {
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
     };
-
     return (
       <View style={[styles.container, styles.megaContainer]}>
         <View style={styles.megaGlassCard}>
-          {/* Logo de Mega en SVG */}
           <svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 16 }}>
             <circle cx="50" cy="50" r="50" fill="url(#megaGrad)" />
             <path d="M25 70V30L50 50L75 30V70H63V48L50 58L37 48V70H25Z" fill="white" />
@@ -415,16 +497,13 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
               </linearGradient>
             </defs>
           </svg>
-
           <Text style={styles.megaTitle}>Servidor MEGA Detectado</Text>
           <Text style={styles.megaDescription}>
             Para reproducir este video en Android con la mejor calidad y sin restricciones de navegación, te recomendamos abrir el enlace externo en la aplicación oficial de MEGA o en tu navegador.
           </Text>
-
           <TouchableOpacity style={styles.megaButton} onPress={handleOpenMega} activeOpacity={0.8}>
             <Text style={styles.megaButtonText}>ABRIR EN MEGA</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.megaSecondaryButton} onPress={() => setForceLoadIframe(true)} activeOpacity={0.7}>
             <Text style={styles.megaSecondaryButtonText}>Intentar reproducir en el navegador</Text>
           </TouchableOpacity>
@@ -433,13 +512,37 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     );
   }
 
+  /* Resolviendo URL embed -> stream directo */
+  if (resolving) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#8b5cf6" />
+        <Text style={styles.statusText}>Extrayendo video directo...</Text>
+      </View>
+    );
+  }
+
+  /* Stream directo resuelto (HLS o MP4) */
+  if (playerState === 'stream_ready' && streamUrl) {
+    return (
+      <View style={styles.container}>
+        <video
+          ref={videoRef}
+          style={videoStyles.element}
+          controls
+          playsInline
+          autoPlay
+        />
+      </View>
+    );
+  }
+
+  /* Iframe (fallback) */
   return (
     <View style={styles.container}>
       <iframe
         ref={iframeRef}
         src={url}
-        // @ts-ignore – RN Web permite sandbox en iframe
-        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
         title="Anime Video Player"
@@ -447,31 +550,25 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         onLoad={handleIframeLoad}
       />
 
-      {loading && (
+      {playerState === 'loading' && (
         <View style={[styles.overlay, styles.centered]} {...{ pointerEvents: 'none' }}>
           <ActivityIndicator size="large" color="#8b5cf6" />
         </View>
       )}
 
       {blocked && (
-        <View style={[styles.blockedBadge]} {...{ pointerEvents: 'none' }}>
-        </View>
+        <View style={[styles.blockedBadge]} {...{ pointerEvents: 'none' }} />
       )}
     </View>
   );
 };
 
-const divStyles: Record<string, React.CSSProperties> = {
-  shield: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
+const videoStyles: Record<string, React.CSSProperties> = {
+  element: {
     width: '100%',
     height: '100%',
-    zIndex: 10,
-    cursor: 'pointer',
-    background: 'transparent',
-    pointerEvents: 'auto',
+    display: 'block',
+    backgroundColor: '#000',
   },
 };
 
@@ -493,8 +590,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     marginBottom: 16,
-    // @ts-ignore
-    position: 'relative',
+    position: 'relative' as any,
   },
   megaContainer: {
     justifyContent: 'center',
@@ -562,26 +658,23 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   overlay: {
-    // @ts-ignore
-    position: 'absolute',
+    position: 'absolute' as any,
     top: 0, left: 0, right: 0, bottom: 0,
   },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
-    // @ts-ignore
-    gap: 12,
+    gap: 12 as any,
   },
-  loadingText: {
+  statusText: {
     color: '#94a3b8',
-    fontSize: 14,
+    fontSize: 13,
   },
   blockedBadge: {
-    // @ts-ignore
-    position: 'absolute',
+    position: 'absolute' as any,
     bottom: 12,
     left: '50%',
-    transform: [{ translateX: -80 }],
+    transform: [{ translateX: -80 }] as any,
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderWidth: 1,
     borderColor: '#10b981',
