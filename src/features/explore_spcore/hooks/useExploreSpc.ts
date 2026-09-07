@@ -40,11 +40,11 @@ export const useExploreSpc = () => {
     let cancelled = false;
     const isBrowse = hasActiveBrowse;
     setBrowseMode(isBrowse);
-    setLoading(isBrowse);
 
     const timer = setTimeout(async () => {
       try {
         if (isBrowse) {
+          if (!cancelled) setLoading(true);
           if (isHentai && query) {
             // Búsqueda hentai por título: /search no pagina y no combina con tags.
             const data = await searchAnime1V(query, 'hentaila');
@@ -65,7 +65,7 @@ export const useExploreSpc = () => {
               setHasMore(!!data?.hasMore);
               setPage(1);
             }
-} else {
+          } else {
             // Anime normal: catálogo combina búsqueda (q) + filtros server-side.
             const data = await fetchCatalog(1, {
               q: query || undefined,
@@ -95,7 +95,7 @@ export const useExploreSpc = () => {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }, 0);
+    }, 350);
 
     return () => {
       cancelled = true;

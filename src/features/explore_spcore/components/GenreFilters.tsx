@@ -90,7 +90,7 @@ export function GenreFilters({
     (isHentaiGenre && selectedHentaiTag !== 'Todos');
 
   return (
-    <View style={styles.container}>
+    <View>
       <TouchableOpacity 
         style={styles.expandButton} 
         onPress={toggleFilters}
@@ -181,20 +181,19 @@ export function GenreFilters({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingBottom: 4,
-  },
 expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 48,
     backgroundColor: 'rgba(30, 41, 59, 0.5)',
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#334155',
+    marginRight: 13,
+    marginLeft: 13
   },
   expandButtonLeft: {
     flexDirection: 'row',
@@ -222,6 +221,8 @@ expandButton: {
     borderColor: '#1e293b',
     paddingBottom: 4,
     marginBottom: 12,
+    marginRight: 13,
+    marginLeft: 13
   },
   content: {
     paddingTop: 12,

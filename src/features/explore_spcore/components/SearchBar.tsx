@@ -33,8 +33,10 @@ export function SearchBar({ value, onChangeText, onClear }: SearchBarProps) {
 
 const styles = StyleSheet.create({
   searchContainer: {
+    paddingHorizontal: 13,
     paddingTop: 12,
     paddingBottom: 8,
+    
   },
   searchBar: {
     flexDirection: 'row',
