@@ -22,6 +22,34 @@ interface AiringScheduleSpcProps {
   refreshing?: boolean;
 }
 
+interface DayTabEntry {
+  key: string;
+  date: Date;
+  originIndex: number;
+  tabLabel: string;
+}
+
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function dateToMMDD(date: Date): string {
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Devuelve la fecha calendario de hoy en el huso local (sin hora).
+function todayOnly(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function sortEpisodesByTime(list: ScheduleEpisode[]): ScheduleEpisode[] {
+  return [...list].sort((a, b) => {
+    const ta = a.time || '';
+    const tb = b.time || '';
+    return tb.localeCompare(ta);
+  });
+}
+
 export const AiringScheduleSpc = memo(function AiringScheduleSpc({
   groups = [],
   loading = false,
@@ -31,15 +59,72 @@ export const AiringScheduleSpc = memo(function AiringScheduleSpc({
 }: AiringScheduleSpcProps) {
   const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
-  const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  // Construye las pestañas ordenadas: Hoy, Ayer, luego fechas descendentes.
+  const tabs = useMemo<DayTabEntry[]>(() => {
+    if (groups.length === 0) return [];
+    const now = new Date();
+    const today = todayOnly(now);
+    const todayJsDay = now.getDay(); // 0=Domingo
+    const todayApiDay = ((todayJsDay + 6) % 7) + 1; // Lunes=1..Domingo=7
+
+    const entries: DayTabEntry[] = groups.map((group, index) => {
+      const apiDay = group.day ?? index + 1;
+      const diff = apiDay - todayApiDay;
+      const date = new Date(today);
+      date.setDate(today.getDate() + diff);
+      return {
+        key: group.day ? String(group.day) : `${index}`,
+        date,
+        originIndex: index,
+        tabLabel: '',
+      };
+    });
+
+    // Ordena: Hoy primero (diff 0), Ayer segundo (diff -1), luego descendente por fecha.
+    entries.sort((a, b) => {
+      const aDiff = a.date.getTime() - today.getTime();
+      const bDiff = b.date.getTime() - today.getTime();
+      if (aDiff === 0) return -1;
+      if (bDiff === 0) return 1;
+      if (aDiff === -86400000) return -1;
+      if (bDiff === -86400000) return 1;
+      return b.date.getTime() - a.date.getTime();
+    });
+
+    entries.forEach((entry) => {
+      const diff = entry.date.getTime() - today.getTime();
+      if (diff === 0) {
+        entry.tabLabel = 'Hoy';
+      } else if (diff === -86400000) {
+        entry.tabLabel = 'Ayer';
+      } else {
+        entry.tabLabel = dateToMMDD(entry.date);
+      }
+    });
+
+    return entries;
+  }, [groups]);
+
+  const activeEntry = useMemo(() => {
+    if (tabs.length === 0) return null;
+    const selected =
+      tabs.find((t) => t.key === selectedKey) ||
+      tabs.find((t) => t.tabLabel === 'Hoy') ||
+      tabs[0];
+    return selected;
+  }, [tabs, selectedKey]);
 
   const activeGroup = useMemo(() => {
-    if (groups.length === 0) return null;
-    const index = Math.min(selectedGroupIndex, groups.length - 1);
-    return groups[index] || null;
-  }, [groups, selectedGroupIndex]);
+    if (activeEntry == null) return null;
+    return groups[activeEntry.originIndex] || null;
+  }, [groups, activeEntry]);
 
-  const episodes = activeGroup?.episodes || [];
+  const episodes = useMemo(
+    () => (activeGroup ? sortEpisodesByTime(activeGroup.episodes || []) : []),
+    [activeGroup]
+  );
 
   if (loading && groups.length === 0) {
     return (
@@ -89,18 +174,19 @@ export const AiringScheduleSpc = memo(function AiringScheduleSpc({
                     isWeb && { maxWidth: getContentWidth(), alignSelf: 'center' },
                   ]}
                 >
-                  {groups.map((group, index) => {
-                    const isSelected = index === (activeGroup ? selectedGroupIndex : 0);
-                    const count = group.episodes?.length || 0;
+                  {tabs.map((tab) => {
+                    const isSelected = tab.key === activeEntry?.key;
+                    const group = groups[tab.originIndex];
+                    const count = group?.episodes?.length || 0;
                     return (
                       <TouchableOpacity
-                        key={`${group.date}-${index}`}
+                        key={`${tab.key}-${tab.date.toISOString()}`}
                         style={[styles.dayTab, isSelected && styles.dayTabActive]}
-                        onPress={() => setSelectedGroupIndex(index)}
+                        onPress={() => setSelectedKey(tab.key)}
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.dayTabText, isSelected && styles.dayTabTextActive]}>
-                          {group.dateLabel || group.date}
+                          {tab.tabLabel}
                         </Text>
                         {count > 0 && (
                           <View
@@ -151,10 +237,19 @@ export const AiringScheduleSpc = memo(function AiringScheduleSpc({
                   <Text style={styles.cardTitle} numberOfLines={2}>
                     {item.title}
                   </Text>
-                  {!!item.dayOfWeek && (
-                    <Text style={styles.cardDayText}>{item.dayOfWeek}</Text>
+                  {(!!item.category || !!item.dayOfWeek) && (
+                    <View style={styles.cardMetaRow}>
+                      {!!item.category && (
+                        <Text style={styles.cardCategoryText} numberOfLines={1}>
+                          {item.category}
+                        </Text>
+                      )}
+                      {!!item.dayOfWeek && (
+                        <Text style={styles.cardDayText}>{item.dayOfWeek}</Text>
+                      )}
+                    </View>
                   )}
-                </View>
+                  </View>
               </TouchableOpacity>
             );
           }}
@@ -286,6 +381,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
     lineHeight: 18,
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  cardCategoryText: {
+    color: '#a78bfa',
+    fontSize: 11,
+    fontWeight: '700',
+    flexShrink: 1,
   },
   cardDayText: {
     color: '#8b5cf6',

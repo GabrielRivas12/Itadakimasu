@@ -27,16 +27,72 @@ export interface CatalogResult {
 
 export async function fetchCatalog(
   page = 1,
-  genre?: string,
-  provider = 'animeav1'
+  options: {
+    genre?: string;
+    type?: string;
+    sort?: string;
+    status?: string;
+    year?: string;
+    q?: string;
+    provider?: string;
+  } = {}
 ): Promise<CatalogResult | null> {
-  const params: Record<string, string> = { page: String(page), provider };
+  const params: Record<string, string> = { page: String(page), provider: options.provider ?? 'animeav1' };
 
-  if (genre) {
-    params.genre = genre;
-  }
+  if (options.genre) params.genre = options.genre;
+  if (options.type) params.type = options.type;
+  if (options.sort) params.sort = options.sort;
+  if (options.status) params.status = options.status;
+  if (options.year) params.year = options.year;
+  if (options.q) params.q = options.q;
 
   return await fetchFromApi<CatalogResult>('/api/v1/anime/catalog', params);
+}
+
+export interface TrendingAnime {
+  id?: number | string;
+  title: string;
+  slug: string;
+  provider: string;
+  url: string;
+  image: string | null;
+  backdrop: string | null;
+  score: number | null;
+  votes?: number | null;
+  type: string;
+  year: string | null;
+  status: string | null;
+  genres?: string[];
+  description?: string | null;
+  malId?: number | null;
+  lastEpisode?: {
+    number: number;
+    date: string;
+  } | null;
+}
+
+export interface TrendingResult {
+  days: number;
+  results: TrendingAnime[];
+  count: number;
+  updatedAt: string;
+}
+
+export async function fetchTrending(
+  count = 12,
+  days = 7
+): Promise<TrendingAnime[]> {
+  const params: Record<string, string> = {
+    count: String(count),
+    days: String(days),
+  };
+
+  const data = await fetchFromApi<TrendingResult>(
+    '/api/v1/anime/trending',
+    params
+  );
+
+  return data?.results || [];
 }
 
 export function buildImageProxyUrl(imageUrl: string): string {
@@ -93,6 +149,18 @@ export interface Anime1VSeason {
   label?: string;
 }
 
+export interface Anime1VRelation {
+  type: number;
+  typeLabel: string;
+  id: number;
+  title: string;
+  slug: string;
+  url: string;
+  image: string | null;
+  startDate: string | null;
+  year: string | null;
+}
+
 export interface Anime1VDetail {
   id: number;
   title: string;
@@ -113,6 +181,7 @@ export interface Anime1VDetail {
   malId: number | null;
   trailer: string | null;
   genres: Anime1VGenre[] | null;
+  relations?: Anime1VRelation[];
   episodes: Anime1VEpisode[];
   url: string;
   slug: string;
@@ -426,11 +495,16 @@ export async function fetchLatestEpisodes(isAdult: boolean = false): Promise<Lat
 }
 
 export interface ScheduleEpisode {
+  id?: number;
   title: string;
   slug: string;
   url: string;
   image: string;
+  category?: string;
   episode: number;
+  time?: string;
+  label?: string;
+  publishedAt?: string;
   timestamp?: string;
   airDate?: string;
   dayOfWeek?: string;
@@ -439,15 +513,19 @@ export interface ScheduleEpisode {
 }
 
 export interface ScheduleGroup {
+  day?: number;
+  dayName?: string;
+  count?: number;
   date: string;
   dateLabel: string;
   episodes: ScheduleEpisode[];
 }
 
-export interface ScheduleResult {
-  upcoming: boolean;
-  groups: ScheduleGroup[];
-  count: number;
+interface ScheduleApiResult {
+  provider?: string;
+  generatedAt?: string;
+  count?: number;
+  groups: Array<Omit<ScheduleGroup, 'date' | 'dateLabel'>>;
 }
 
 export async function fetchSchedule(
@@ -463,11 +541,14 @@ export async function fetchSchedule(
       params.upcoming = 'true';
     }
 
-    const data = await fetchFromApi<ScheduleResult>('/api/v1/anime/schedule', params);
-    if (data?.groups) {
-      return data.groups;
-    }
-    return [];
+    const data = await fetchFromApi<ScheduleApiResult>('/api/v1/anime/schedule', params);
+    const rawGroups = Array.isArray(data?.groups) ? data.groups : [];
+    const groups: ScheduleGroup[] = rawGroups.map((g) => ({
+      ...g,
+      date: g.day ? String(g.day) : '',
+      dateLabel: g.dayName || (g.day ? String(g.day) : ''),
+    }));
+    return groups || [];
   } catch (error) {
     console.error('Error fetching schedule:', error);
     return [];

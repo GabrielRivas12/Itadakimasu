@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import { searchAnime1V, fetchCatalog } from '../../../../services/anime1v';
+import { fetchCatalog, searchAnime1V } from '../../../../services/anime1v';
 import { ExploreSpcItem } from '../types/exploreSpc';
-
-const SEARCH_DEBOUNCE_MS = 500;
 
 export const useExploreSpc = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('Todos');
+  const [selectedType, setSelectedType] = useState('Todos');
   const [selectedHentaiTag, setSelectedHentaiTag] = useState('Todos');
 
   const [results, setResults] = useState<ExploreSpcItem[]>([]);
@@ -20,9 +19,16 @@ export const useExploreSpc = () => {
 
   const query = searchQuery.trim();
 
-  const effectiveGenre = selectedGenre === 'hentai' && selectedHentaiTag !== 'Todos'
-    ? selectedHentaiTag
-    : selectedGenre;
+  const effectiveGenre =
+    selectedGenre === 'hentai' && selectedHentaiTag !== 'Todos'
+      ? selectedHentaiTag
+      : selectedGenre;
+
+  const isHentai = selectedGenre === 'hentai';
+  const hentaiGenre = selectedHentaiTag === 'Todos' ? 'hentai' : selectedHentaiTag;
+
+  const hasActiveBrowse =
+    query !== '' || selectedGenre !== 'Todos' || selectedType !== 'Todos';
 
   useEffect(() => {
     if (selectedGenre !== 'hentai' && selectedHentaiTag !== 'Todos') {
@@ -32,30 +38,48 @@ export const useExploreSpc = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const isBrowse = query === '' && selectedGenre !== 'Todos';
+    const isBrowse = hasActiveBrowse;
     setBrowseMode(isBrowse);
-    setLoading(query !== '' || isBrowse);
+    setLoading(isBrowse);
 
     const timer = setTimeout(async () => {
       try {
-        if (query) {
-          // El backend de search no soporta combinar filtros; se busca por texto.
-          const data = await searchAnime1V(query, 'animeav1');
-          if (!cancelled) {
-            setResults(data);
-            setHasMore(false);
-            setPage(1);
-          }
-        } else if (selectedGenre !== 'Todos') {
-          // Modo catálogo: el backend ya filtra por género de forma server-side.
-          const data = await fetchCatalog(1, effectiveGenre);
-          if (!cancelled) {
-            setResults(data?.results ?? []);
-            setHasMore(!!data?.hasMore);
-            setPage(1);
+        if (isBrowse) {
+          if (isHentai && query) {
+            // Búsqueda hentai por título: /search no pagina y no combina con tags.
+            const data = await searchAnime1V(query, 'hentaila');
+            if (!cancelled) {
+              setResults(data);
+              setHasMore(false);
+              setPage(1);
+            }
+          } else if (isHentai) {
+            // Navegar hentai por tag/tipo: el catálogo de hentaila filtra server-side.
+            const data = await fetchCatalog(1, {
+              genre: hentaiGenre,
+              type: selectedType === 'Todos' ? undefined : selectedType,
+              provider: 'hentaila',
+            });
+            if (!cancelled) {
+              setResults(data?.results ?? []);
+              setHasMore(!!data?.hasMore);
+              setPage(1);
+            }
+} else {
+            // Anime normal: catálogo combina búsqueda (q) + filtros server-side.
+            const data = await fetchCatalog(1, {
+              q: query || undefined,
+              genre: effectiveGenre === 'Todos' ? undefined : effectiveGenre,
+              type: selectedType === 'Todos' ? undefined : selectedType,
+            });
+            if (!cancelled) {
+              setResults(data?.results ?? []);
+              setHasMore(!!data?.hasMore);
+              setPage(1);
+            }
           }
         } else {
-          // Estado inicial: no se muestra contenido hasta buscar.
+          // Estado inicial: no se muestra contenido hasta buscar o filtrar.
           if (!cancelled) {
             setResults([]);
             setHasMore(false);
@@ -71,20 +95,31 @@ export const useExploreSpc = () => {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }, query === '' ? 0 : SEARCH_DEBOUNCE_MS);
+    }, 0);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, selectedGenre, effectiveGenre]);
+  }, [query, effectiveGenre, selectedType, hasActiveBrowse, isHentai, hentaiGenre]);
 
   const handleLoadMore = useCallback(async () => {
     if (!browseMode || loading || loadingMore || !hasMore) return;
+    if (isHentai && query) return;
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const data = await fetchCatalog(nextPage, effectiveGenre);
+      const data = isHentai
+        ? await fetchCatalog(nextPage, {
+            genre: hentaiGenre,
+            type: selectedType === 'Todos' ? undefined : selectedType,
+            provider: 'hentaila',
+          })
+        : await fetchCatalog(nextPage, {
+            q: query || undefined,
+            genre: effectiveGenre === 'Todos' ? undefined : effectiveGenre,
+            type: selectedType === 'Todos' ? undefined : selectedType,
+          });
       if (data && data.results.length > 0) {
         setResults(prev => {
           const existing = new Set(prev.map(a => String(a.id)));
@@ -101,7 +136,7 @@ export const useExploreSpc = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [browseMode, loading, loadingMore, hasMore, page, effectiveGenre]);
+  }, [browseMode, loading, loadingMore, hasMore, page, query, effectiveGenre, selectedType, isHentai, hentaiGenre]);
 
   const handleAnimePress = useCallback((item: ExploreSpcItem) => {
     router.push({
@@ -115,6 +150,8 @@ export const useExploreSpc = () => {
     setSearchQuery,
     selectedGenre,
     setSelectedGenre,
+    selectedType,
+    setSelectedType,
     selectedHentaiTag,
     setSelectedHentaiTag,
     results,

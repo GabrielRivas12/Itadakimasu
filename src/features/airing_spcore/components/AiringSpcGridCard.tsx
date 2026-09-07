@@ -29,20 +29,13 @@ export const AiringSpcGridCard = memo(function AiringSpcGridCard({ item, onPress
         <View style={styles.cardBadge}>
           <Text style={styles.cardBadgeText}>EP {item.episode}</Text>
         </View>
-        {timeAgo && (
-          <View style={styles.timeBadge}>
-            <Text style={styles.timeBadgeText}>{timeAgo}</Text>
-          </View>
-        )}
       </View>
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>
           {item.title}
         </Text>
-        {item.dateLabel && (
-          <View style={styles.dateRow}>
-            <Text style={styles.dateLabel}>{item.dateLabel}</Text>
-          </View>
+        {timeAgo && (
+          <Text style={styles.timeText}>{timeAgo}</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -81,20 +74,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  timeBadge: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  timeBadgeText: {
-    color: '#a78bfa',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
   cardContent: {
     padding: 10,
   },
@@ -104,11 +83,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  dateRow: {
-    marginBottom: 4,
-  },
-  dateLabel: {
-    color: '#22d3ee',
+  timeText: {
+    color: '#a78bfa',
     fontSize: 11,
     fontWeight: '600',
   },

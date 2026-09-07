@@ -1,21 +1,26 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
-import { CatalogAnime, buildImageProxyUrl } from '../../../../services/anime1v';
+import { TrendingAnime, buildImageProxyUrl } from '../../../../services/anime1v';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 interface TrendingSenpaiCoreProps {
-  catalog: CatalogAnime[];
+  trending: TrendingAnime[];
   title?: string;
-  onPress?: (item: CatalogAnime) => void;
+  onPress?: (item: TrendingAnime) => void;
 }
 
-function getCardSubtitle(item: CatalogAnime): string {
-  return [item.type, item.year, item.status].filter(Boolean).join(' • ');
+function getStatusColor(status: string | null): string {
+  if (!status) return '#64748b';
+  const lower = status.toLowerCase();
+  if (lower.includes('emisión') || lower.includes('emision') || lower.includes('airing')) return '#a78bfa';
+  if (lower.includes('finalizado') || lower.includes('completed') || lower.includes('finished')) return '#94a3b8';
+  if (lower.includes('próximamente') || lower.includes('upcoming')) return '#f59e0b';
+  return '#64748b';
 }
 
 export const TrendingSenpaiCore = memo(function TrendingSenpaiCore({
-  catalog,
-  title = 'Catálogo',
+  trending,
+  title = 'Animes Populares',
   onPress,
 }: TrendingSenpaiCoreProps) {
   const { getColumns } = useResponsive();
@@ -25,9 +30,9 @@ export const TrendingSenpaiCore = memo(function TrendingSenpaiCore({
     <View>
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.grid}>
-        {catalog.map((item) => (
+        {trending.map((item) => (
           <TouchableOpacity
-            key={String(item.id)}
+            key={item.url ?? item.title}
             style={[styles.card, { width: `${100 / columns - 2}%` }]}
             onPress={() => onPress?.(item)}
             activeOpacity={0.8}
@@ -44,7 +49,16 @@ export const TrendingSenpaiCore = memo(function TrendingSenpaiCore({
               <Text style={styles.cardTitle} numberOfLines={1}>
                 {item.title}
               </Text>
-              <Text style={styles.cardSubtitle}>{getCardSubtitle(item)}</Text>
+              <Text style={styles.cardType}>
+                {[item.type, item.year].filter(Boolean).join(' • ')}
+              </Text>
+              {item.status && (
+                <View style={styles.statusBadge}>
+                  <Text style={[styles.statusText, { color: getStatusColor(item.status) }]} numberOfLines={1}>
+                    {item.status}
+                  </Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         ))}
@@ -90,9 +104,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  cardSubtitle: {
+  cardType: {
     color: '#94a3b8',
     fontSize: 12,
+    marginBottom: 6,
+  },
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   ratingBadge: {
     position: 'absolute',

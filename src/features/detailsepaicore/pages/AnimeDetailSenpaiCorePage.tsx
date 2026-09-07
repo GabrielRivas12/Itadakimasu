@@ -11,6 +11,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SenpaiCoreHeader } from '../components/SenpaiCoreHeader';
+import { RelatedAnimeRow } from '../components/RelatedAnimeRow';
 import { SkeletonLoader } from '../../animedetails/components/DetailsSkeleton';
 import { EpisodePicker } from '../../animedetails/components/EpisodePicker';
 import { EpisodePlayer } from '../../animedetails/components/EpisodePlayer';
@@ -201,6 +202,13 @@ export function AnimeDetailSenpaiCorePage() {
       router.replace('/');
     }
   };
+
+  const handleRelationPress = useCallback((item: { url: string; title: string }) => {
+    router.push({
+      pathname: '/animatedetailsepaicore',
+      params: { url: item.url, title: item.title },
+    });
+  }, [router]);
 
   const renderEpisodesSection = () => {
     if (!detail) return null;
@@ -393,6 +401,13 @@ export function AnimeDetailSenpaiCorePage() {
             )}
           </View>
         </View>
+
+        {detail.relations && detail.relations.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionHeader}>Animes Relacionados</Text>
+            <RelatedAnimeRow relations={detail.relations} onPress={handleRelationPress} />
+          </View>
+        )}
 
         <View style={styles.playerSection}>{renderEpisodesSection()}</View>
       </>

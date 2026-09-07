@@ -17,6 +17,8 @@ export const ExploreSpcPage = memo(function ExploreSpcPage() {
     setSearchQuery,
     selectedGenre,
     setSelectedGenre,
+    selectedType,
+    setSelectedType,
     selectedHentaiTag,
     setSelectedHentaiTag,
     results,
@@ -42,64 +44,84 @@ export const ExploreSpcPage = memo(function ExploreSpcPage() {
         </View>
       )}
 
-      <View style={[
-        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-        isWeb && isMobile && { paddingHorizontal: 16 }
-      ]}>
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onClear={() => setSearchQuery('')}
-        />
-
-        <GenreFilters
-          selectedGenre={selectedGenre}
-          onSelectGenre={setSelectedGenre}
-          selectedHentaiTag={selectedHentaiTag}
-          onSelectHentaiTag={setSelectedHentaiTag}
-        />
-      </View>
-
       {loading && results.length === 0 ? (
-        <View style={[
-          styles.flex,
-          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-        ]}>
-          <ExploreSkeleton />
-        </View>
+        <>
+          <View style={styles.filtersBar}>
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+            />
+
+            <GenreFilters
+              selectedGenre={selectedGenre}
+              onSelectGenre={setSelectedGenre}
+              selectedType={selectedType}
+              onSelectType={setSelectedType}
+              selectedHentaiTag={selectedHentaiTag}
+              onSelectHentaiTag={setSelectedHentaiTag}
+            />
+          </View>
+          <View style={[
+            styles.flex,
+            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+          ]}>
+            <ExploreSkeleton />
+          </View>
+        </>
       ) : (
-        <View style={styles.flex}>
-          <FlatList
-            key={columns} // Force re-render when columns change
-            data={results}
-            keyExtractor={(item, index) => `${item.id}-${index}`}
-            numColumns={columns}
-            contentContainerStyle={[
-              styles.gridContent,
+        <FlatList
+          key={columns} // Force re-render when columns change
+          data={results}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
+          numColumns={columns}
+          contentContainerStyle={[
+            styles.gridContent,
+            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+            isWeb && isMobile && { paddingHorizontal: 8 }
+          ]}
+          columnWrapperStyle={styles.gridRow}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={!loading ? <ExploreEmpty /> : null}
+          ListHeaderComponent={
+            <View style={[
+              styles.filtersBar,
               isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-              isWeb && isMobile && { paddingHorizontal: 8 }
-            ]}
-            columnWrapperStyle={styles.gridRow}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={!loading ? <ExploreEmpty /> : null}
-            renderItem={({ item }) => (
-              <AnimeSpcGridCard
-                item={item}
-                onPress={handleAnimePress}
-                width={`${100 / columns - 2}%`}
+              isWeb && isMobile && { paddingHorizontal: 0 }
+            ]}>
+              <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onClear={() => setSearchQuery('')}
               />
-            )}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={() =>
-              loadingMore ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color="#8b5cf6" />
-                </View>
-              ) : null
-            }
-          />
-        </View>
+
+              <GenreFilters
+                selectedGenre={selectedGenre}
+                onSelectGenre={setSelectedGenre}
+                selectedType={selectedType}
+                onSelectType={setSelectedType}
+                selectedHentaiTag={selectedHentaiTag}
+                onSelectHentaiTag={setSelectedHentaiTag}
+              />
+            </View>
+          }
+          renderItem={({ item }) => (
+            <AnimeSpcGridCard
+              item={item}
+              onPress={handleAnimePress}
+              width={`${100 / columns - 2}%`}
+            />
+          )}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={() =>
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#8b5cf6" />
+              </View>
+            ) : null
+          }
+        />
       )}
     </View>
   );
@@ -108,6 +130,16 @@ export const ExploreSpcPage = memo(function ExploreSpcPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0b0f19',
+  },
+  stickyBar: {
+    backgroundColor: '#0b0f19',
+    zIndex: 10,
+    elevation: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#1e293b',
+  },
+  filtersBar: {
     backgroundColor: '#0b0f19',
   },
   flex: {

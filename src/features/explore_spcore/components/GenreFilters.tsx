@@ -5,9 +5,23 @@ import { Ionicons } from '@expo/vector-icons';
 interface AdvancedFiltersProps {
   selectedGenre: string;
   onSelectGenre: (genre: string) => void;
+  selectedType: string;
+  onSelectType: (type: string) => void;
   selectedHentaiTag: string;
   onSelectHentaiTag: (tag: string) => void;
 }
+
+// Tipos de contenido -> slug usado por el endpoint /catalog (filtro server-side).
+const TYPE_MAP: Record<string, string> = {
+  'Todos': 'Todos',
+  'tv-anime': 'TV Anime',
+  'pelicula': 'Película',
+  'ova': 'OVA',
+  'especial': 'Especial',
+  'ona': 'ONA',
+};
+
+const TYPE_LIST = Object.keys(TYPE_MAP);
 
 // Labels en español -> slug usado por el endpoint /catalog (filtro server-side).
 const GENRE_MAP: Record<string, string> = {
@@ -57,6 +71,8 @@ const HENTAI_TAG_LIST = Object.keys(HENTAI_TAGS);
 export function GenreFilters({
   selectedGenre,
   onSelectGenre,
+  selectedType,
+  onSelectType,
   selectedHentaiTag,
   onSelectHentaiTag,
 }: AdvancedFiltersProps) {
@@ -70,6 +86,7 @@ export function GenreFilters({
   const isHentaiGenre = selectedGenre === 'hentai';
   const hasActiveFilters =
     selectedGenre !== 'Todos' ||
+    selectedType !== 'Todos' ||
     (isHentaiGenre && selectedHentaiTag !== 'Todos');
 
   return (
@@ -120,6 +137,24 @@ export function GenreFilters({
               </ScrollView>
             </View>
 
+            {/* Tipos */}
+            <View style={styles.filterSection}>
+              <Text style={styles.sectionLabel}>Tipo</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {TYPE_LIST.map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.chip, selectedType === type && styles.chipActive]}
+                    onPress={() => onSelectType(type)}
+                  >
+                    <Text style={[styles.chipText, selectedType === type && styles.chipTextActive]}>
+                      {TYPE_MAP[type]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
             {selectedGenre === 'hentai' && (
               <View style={styles.filterSection}>
                 <Text style={styles.sectionLabel}>Categorías Hentai</Text>
@@ -149,14 +184,13 @@ const styles = StyleSheet.create({
   container: {
     paddingBottom: 4,
   },
-  expandButton: {
+expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    marginHorizontal: 16,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
@@ -183,7 +217,6 @@ const styles = StyleSheet.create({
   },
   containerInner: {
     backgroundColor: 'rgba(15, 23, 42, 0.3)',
-    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#1e293b',
