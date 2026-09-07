@@ -25,6 +25,7 @@ import { EpisodePlayer } from '../components/EpisodePlayer';
 import { NativeEpisodePlayer } from '../components/NativeEpisodePlayer';
 import { EpisodePicker } from '../components/EpisodePicker';
 import { ProviderSelector } from '../components/ProviderSelector';
+import { VariantSelector } from '../components/VariantSelector';
 import { useAnimeDetails } from '../hooks/useAnimeDetails';
 import { cleanHtmlText } from '../utils/animeMatching';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
@@ -86,6 +87,9 @@ export function AnimeDetailsPage() {
     availableServers,
     selectedServerName,
     handleServerChange,
+    selectedVariant,
+    hasDub,
+    handleVariantChange,
   } = useAnimeDetails();
 
   React.useEffect(() => {
@@ -377,6 +381,11 @@ export function AnimeDetailsPage() {
                           />
                         </View>
                       )}
+                      <VariantSelector
+                        hasDub={hasDub}
+                        selectedVariant={selectedVariant}
+                        onVariantChange={handleVariantChange}
+                      />
                       {isWeb && (
                         <ProviderSelector
                           availableServers={availableServers}

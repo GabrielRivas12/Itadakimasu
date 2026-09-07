@@ -41,19 +41,21 @@ export const ProfilePage = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[
-          styles.header,
-          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
-          isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
-        ]}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>Mi Perfil</Text>
-              <Text style={styles.headerSubtitle}>Configuración de la cuenta</Text>
+        {isWeb && (
+          <View style={[
+            styles.header,
+            isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+            isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+          ]}>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.headerTitle}>Mi Perfil</Text>
+                <Text style={styles.headerSubtitle}>Configuración de la cuenta</Text>
+              </View>
+              <SettingsButton />
             </View>
-            <SettingsButton />
           </View>
-        </View>
+        )}
 
         {user ? (
           <View style={[styles.sectionContainer, isWeb && { paddingHorizontal: 0 }]}>

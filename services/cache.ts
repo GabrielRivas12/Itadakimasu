@@ -12,6 +12,7 @@ export const cacheKeys = {
   NOTIFICATIONS_ENABLED: 'setting:notifications_enabled',
   EPISODE_ORDER: 'setting:episode_order',
   PLAYER_TYPE: 'setting:player_type',
+  API_SOURCE: 'setting:api_source',
   USER_TOP_ANIME: (uid: string) => `cache:user_top_anime:${uid}`,
 };
 
@@ -95,6 +96,23 @@ export async function setPlayerType(type: 'native' | 'webview'): Promise<void> {
     await AsyncStorage.setItem(cacheKeys.PLAYER_TYPE, type);
   } catch (error) {
     console.error('Error saving player type setting:', error);
+  }
+}
+
+export async function getApiSource(): Promise<'anilist' | 'senpaicore'> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.API_SOURCE);
+    return data === 'senpaicore' ? 'senpaicore' : 'anilist';
+  } catch {
+    return 'anilist';
+  }
+}
+
+export async function setApiSource(source: 'anilist' | 'senpaicore'): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.API_SOURCE, source);
+  } catch (error) {
+    console.error('Error saving API source setting:', error);
   }
 }
 

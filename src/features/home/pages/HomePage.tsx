@@ -11,17 +11,20 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { preloadAllData } from '../../../../services/dataPreloader';
 import { FeaturedBanner } from '../components/FeaturedBanner';
 import { ContinueWatching } from '../components/ContinueWatching';
 import { TrendingGrid } from '../components/TrendingGrid';
 import { TrendingSeason } from '../components/TrendingSeason';
 import { HomeSkeleton } from '../components/HomeSkeleton';
+import { TrendingSenpaiCore } from './TrendingSenpaiCore';
 import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { fetchSeasonalTrendingAnime, Anime } from '../../../../services/anilist';
-import { getCachedSeasonalList, cacheSeasonalList, setIsNotificationsEnabled } from '../../../../services/cache';
+import { fetchCatalog, CatalogAnime } from '../../../../services/anime1v';
+import { getCachedSeasonalList, cacheSeasonalList, setIsNotificationsEnabled, getApiSource } from '../../../../services/cache';
 import { DownloadApkButton } from '../components/DownloadApkButton';
 import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
 import { StreakBadge } from '../components/StreakBadge';
@@ -30,6 +33,7 @@ import { inicializarNotificaciones } from '../../../../services/notification';
 
 export function HomePage() {
   usePortraitOrientation();
+  const [apiSource, setApiSource] = useState<'anilist' | 'senpaicore'>('anilist');
   const {
     trending,
     continueWatching,
@@ -41,15 +45,32 @@ export function HomePage() {
     onRefresh,
     handleAnimePress,
     loadMoreTrending,
-  } = useHome();
+  } = useHome(apiSource);
 
   const [seasonal, setSeasonal] = useState<Anime[]>([]);
   const seasonalPageRef = useRef(1);
   const seasonalHasMoreRef = useRef(true);
   const seasonalLoadingMoreRef = useRef(false);
 
+  const [catalog, setCatalog] = useState<CatalogAnime[]>([]);
+  const catalogPageRef = useRef(1);
+  const catalogHasMoreRef = useRef(true);
+  const catalogLoadingMoreRef = useRef(false);
+  const [loadingMoreCatalog, setLoadingMoreCatalog] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const source = await getApiSource();
+        setApiSource(source);
+      })();
+    }, [])
+  );
+
   useEffect(() => {
     (async () => {
+      if (apiSource === 'senpaicore') return;
+
       const cached = await getCachedSeasonalList();
       if (cached && cached.length > 0) {
         setSeasonal(cached);
@@ -62,7 +83,7 @@ export function HomePage() {
         await cacheSeasonalList(fresh);
       }
     })();
-  }, []);
+  }, [apiSource]);
 
   const loadMoreSeasonal = useCallback(async () => {
     if (seasonalLoadingMoreRef.current || !seasonalHasMoreRef.current) return;
@@ -83,6 +104,47 @@ export function HomePage() {
       console.error('Error loading more seasonal:', e);
     } finally {
       seasonalLoadingMoreRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (apiSource !== 'senpaicore') return;
+
+      try {
+        const data = await fetchCatalog(1);
+        if (data && data.results.length > 0) {
+          setCatalog(data.results);
+          catalogPageRef.current = 1;
+          catalogHasMoreRef.current = data.hasMore;
+        }
+      } catch (e) {
+        console.error('Error loading SenpaiCore catalog:', e);
+      }
+    })();
+  }, [apiSource]);
+
+  const loadMoreCatalog = useCallback(async () => {
+    if (catalogLoadingMoreRef.current || !catalogHasMoreRef.current) return;
+    catalogLoadingMoreRef.current = true;
+    setLoadingMoreCatalog(true);
+    try {
+      const nextPage = catalogPageRef.current + 1;
+      const data = await fetchCatalog(nextPage);
+      if (data && data.results.length > 0) {
+        setCatalog((prev) => {
+          const existingIds = new Set(prev.map(a => String(a.id)));
+          const unique = data.results.filter(a => !existingIds.has(String(a.id)));
+          return [...prev, ...unique];
+        });
+        catalogPageRef.current = nextPage;
+        catalogHasMoreRef.current = data.hasMore;
+      }
+    } catch (e) {
+      console.error('Error loading more SenpaiCore catalog:', e);
+    } finally {
+      catalogLoadingMoreRef.current = false;
+      setLoadingMoreCatalog(false);
     }
   }, []);
 
@@ -119,25 +181,46 @@ export function HomePage() {
   }, []);
 
   const { isWeb, getContentWidth, isMobile } = useResponsive();
+  const router = useRouter();
+
+  const isSenpaiCoreMode = !isWeb && apiSource === 'senpaicore';
+
+  const handleCatalogPress = useCallback((item: CatalogAnime) => {
+    router.push({
+      pathname: '/animatedetailsepaicore',
+      params: { url: item.url, title: item.title },
+    });
+  }, [router]);
+
+  const handleCatalogScroll = useCallback((event: any) => {
+    if (apiSource !== 'senpaicore' || isWeb) return;
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const threshold = contentSize.height - layoutMeasurement.height - 250;
+    if (contentOffset.y >= threshold) {
+      loadMoreCatalog();
+    }
+  }, [apiSource, isWeb, loadMoreCatalog]);
 
   return (
     <View style={styles.container}>
-      <View style={[
-        styles.header,
-        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-        isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
-      ]}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerTitle}>Inicio</Text>
-            <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <StreakBadge />
-            {isWeb && isMobile && <DownloadApkButton />}
+      {isWeb && (
+        <View style={[
+          styles.header,
+          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+          isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
+        ]}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Inicio</Text>
+              <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <StreakBadge />
+              {isWeb && isMobile && <DownloadApkButton />}
+            </View>
           </View>
         </View>
-      </View>
+      )}
       {loading ? (
         <ResponsiveContainer>
           <HomeSkeleton />
@@ -149,20 +232,35 @@ export function HomePage() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />
             }
+            onScroll={handleCatalogScroll}
+            scrollEventThrottle={16}
           >
             {featured && (
               <FeaturedBanner featured={featured} onPress={handleAnimePress} />
             )}
             <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
             <UpdateNotification />
-            {!isWeb && <Text style={styles.sectionTitleSeason}>Tendencias de temporada</Text>}
-            <TrendingSeason trending={seasonal} onPress={handleAnimePress} onLoadMore={loadMoreSeasonal} />
-            {!isWeb && <Text style={styles.sectionTitle}>Tendencias ahora</Text>}
-            <TrendingGrid trending={trending} onPress={handleAnimePress} onLoadMore={loadMoreTrending} />
-            {loadingMoreState && (
-              <View style={styles.loadingMoreContainer}>
-                <ActivityIndicator size="small" color="#8b5cf6" />
-              </View>
+            {isSenpaiCoreMode ? (
+              <>
+                <TrendingSenpaiCore catalog={catalog} onPress={handleCatalogPress} />
+                {loadingMoreCatalog && (
+                  <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color="#8b5cf6" />
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                {!isWeb && <Text style={styles.sectionTitleSeason}>Tendencias de temporada</Text>}
+                <TrendingSeason trending={seasonal} onPress={handleAnimePress} onLoadMore={loadMoreSeasonal} />
+                {!isWeb && <Text style={styles.sectionTitle}>Tendencias ahora</Text>}
+                <TrendingGrid trending={trending} onPress={handleAnimePress} onLoadMore={loadMoreTrending} />
+                {loadingMoreState && (
+                  <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color="#8b5cf6" />
+                  </View>
+                )}
+              </>
             )}
           </ResponsiveContainer>
         </Animated.View>

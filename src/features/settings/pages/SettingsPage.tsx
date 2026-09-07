@@ -26,7 +26,9 @@ import {
   getEpisodeOrder,
   setEpisodeOrder,
   getPlayerType,
-  setPlayerType
+  setPlayerType,
+  getApiSource,
+  setApiSource
 } from '../../../../services/cache';
 import { inicializarNotificaciones } from '../../../../services/notification';
 
@@ -38,6 +40,7 @@ export const SettingsPage = () => {
   const [isNotificationsEnabled, setNotificationsEnabled] = useState(false);
   const [episodeOrder, setEpisodeOrderState] = useState<'asc' | 'desc'>('asc');
   const [playerType, setPlayerTypeState] = useState<'native' | 'webview'>('native');
+  const [apiSource, setApiSourceState] = useState<'anilist' | 'senpaicore'>('anilist');
   
   // Modal state
   const [isReportModalVisible, setReportModalVisible] = useState(false);
@@ -74,6 +77,9 @@ export const SettingsPage = () => {
 
     const player = await getPlayerType();
     setPlayerTypeState(player);
+
+    const source = await getApiSource();
+    setApiSourceState(source);
   };
 
   const handleToggleAdultContent = async (value: boolean) => {
@@ -85,6 +91,12 @@ export const SettingsPage = () => {
     const newType = playerType === 'native' ? 'webview' : 'native';
     setPlayerTypeState(newType);
     await setPlayerType(newType);
+  };
+
+  const handleToggleApiSource = async () => {
+    const newSource = apiSource === 'anilist' ? 'senpaicore' : 'anilist';
+    setApiSourceState(newSource);
+    await setApiSource(newSource);
   };
 
   const handleToggleEpisodeOrder = async () => {
@@ -170,6 +182,24 @@ export const SettingsPage = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aplicación</Text>
           <View style={styles.card}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="server-outline" size={22} color="#8b5cf6" />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Fuente de datos</Text>
+                <Text style={styles.settingValue}>
+                  {apiSource === 'anilist' ? 'AniList' : 'SenpaiCore'}
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#2d3748', true: '#8b5cf6' }}
+                thumbColor={apiSource === 'senpaicore' ? '#ffffff' : '#94a3b8'}
+                ios_backgroundColor="#2d3748"
+                onValueChange={handleToggleApiSource}
+                value={apiSource === 'senpaicore'}
+              />
+            </View>
             <View style={styles.settingItem}>
               <View style={styles.settingIconContainer}>
                 <Ionicons name="notifications-outline" size={22} color="#8b5cf6" />

@@ -2,31 +2,29 @@ import React, { memo } from 'react';
 import { StyleSheet, View, FlatList, ActivityIndicator, Text } from 'react-native';
 import { SearchBar } from '../components/SearchBar';
 import { GenreFilters } from '../components/GenreFilters';
-import { AnimeGridCard } from '../components/AnimeGridCard';
+import { AnimeSpcGridCard } from '../components/AnimeSpcGridCard';
 import { ExploreEmpty } from '../components/ExploreStates';
 import { ExploreSkeleton } from '../components/ExploreSkeleton';
-import { useExplore } from '../hooks/useExplore';
+import { useExploreSpc } from '../hooks/useExploreSpc';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
-export const ExplorePage = memo(function ExplorePage() {
+export const ExploreSpcPage = memo(function ExploreSpcPage() {
   usePortraitOrientation();
   const {
     searchQuery,
     setSearchQuery,
     selectedGenre,
     setSelectedGenre,
-    selectedSeason,
-    setSelectedSeason,
-    selectedYear,
-    setSelectedYear,
+    selectedHentaiTag,
+    setSelectedHentaiTag,
     results,
     loading,
     loadingMore,
     handleLoadMore,
     handleAnimePress,
-  } = useExplore();
+  } = useExploreSpc();
 
   const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
@@ -43,7 +41,7 @@ export const ExplorePage = memo(function ExplorePage() {
           <Text style={styles.headerSubtitle}>Busca tus animes favoritos</Text>
         </View>
       )}
-      
+
       <View style={[
         isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
         isWeb && isMobile && { paddingHorizontal: 16 }
@@ -53,14 +51,12 @@ export const ExplorePage = memo(function ExplorePage() {
           onChangeText={setSearchQuery}
           onClear={() => setSearchQuery('')}
         />
-        
+
         <GenreFilters
           selectedGenre={selectedGenre}
           onSelectGenre={setSelectedGenre}
-          selectedSeason={selectedSeason}
-          onSelectSeason={setSelectedSeason}
-          selectedYear={selectedYear}
-          onSelectYear={setSelectedYear}
+          selectedHentaiTag={selectedHentaiTag}
+          onSelectHentaiTag={setSelectedHentaiTag}
         />
       </View>
 
@@ -87,15 +83,15 @@ export const ExplorePage = memo(function ExplorePage() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={!loading ? <ExploreEmpty /> : null}
             renderItem={({ item }) => (
-              <AnimeGridCard 
-                item={item} 
-                onPress={handleAnimePress} 
+              <AnimeSpcGridCard
+                item={item}
+                onPress={handleAnimePress}
                 width={`${100 / columns - 2}%`}
               />
             )}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
-            ListFooterComponent={() => 
+            ListFooterComponent={() =>
               loadingMore ? (
                 <View style={styles.footerLoader}>
                   <ActivityIndicator size="small" color="#8b5cf6" />

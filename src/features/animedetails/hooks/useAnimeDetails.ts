@@ -17,9 +17,33 @@ import {
   Anime1VEpisode,
   Anime1VInfo,
   Anime1VStreamLink,
+  Anime1VVariant,
 } from '../../../../services/anime1v';
 import { recordWatchSession } from '../../../../services/streak';
 import { buildSearchQueriesStrict } from '../utils/animeMatching';
+
+const pickPreferredServer = (
+  servers: Anime1VStreamLink[],
+  isAdult?: boolean,
+  selectedServerName?: string
+): Anime1VStreamLink | undefined => {
+  if (servers.length === 0) return undefined;
+
+  if (selectedServerName) {
+    const userSelected = servers.find(s => s.server.toLowerCase().includes(selectedServerName.toLowerCase()));
+    if (userSelected) return userSelected;
+  }
+
+  if (isAdult) {
+    return servers.find(s => s.server.toLowerCase().includes('mp4upload'))
+      ?? servers.find(s => s.server === 'streamwish')
+      ?? servers[0];
+  }
+
+  return servers.find(s => s.server.toLowerCase().includes('streamwish'))
+    ?? servers.find(s => s.server === 'mp4upload')
+    ?? servers[0];
+};
 
 export const useAnimeDetails = () => {
   const { id } = useLocalSearchParams();
@@ -49,6 +73,9 @@ export const useAnimeDetails = () => {
   const [matchingAttempted, setMatchingAttempted] = useState(false);
   const [availableServers, setAvailableServers] = useState<Anime1VStreamLink[]>([]);
   const [selectedServerName, setSelectedServerName] = useState<string>('streamwish');
+  const [subServers, setSubServers] = useState<Anime1VStreamLink[]>([]);
+  const [dubServers, setDubServers] = useState<Anime1VStreamLink[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<Anime1VVariant>('SUB');
 
   // Pagination states para episodios
   const [displayedEpisodes, setDisplayedEpisodes] = useState<Anime1VEpisode[]>([]);
@@ -391,28 +418,20 @@ export const useAnimeDetails = () => {
       if (links?.streamLinks) {
         const subServers = links.streamLinks.SUB ?? [];
         const dubServers = links.streamLinks.DUB ?? [];
-        const allServers = [...subServers, ...dubServers];
-        setAvailableServers(allServers);
 
-        let preferred;
+        setSubServers(subServers);
+        setDubServers(dubServers);
 
-        // Intentar usar el servidor seleccionado por el usuario
-        const userSelected = allServers.find(s => s.server.toLowerCase().includes(selectedServerName.toLowerCase()));
+        // Por defecto SUB; si el episodio solo tiene DUB, usar DUB
+        const defaultVariant: Anime1VVariant =
+          subServers.length > 0 ? 'SUB' : dubServers.length > 0 ? 'DUB' : 'SUB';
+        setSelectedVariant(defaultVariant);
 
-        if (userSelected) {
-          preferred = userSelected;
-        } else {
-          if (anime?.isAdult) {
-            preferred = allServers.find(s => s.server.toLowerCase().includes('mp4upload'))
-              ?? allServers.find(s => s.server === 'streamwish')
-              ?? allServers[0];
-          } else {
-            // Lógica normal: StreamWish > HLS > primero disponible
-            preferred = allServers.find(s => s.server.toLowerCase().includes('streamwish'))
-              ?? allServers.find(s => s.server === 'mp4upload')
-              ?? allServers[0];
-          }
-        }
+        const variantServers = defaultVariant === 'SUB' ? subServers : dubServers;
+        const fallbackServers = variantServers.length > 0 ? variantServers : [...subServers, ...dubServers];
+        setAvailableServers(fallbackServers);
+
+        const preferred = pickPreferredServer(fallbackServers, anime?.isAdult, selectedServerName);
 
         if (preferred?.url) {
           setStreamUrl(preferred.url);
@@ -435,6 +454,20 @@ export const useAnimeDetails = () => {
       }
     }
   };
+
+  const handleVariantChange = (variant: Anime1VVariant) => {
+    setSelectedVariant(variant);
+    const variantServers = variant === 'SUB' ? subServers : dubServers;
+    const servers = variantServers.length > 0 ? variantServers : availableServers;
+    setAvailableServers(servers);
+
+    const preferred = pickPreferredServer(servers, anime?.isAdult, selectedServerName);
+    if (preferred?.url) {
+      setStreamUrl(preferred.url);
+    }
+  };
+
+  const hasDub = dubServers.length > 0;
 
   const handleUpdateStatus = async (status: UserListStatus) => {
     if (!anime) return;
@@ -544,5 +577,8 @@ export const useAnimeDetails = () => {
     availableServers,
     selectedServerName,
     handleServerChange,
+    selectedVariant,
+    hasDub,
+    handleVariantChange,
   };
 };

@@ -23,7 +23,7 @@ let sessionFeatured: Anime[] = [];
 let sessionContinueWatching: UserListItem[] = [];
 let homeInitialized = false;
 
-export const useHome = () => {
+export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
   const router = useRouter();
   const [trending, setTrending] = useState<Anime[]>(sessionTrending);
   const [continueWatching, setContinueWatching] = useState<UserListItem[]>(sessionContinueWatching);
@@ -42,15 +42,17 @@ export const useHome = () => {
   const isWaitingAuth = useRef(Platform.OS === 'web' && !homeInitialized);
 
   const loadData = async (forceRefresh = false) => {
+    const isSenpaiCore = apiSource === 'senpaicore';
+
     // Si no se fuerza el refresh y ya tenemos datos en sesión, no hacemos nada
-    if (!forceRefresh && homeInitialized && sessionTrending.length > 0) {
+    if (!isSenpaiCore && !forceRefresh && homeInitialized && sessionTrending.length > 0) {
       setLoading(false);
       return;
     }
 
     try {
-      // 1. Initial Cache (AsyncStorage)
-      if (!forceRefresh && !homeInitialized && sessionTrending.length === 0) {
+      // 1. Initial Cache (AsyncStorage) - solo para AniList
+      if (!isSenpaiCore && !forceRefresh && !homeInitialized && sessionTrending.length === 0) {
         const [cachedList, cachedBanner, cachedContinue] = await Promise.all([
           getCachedTrendingList(),
           getCachedTrendingBanner(),
@@ -71,13 +73,13 @@ export const useHome = () => {
 
       // 2. Para web, si estamos esperando autenticación, no hacemos fetch del listado de usuario
       const fetchPromises: [Promise<Anime[]>, Promise<UserListItem[]>] = [
-        fetchTrendingAnime(1, 10),
+        isSenpaiCore ? Promise.resolve([]) : fetchTrendingAnime(1, 10),
         (Platform.OS === 'web' && isWaitingAuth.current) ? Promise.resolve([]) : getUserList()
       ];
 
       const [trendingData, userList] = await Promise.all(fetchPromises);
 
-      if (trendingData.length > 0) {
+      if (!isSenpaiCore && trendingData.length > 0) {
         sessionTrending = trendingData;
         setTrending(trendingData);
         pageRef.current = 1;

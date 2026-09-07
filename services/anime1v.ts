@@ -1,6 +1,50 @@
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY;
 const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL;
 
+export interface CatalogAnime {
+  id: number | string;
+  title: string;
+  slug: string;
+  url: string;
+  image: string | null;
+  backdrop: string | null;
+  backcover?: string | null;
+  type: string;
+  score: number | null;
+  status: string | null;
+  year: string | null;
+  malId: number | null;
+  provider: string;
+}
+
+export interface CatalogResult {
+  page: number;
+  genre: string | null;
+  results: CatalogAnime[];
+  count: number;
+  hasMore: boolean;
+}
+
+export async function fetchCatalog(
+  page = 1,
+  genre?: string,
+  provider = 'animeav1'
+): Promise<CatalogResult | null> {
+  const params: Record<string, string> = { page: String(page), provider };
+
+  if (genre) {
+    params.genre = genre;
+  }
+
+  return await fetchFromApi<CatalogResult>('/api/v1/anime/catalog', params);
+}
+
+export function buildImageProxyUrl(imageUrl: string): string {
+  if (!imageUrl) return '';
+  if (imageUrl.includes('/api/v1/anime/image-proxy')) return imageUrl;
+  return `${BASE_URL}/api/v1/anime/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+}
+
 export interface Anime1VSearchResult {
   id: string;
   title: string;
@@ -35,9 +79,67 @@ export interface Anime1VStreamLink {
   url: string;
 }
 
+export interface Anime1VGenre {
+  id: number | null;
+  name: string;
+  slug: string;
+  malId: number | null;
+}
+
+export interface Anime1VSeason {
+  name: string;
+  slug?: string;
+  year?: number;
+  label?: string;
+}
+
+export interface Anime1VDetail {
+  id: number;
+  title: string;
+  titleJapanese: string | null;
+  description: string | null;
+  image: string | null;
+  backdrop: string | null;
+  backcover?: string | null;
+  status: string | null;
+  type: string | null;
+  year: string | null;
+  season?: Anime1VSeason | string | null;
+  startDate: string | null;
+  endDate: string | null;
+  score: number | null;
+  votes: number | null;
+  totalEpisodes: number;
+  malId: number | null;
+  trailer: string | null;
+  genres: Anime1VGenre[] | null;
+  episodes: Anime1VEpisode[];
+  url: string;
+  slug: string;
+}
+
+export async function getAnime1VDetail(
+  url: string,
+  limit?: number
+): Promise<Anime1VDetail | null> {
+  const params: Record<string, string> = { url };
+
+  if (limit) {
+    params.limit = limit.toString();
+  }
+
+  return await fetchFromApi<Anime1VDetail>('/api/v1/anime/info', params);
+}
+
+export type Anime1VVariant = 'SUB' | 'DUB';
+
 export interface Anime1VEpisodeLinks {
   episode: number;
   title: string;
+  variants?: {
+    SUB: number;
+    DUB: number;
+  };
   streamLinks: {
     SUB: Anime1VStreamLink[];
     DUB?: Anime1VStreamLink[];
@@ -321,4 +423,54 @@ export async function fetchLatestEpisodes(isAdult: boolean = false): Promise<Lat
     console.error('Error fetching latest episodes:', error);
     return [];
   }
-}
+}
+
+export interface ScheduleEpisode {
+  title: string;
+  slug: string;
+  url: string;
+  image: string;
+  episode: number;
+  timestamp?: string;
+  airDate?: string;
+  dayOfWeek?: string;
+  predicted?: boolean;
+  provider: string;
+}
+
+export interface ScheduleGroup {
+  date: string;
+  dateLabel: string;
+  episodes: ScheduleEpisode[];
+}
+
+export interface ScheduleResult {
+  upcoming: boolean;
+  groups: ScheduleGroup[];
+  count: number;
+}
+
+export async function fetchSchedule(
+  provider?: string,
+  upcoming: boolean = false
+): Promise<ScheduleGroup[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (provider) {
+      params.provider = provider;
+    }
+    if (upcoming) {
+      params.upcoming = 'true';
+    }
+
+    const data = await fetchFromApi<ScheduleResult>('/api/v1/anime/schedule', params);
+    if (data?.groups) {
+      return data.groups;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching schedule:', error);
+    return [];
+  }
+}
+

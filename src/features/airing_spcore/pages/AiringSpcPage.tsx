@@ -1,28 +1,38 @@
 import React, { memo } from 'react';
-import { StyleSheet, View, FlatList,
-  ActivityIndicator, Text,
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  ActivityIndicator,
+  Text,
   TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
-import { Tabs } from 'expo-router';
-import { AiringGridCard } from '../components/AiringGridCard';
-import { AiringSkeleton } from '../components/AiringSkeleton';
+import { AiringSpcGridCard } from '../components/AiringSpcGridCard';
+import { AiringSpcSkeleton } from '../components/AiringSpcSkeleton';
+import { AiringScheduleSpc } from '../components/AiringScheduleSpc';
 import { Ionicons } from '@expo/vector-icons';
-import { useAiring } from '../hooks/useAiring';
+import { Tabs } from 'expo-router';
+import { useAiringSpc } from '../hooks/useAiringSpc';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 
-export const AiringPage = memo(function AiringPage() {
+export const AiringSpcPage = memo(function AiringSpcPage() {
   usePortraitOrientation();
   const {
     results,
-    loading,
+    loadingAdult,
     loadingMore,
+    scheduleGroups,
+    loadingSchedule,
+    refreshingSchedule,
+    refreshSchedule,
     isAdult,
     isAdultSettingEnabled,
     toggleAdult,
     handleLoadMore,
     handleAnimePress,
-  } = useAiring();
+    handleScheduleEpisodePress,
+  } = useAiringSpc();
 
   const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
@@ -59,7 +69,7 @@ export const AiringPage = memo(function AiringPage() {
             <View>
               <Text style={styles.headerTitle}>En Emisión</Text>
               <Text style={styles.headerSubtitle}>
-                {isAdult ? 'Contenido para Adultos' : 'Últimos episodios'}
+                {isAdult ? 'Contenido para Adultos' : 'Calendario de emisión'}
               </Text>
             </View>
             {isAdultSettingEnabled && (
@@ -79,45 +89,57 @@ export const AiringPage = memo(function AiringPage() {
         </View>
       )}
 
-      {loading && results.length === 0 ? (
-        <View style={[
-          styles.flex,
-          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-        ]}>
-          <AiringSkeleton />
-        </View>
+      {isAdult ? (
+        // Modo R18: Grid de episodios de HentaiLA
+        loadingAdult && results.length === 0 ? (
+          <View style={[
+            styles.flex,
+            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+          ]}>
+            <AiringSpcSkeleton />
+          </View>
+        ) : (
+          <View style={styles.flex}>
+            <FlatList
+              key={`adult-col-${columns}`}
+              data={results}
+              keyExtractor={(item, index) => `${item.slug}-${item.episode}-${index}`}
+              numColumns={columns}
+              contentContainerStyle={[
+                styles.gridContent,
+                isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+                isWeb && isMobile && { paddingHorizontal: 8 }
+              ]}
+              columnWrapperStyle={styles.gridRow}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <AiringSpcGridCard
+                  item={item}
+                  onPress={handleAnimePress}
+                  width={`${100 / columns - 2}%`}
+                />
+              )}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={() =>
+                loadingMore ? (
+                  <View style={styles.footerLoader}>
+                    <ActivityIndicator size="small" color="#8b5cf6" />
+                  </View>
+                ) : null
+              }
+            />
+          </View>
+        )
       ) : (
-        <View style={styles.flex}>
-          <FlatList
-            key={columns}
-            data={results}
-            keyExtractor={(item, index) => `${item.anime.id}-${item.slug}-${index}`}
-            numColumns={columns}
-            contentContainerStyle={[
-              styles.gridContent,
-              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-              isWeb && isMobile && { paddingHorizontal: 8 }
-            ]}
-            columnWrapperStyle={styles.gridRow}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <AiringGridCard
-                item={item}
-                onPress={handleAnimePress}
-                width={`${100 / columns - 2}%`}
-              />
-            )}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={() =>
-              loadingMore ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color="#8b5cf6" />
-                </View>
-              ) : null
-            }
-          />
-        </View>
+        // Modo Normal: Calendario de emisión de SenpaiCore
+        <AiringScheduleSpc
+          groups={scheduleGroups}
+          loading={loadingSchedule}
+          onPressEpisode={handleScheduleEpisodePress}
+          onRefresh={refreshSchedule}
+          refreshing={refreshingSchedule}
+        />
       )}
     </View>
   );
