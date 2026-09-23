@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TopAnimeItem } from '../../../../services/firestore';
-import { Anime, searchAnime } from '../../../../services/anilist';
+import { Anime, searchAnime } from '../../../../services/anime';
 import { useTopAnime } from '../hooks/useTopAnime';
 import { useResponsive } from '../../../hooks/useResponsive';
 
@@ -147,7 +147,11 @@ export function TopAnime() {
               key={item.animeId}
               style={styles.horizontalCard}
               activeOpacity={0.7}
-              onPress={item.anime ? () => router.push({ pathname: '/animedetails', params: { id: item.anime.id } }) : undefined}
+              onPress={() => {
+                const url = item.slug || item.anime?.slug || '';
+                const title = item.anime?.title?.romaji || item.anime?.title?.english || `Anime #${item.animeId}`;
+                if (url) router.push({ pathname: '/animatedetailsepaicore', params: { url, title } });
+              }}
             >
               <View style={[
                 styles.rankBadge,

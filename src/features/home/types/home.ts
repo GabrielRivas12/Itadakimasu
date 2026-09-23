@@ -1,4 +1,4 @@
-import { Anime } from '../../../../services/anilist';
+import { Anime } from '../../../../services/types';
 
 export interface ContinueAnime extends Anime {
   mockProgress: number;

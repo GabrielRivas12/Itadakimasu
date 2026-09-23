@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { UserListItem } from './animeList';
-import { Anime } from './anilist';
+import { Anime } from './types';
 import { asegurarFirebaseApp } from './firebaseConfig';
 
 // Importaciones modulares para React Native Firebase (Elimina las advertencias)
@@ -63,13 +63,24 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
 
     asegurarFirebaseApp();
 
+    const anime = item.anime;
+
     const cleanItem = sanitizeObject(item);
     if (cleanItem) {
       delete cleanItem.anime;
+      // Asegurar que el slug quede a nivel top-level, aunque el objeto `anime`
+      // no se persista en Firestore
+      if (!cleanItem.slug && anime?.slug) {
+        cleanItem.slug = anime.slug;
+      }
     }
 
-    const animeId = String(item.anime.id);
-    console.log(`Sincronizando anime ${animeId} (${item.anime.title?.romaji})...`);
+    const animeId = String(item.animeId ?? anime?.id);
+    if (!anime?.id && item.animeId == null) {
+      console.warn('No se puede sincronizar: El item no tiene animeId.');
+      return;
+    }
+    console.log(`Sincronizando anime ${animeId} (${anime?.title?.romaji})...`);
 
     if (Platform.OS === 'web') {
       const { doc: webDoc, setDoc: webSetDoc, serverTimestamp: webServerTimestamp } = require('firebase/firestore');
@@ -220,6 +231,7 @@ export interface TopAnimeItem {
   rank: number;
   addedAt: string;
   updatedAt: string;
+  slug?: string;
   anime?: Anime;
 }
 
@@ -236,6 +248,9 @@ export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<vo
       const db = getWebFirestore();
       const batch = items.map(item => {
         const { anime, ...cleanData } = item;
+        if (!cleanData.slug && anime?.slug) {
+          cleanData.slug = anime.slug;
+        }
         const clean = sanitizeObject(cleanData);
         const ref = webDoc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
         return webSetDoc(ref, { ...clean, userId: user.uid, updatedAt: webServerTimestamp() }, { merge: true });
@@ -246,6 +261,9 @@ export async function syncTopAnimeToFirestore(items: TopAnimeItem[]): Promise<vo
       const db = getFirestore();
       const batch = items.map(item => {
         const { anime, ...cleanData } = item;
+        if (!cleanData.slug && anime?.slug) {
+          cleanData.slug = anime.slug;
+        }
         const clean = sanitizeObject(cleanData);
         const docRef = doc(db, ROOT_COLLECTION, user.uid, TOP_SUB_COLLECTION, String(item.animeId));
         return setDoc(docRef, { 

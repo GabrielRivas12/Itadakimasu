@@ -34,7 +34,7 @@ Diseñado con **React Native** y **Expo**, ofrece una experiencia fluida tanto e
 
 *   **Frontend:** [React Native](https://reactnative.dev/) + [Expo](https://expo.dev/) (TypeScript)
 *   **Backend & Sync:** [Firebase Firestore](https://firebase.google.com/products/firestore) & [Auth](https://firebase.google.com/products/auth)
-*   **Fuentes de Datos:** Integración con APIs de alto nivel ([AniList](https://anilist.co/), [Kitsu](https://kitsu.io/)) para metadatos precisos.
+*   **Fuentes de Datos:** Backend propio (SenpaiCore / anime1v) para metadatos precisos.
 *   **Traducción:** Soporte multi-idioma integrado para una mejor accesibilidad.
 
 ---

@@ -1,6 +1,6 @@
 import React from 'react';
-import { AiringPage } from '../../features/airing/pages/AiringPage';
+import { AiringSpcPage } from '../../features/airing/pages/AiringSpcPage';
 
 export default function AiringScreen() {
-  return <AiringPage />;
+  return <AiringSpcPage />;
 }

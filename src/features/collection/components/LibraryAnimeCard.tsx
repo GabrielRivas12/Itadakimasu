@@ -6,7 +6,7 @@ import { useResponsive } from '../../../hooks/useResponsive';
 
 interface LibraryAnimeCardProps {
   item: UserListItem;
-  onPress: (id: number) => void;
+  onPress: (item: UserListItem) => void;
   onRemove: (id: number, title: string) => void;
   width?: DimensionValue;
 }
@@ -14,51 +14,66 @@ interface LibraryAnimeCardProps {
 export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnimeCardProps) {
   const { isWeb } = useResponsive();
 
-  if (!item || !item.anime) return null;
+  if (!item) return null;
 
-  const title = item.anime.title.romaji || item.anime.title.english || 'Anime Desconocido';
+  const anime = item.anime;
+  const animeId = anime?.id ?? item.animeId;
+  const coverImage = anime?.coverImage?.large;
+  const title = anime
+    ? anime.title.romaji || anime.title.english || 'Anime Desconocido'
+    : `Anime #${item.animeId}`;
 
   return (
     <TouchableOpacity
       style={[styles.card, width ? { width } : null, isWeb && styles.webCard]}
       activeOpacity={0.8}
-      onPress={() => onPress(item.anime.id)}
+      onPress={() => onPress(item)}
     >
-      <Image source={{ uri: item.anime.coverImage.large }} style={styles.cardImage} />
+      {anime && coverImage ? (
+        <Image source={{ uri: coverImage }} style={styles.cardImage} />
+      ) : (
+        <View style={[styles.cardImage, styles.placeholderImage]}>
+          <Ionicons name="image-outline" size={24} color="#475569" />
+        </View>
+      )}
 
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={2}>
           {title}
         </Text>
 
-        <View style={styles.metaRow}>
-          {item.anime.averageScore && (
-            <View style={styles.ratingBadge}>
-              <Text style={styles.ratingText}>★ {(item.anime.averageScore / 10).toFixed(1)}</Text>
+        {anime && (
+          <>
+            <View style={styles.metaRow}>
+              {anime.averageScore && (
+                <View style={styles.ratingBadge}>
+                  <Text style={styles.ratingText}>★ {(anime.averageScore / 10).toFixed(1)}</Text>
+                </View>
+              )}
+              {anime.episodes ? (
+                <View style={styles.episodesRow}>
+                  <Ionicons name="tv-outline" size={14} color="#94a3b8" />
+                  <Text style={styles.episodesText}>{anime.episodes}</Text>
+                </View>
+              ) : (
+                <Text style={styles.episodesText}>En emisión</Text>
+              )}
             </View>
-          )}
-          {item.anime.episodes ? (
-            <View style={styles.episodesRow}>
-              <Ionicons name="tv-outline" size={14} color="#94a3b8" />
-              <Text style={styles.episodesText}>{item.anime.episodes}</Text>
-            </View>
-          ) : (
-            <Text style={styles.episodesText}>En emisión</Text>
-          )}
-        </View>
 
-        <View style={styles.genreTagsContainer}>
-          {item.anime.genres.slice(0, 2).map((g) => (
-            <View key={g} style={styles.genreTag}>
-              <Text style={styles.genreTagText}>{g}</Text>
+            <View style={styles.genreTagsContainer}>
+              {anime.genres.slice(0, 2).map((g) => (
+                <View key={g} style={styles.genreTag}>
+                  <Text style={styles.genreTagText}>{g}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        )}
       </View>
 
       <TouchableOpacity
         style={styles.removeButton}
-        onPress={() => onRemove(item.anime.id, title)}
+        onPress={() => onRemove(animeId, title)}
       >
         <Ionicons name="trash-outline" size={18} color="#f43f5e" />
       </TouchableOpacity>
@@ -86,6 +101,13 @@ const styles = StyleSheet.create({
     height: 105,
     borderRadius: 8,
     backgroundColor: '#334155',
+  },
+  placeholderImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   cardContent: {
     flex: 1,

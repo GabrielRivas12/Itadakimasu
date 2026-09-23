@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Anime } from '../../../../services/anilist';
+import { Anime } from '../../../../services/types';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 interface HeroSectionProps {

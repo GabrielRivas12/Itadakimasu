@@ -1,11 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { UserListItem } from '../../../../services/animeList';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 interface ContinueWatchingProps {
   items: UserListItem[];
-  onPress: (id: number) => void;
+  onPress: (item: UserListItem) => void;
 }
 
 export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
@@ -29,21 +30,30 @@ export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
         ]}
       >
         {items.map((item) => {
-          const progress = item.anime.episodes ? item.progress / item.anime.episodes : 0;
-          const title = item.anime.title.romaji || item.anime.title.english;
+          const anime = item.anime;
+          const slug = item.slug || anime?.slug || '';
+          const coverImage = anime?.coverImage?.large;
+          const progress = anime?.episodes && anime.episodes > 0 ? item.progress / anime.episodes : 0;
+          const title = anime?.title?.romaji || anime?.title?.english || `Anime #${item.animeId}`;
 
           return (
             <TouchableOpacity
-              key={item.anime.id}
+              key={item.animeId}
               style={styles.card}
-              onPress={() => onPress(item.anime.id)}
+              onPress={() => onPress(item)}
               activeOpacity={0.8}
             >
               <View style={styles.imageContainer}>
-                <Image
-                  source={{ uri: item.anime.coverImage.large }}
-                  style={styles.image}
-                />
+                {coverImage ? (
+                  <Image
+                    source={{ uri: coverImage }}
+                    style={styles.image}
+                  />
+                ) : (
+                  <View style={[styles.image, styles.placeholderImage]}>
+                    <Ionicons name="image-outline" size={28} color="#475569" />
+                  </View>
+                )}
                 <View style={styles.overlay}>
                   <Text style={styles.episodeText}>Episodio {item.progress}</Text>
                 </View>
@@ -97,6 +107,11 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  placeholderImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
   },
   overlay: {
     position: 'absolute',

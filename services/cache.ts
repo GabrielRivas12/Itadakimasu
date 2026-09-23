@@ -1,17 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Dimensions } from 'react-native';
-import { Anime } from './anilist';
+import { Anime } from './types';
+import { TrendingAnime } from './anime1v';
 
 export const cacheKeys = {
   TRENDING_BANNER: 'cache:trending_banner',
   TRENDING_LIST: 'cache:trending_list',
   SEASONAL_LIST: 'cache:seasonal_list',
+  TRENDING_POPULAR: 'cache:trending_popular',
   CONTINUE_WATCHING: 'cache:continue_watching',
   ANIME_DETAILS: (id: number) => `cache:anime_details:${id}`,
+  ANIME_BY_SLUG: (slug: string) => `cache:anime_by_slug:${slug}`,
   ADULT_CONTENT: 'setting:adult_content',
   NOTIFICATIONS_ENABLED: 'setting:notifications_enabled',
   EPISODE_ORDER: 'setting:episode_order',
   PLAYER_TYPE: 'setting:player_type',
+  API_SOURCE: 'setting:api_source',
   USER_TOP_ANIME: (uid: string) => `cache:user_top_anime:${uid}`,
 };
 
@@ -98,6 +102,18 @@ export async function setPlayerType(type: 'native' | 'webview'): Promise<void> {
   }
 }
 
+export async function getApiSource(): Promise<'anilist' | 'senpaicore'> {
+  return 'senpaicore';
+}
+
+export async function setApiSource(source: 'anilist' | 'senpaicore'): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.API_SOURCE, source);
+  } catch (error) {
+    console.error('Error saving API source setting:', error);
+  }
+}
+
 export async function getCachedContinueWatching(): Promise<any[] | null> {
   try {
     const data = await AsyncStorage.getItem(cacheKeys.CONTINUE_WATCHING);
@@ -179,6 +195,23 @@ export async function cacheAnimeDetails(id: number, anime: Anime): Promise<void>
   }
 }
 
+export async function getCachedAnimeBySlug(slug: string): Promise<Anime | null> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.ANIME_BY_SLUG(slug));
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheAnimeBySlug(slug: string, anime: Anime): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.ANIME_BY_SLUG(slug), JSON.stringify(anime));
+  } catch (error) {
+    console.error('Error caching anime by slug:', error);
+  }
+}
+
 export async function getCachedTopAnime(uid: string): Promise<any[] | null> {
   try {
     const data = await AsyncStorage.getItem(cacheKeys.USER_TOP_ANIME(uid));
@@ -210,5 +243,22 @@ export async function cacheSeasonalList(list: Anime[]): Promise<void> {
     await AsyncStorage.setItem(cacheKeys.SEASONAL_LIST, JSON.stringify(list));
   } catch (error) {
     console.error('Error caching seasonal list:', error);
+  }
+}
+
+export async function getCachedTrendingPopular(): Promise<TrendingAnime[] | null> {
+  try {
+    const data = await AsyncStorage.getItem(cacheKeys.TRENDING_POPULAR);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheTrendingPopular(list: TrendingAnime[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(cacheKeys.TRENDING_POPULAR, JSON.stringify(list));
+  } catch (error) {
+    console.error('Error caching trending popular list:', error);
   }
 }

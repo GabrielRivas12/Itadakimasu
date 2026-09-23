@@ -1,8 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Platform, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../../hooks/useResponsive';
+import { SettingsButton } from '../../features/settings/components/SettingsButton';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -10,38 +11,40 @@ export default function TabLayout() {
 
   // En web, si no es móvil (tablet/desktop), ocultamos la barra de pestañas inferior
   const showBottomTabs = !isWeb || isMobile;
+  // En móvil nativo el header lo controla el navigator; en web lo dibuja cada página
+  const isNative = !isWeb;
 
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
+        headerShown: !isWeb || isMobile,
         sceneStyle: { backgroundColor: '#0b0f19' },
         headerStyle: {
-          backgroundColor: '#0f172a',
+          backgroundColor: '#0b0f19',
           shadowColor: 'transparent',
           elevation: 0,
-          height: Platform.OS === 'ios' ? 90 : 56,
         },
         headerTitleStyle: {
-          color: '#f8fafc',
+          color: '#ffffff',
           fontWeight: 'bold',
           fontSize: 18,
         },
-        headerTintColor: '#f8fafc',
+        headerTintColor: '#ffffff',
+        headerShadowVisible: false,
         tabBarActiveTintColor: '#8b5cf6',
         tabBarInactiveTintColor: '#94a3b8',
-        tabBarShowLabel: true,
+        tabBarShowLabel: isMobile,
         tabBarLabelStyle: {
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 'bold',
-          marginBottom: 0,
+          marginBottom: isMobile ? 0 : -20,
           marginTop: 2,
         },
         tabBarStyle: showBottomTabs ? {
           backgroundColor: '#0f172a',
           borderTopWidth: 0,
-          height: isWeb ? 68 : (52 + Math.max(insets.bottom, 12)),
-          paddingBottom: isWeb ? 12 : Math.max(insets.bottom, 12),
+          height: isWeb ? 78 : (45 + Math.max(insets.bottom, 12)),
+          paddingBottom: isWeb ? 16 : Math.max(insets.bottom, 16),
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
           elevation: 20,
@@ -50,19 +53,18 @@ export default function TabLayout() {
           shadowOpacity: 0.3,
           shadowRadius: 10,
         } : { display: 'none' },
-        }}
-        >
+      }}
+    >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Inicio',
           tabBarLabel: 'Inicio',
-          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
               <Feather
                 name="home"
-                size={20}
+                size={23}
                 color={color}
               />
             </View>
@@ -74,29 +76,11 @@ export default function TabLayout() {
         options={{
           title: 'En Emisión',
           tabBarLabel: 'En Emisión',
-          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
               <Feather
                 name="tv"
-                size={20}
-                color={color}
-              />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explorar',
-          tabBarLabel: 'Explorar',
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
-              <Feather
-                name="search"
-                size={20}
+                size={23}
                 color={color}
               />
             </View>
@@ -108,12 +92,11 @@ export default function TabLayout() {
         options={{
           title: 'Mi Colección',
           tabBarLabel: 'Colección',
-          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
               <Feather
                 name="book"
-                size={20}
+                size={23}
                 color={color}
               />
             </View>
@@ -125,12 +108,12 @@ export default function TabLayout() {
         options={{
           title: 'Mi Perfil',
           tabBarLabel: 'Perfil',
-          headerShown: false,
+          headerRight: () => (isNative ? <SettingsButton /> : null),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
               <Feather
                 name="user"
-                size={20}
+                size={23}
                 color={color}
               />
             </View>
@@ -144,10 +127,11 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   iconWrapper: {
     width: 48,
-    height: 32,
+    height: 28,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 4,
   },
   activeIconWrapper: {
     backgroundColor: 'rgba(139, 92, 246, 0.12)',

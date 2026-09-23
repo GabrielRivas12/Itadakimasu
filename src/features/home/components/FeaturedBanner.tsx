@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, Animated, Dimensions } from 'react-native';
-import { Anime } from '../../../../services/anilist';
+import { Anime } from '../../../../services/types';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 interface FeaturedBannerProps {

@@ -38,23 +38,25 @@ export const CollectionPage = memo(function CollectionPage() {
 
   return (
     <View style={styles.container}>
-      <View style={[
-        styles.stickyHeader,
-        isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
-        isWeb && isMobile && { paddingHorizontal: 16 }
-      ]}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Mi Colección</Text>
-          <Text style={styles.headerSubtitle}>
-            {user ? 'Gestiona tu lista personal' : 'Inicia sesión para gestionar tu colección'}
-          </Text>
+      {isWeb && (
+        <View style={[
+          styles.stickyHeader,
+          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
+          isWeb && isMobile && { paddingHorizontal: 16 }
+        ]}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Mi Colección</Text>
+            <Text style={styles.headerSubtitle}>
+              {user ? 'Gestiona tu lista personal' : 'Inicia sesión para gestionar tu colección'}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
 
       <FlatList
         key={columns}
         data={filteredList}
-        keyExtractor={(item) => item.anime.id.toString()}
+        keyExtractor={(item) => String(item.animeId ?? item.anime?.id)}
         numColumns={columns}
         contentContainerStyle={[
           styles.listContent,

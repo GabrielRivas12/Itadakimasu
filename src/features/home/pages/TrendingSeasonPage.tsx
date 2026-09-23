@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchSeasonalTrendingAnime, Anime } from '../../../../services/anilist';
+import { fetchSeasonalTrendingAnime, Anime } from '../../../../services/anime';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 import { getSeasonLabel } from '../components/TrendingSeason';
@@ -71,14 +71,17 @@ export function TrendingSeasonPage() {
     }
   };
 
-  const handleAnimePress = (id: number) => {
-    router.push({ pathname: '/animedetails', params: { id } });
+  const handleAnimePress = (item: Anime) => {
+    router.push({
+      pathname: '/animatedetailsepaicore',
+      params: { url: item.slug || '', title: item.title.romaji },
+    });
   };
 
   const renderItem = useCallback(({ item }: { item: Anime }) => (
     <TouchableOpacity
       style={[styles.card, { width: `${100 / columns - 2}%` }]}
-      onPress={() => handleAnimePress(item.id)}
+      onPress={() => handleAnimePress(item)}
       activeOpacity={0.8}
     >
       <Image source={{ uri: item.coverImage.large }} style={styles.cardImage} />

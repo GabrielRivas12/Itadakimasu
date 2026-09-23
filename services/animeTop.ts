@@ -1,7 +1,9 @@
-import { Anime, fetchAnimesByIds } from './anilist';
+import { Anime } from './types';
+import { getAnime1VInfoBySlug, getAnime1VDetail, Anime1VInfoBySlug, Anime1VDetail } from './anime1v';
+import { mapSlugInfoToAnime, mapDetailToAnime } from './animeList';
 import { getUserId } from '../src/hooks/userHelper';
 import { getCachedTopAnime, cacheTopAnime } from './cache';
-import { getCachedAnimeDetails, cacheAnimeDetails } from './cache';
+import { getCachedAnimeDetails, cacheAnimeDetails, getCachedAnimeBySlug, cacheAnimeBySlug } from './cache';
 import {
   TopAnimeItem,
   syncTopAnimeToFirestore,
@@ -14,30 +16,68 @@ const MAX_TOP = 10;
 
 export const topAnimeEvents = new EventEmitter();
 
+async function resolveTopAnime(item: TopAnimeItem): Promise<TopAnimeItem> {
+  const animeId = Number(item.animeId ?? item.anime?.id);
+  if (!animeId) {
+    return { ...item };
+  }
+
+  const slug = item.slug || item.anime?.slug;
+
+  if (slug) {
+    const cachedAnime = await getCachedAnimeBySlug(slug);
+    if (cachedAnime) {
+      return { ...item, anime: cachedAnime };
+    }
+
+    const info: Anime1VInfoBySlug | null = await getAnime1VInfoBySlug(slug)
+      ?? await getAnime1VInfoBySlug(slug, 'hentaila');
+
+    if (!info) {
+      const candidates = /^https?:\/\//i.test(slug)
+        ? [slug]
+        : [`https://animeav1.com/media/${slug}`, `https://hentaila.com/media/${slug}`];
+
+      let detail: Anime1VDetail | null = null;
+      for (const candidate of candidates) {
+        detail = await getAnime1VDetail(candidate, 1);
+        if (detail) break;
+      }
+
+      if (detail) {
+        const anime = mapDetailToAnime(animeId, detail, slug);
+        await cacheAnimeBySlug(slug, anime);
+        await cacheAnimeDetails(animeId, anime);
+        return { ...item, anime };
+      }
+
+      console.warn(`[Top] No se pudo resolver slug "${slug}" en el backend, se muestra como placeholder.`);
+      return { ...item };
+    }
+
+    const anime = mapSlugInfoToAnime(animeId, info, slug);
+    await cacheAnimeBySlug(slug, anime);
+    await cacheAnimeDetails(animeId, anime);
+    return { ...item, anime };
+  }
+
+  // Sin slug (items legacy): intentar caché por id, si no placeholder
+  const cachedAnime = await getCachedAnimeDetails(animeId);
+  if (cachedAnime) {
+    return { ...item, anime: cachedAnime };
+  }
+  console.warn(`[Top] Item ${animeId} sin slug, se muestra como placeholder.`);
+  return { ...item };
+}
+
 async function enrichTopAnimeList(minimalList: TopAnimeItem[]): Promise<TopAnimeItem[]> {
   if (!minimalList || minimalList.length === 0) return [];
 
   const enrichedList: TopAnimeItem[] = [];
-  const missingIds: number[] = [];
 
   for (const item of minimalList) {
-    const cachedAnime = await getCachedAnimeDetails(item.animeId);
-    if (cachedAnime) {
-      enrichedList.push({ ...item, anime: cachedAnime });
-    } else {
-      missingIds.push(item.animeId);
-    }
-  }
-
-  if (missingIds.length > 0) {
-    const fetchedAnimes = await fetchAnimesByIds(missingIds);
-    for (const anime of fetchedAnimes) {
-      await cacheAnimeDetails(anime.id, anime);
-      const originalItem = minimalList.find(i => i.animeId === anime.id);
-      if (originalItem) {
-        enrichedList.push({ ...originalItem, anime });
-      }
-    }
+    const resolved = await resolveTopAnime(item);
+    enrichedList.push(resolved);
   }
 
   return enrichedList.sort((a, b) => a.rank - b.rank);
@@ -76,14 +116,36 @@ export async function getTopAnimeList(): Promise<TopAnimeItem[]> {
             localMap.set(remoteItem.animeId, remoteItem);
             hasChanges = true;
           } else {
+            const remoteHasSlug = !!remoteItem.slug;
+            const localHasSlug = !!localItem.slug;
             const remoteDate = new Date(remoteItem.updatedAt || 0).getTime();
             const localDate = new Date(localItem.updatedAt || 0).getTime();
-            if (remoteDate > localDate) {
+            const remoteHasAnime = !!remoteItem.anime;
+            const localHasAnime = !!localItem.anime;
+
+            // El dato backend (con slug) siempre gana sobre caché legacy de AniList
+            if ((remoteHasSlug && !localHasSlug) || remoteDate > localDate || (remoteHasAnime && !localHasAnime)) {
               localMap.set(remoteItem.animeId, remoteItem);
               hasChanges = true;
             }
           }
         });
+
+        // Re-enriquecer items cacheados con slug aún sin `anime` (placeholder de AniList/caché viejo)
+        const placeholderIds = Array.from(localMap.entries())
+          .filter(([, item]) => item && !!item.slug && !item.anime)
+          .map(([animeId]) => animeId);
+
+        if (placeholderIds.length > 0) {
+          for (const animeId of placeholderIds) {
+            const placeholder = localMap.get(animeId)!;
+            const resolved = await resolveTopAnime(placeholder);
+            if (resolved.anime) {
+              localMap.set(animeId, resolved);
+              hasChanges = true;
+            }
+          }
+        }
 
         if (hasChanges) {
           const mergedList = Array.from(localMap.values()).sort((a, b) => a.rank - b.rank);
@@ -118,6 +180,7 @@ export async function addToTopAnime(anime: Anime, currentList: TopAnimeItem[]): 
   const now = new Date().toISOString();
   const newItem: TopAnimeItem = {
     animeId: anime.id,
+    slug: anime.slug,
     anime,
     rank: currentList.length + 1,
     addedAt: now,
