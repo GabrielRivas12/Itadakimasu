@@ -128,8 +128,9 @@ export const useCollection = () => {
     }
   };
 
-  const handleAnimePress = (id: number) => {
-    router.push({ pathname: '/animedetails', params: { id } });
+  const handleAnimePress = (item: UserListItem) => {
+    const title = item.anime?.title?.romaji || item.anime?.title?.english || `Anime #${item.animeId}`;
+    router.push({ pathname: '/animatedetailsepaicore', params: { url: item.slug || '', title } });
   };
 
   const filteredList = list.filter((item) => item.status === activeTab);

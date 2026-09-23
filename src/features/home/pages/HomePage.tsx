@@ -13,23 +13,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { preloadAllData } from '../../../../services/dataPreloader';
+import { UserListItem } from '../../../../services/animeList';
 import { FeaturedBanner } from '../components/FeaturedBanner';
 import { ContinueWatching } from '../components/ContinueWatching';
 import { TrendingGrid } from '../components/TrendingGrid';
 import { TrendingSeason } from '../components/TrendingSeason';
 import { HomeSkeleton } from '../components/HomeSkeleton';
+import { TrendingPopularSkeleton } from '../components/TrendingPopularSkeleton';
 import { TrendingSenpaiCore } from './TrendingSenpaiCore';
 import { useHome } from '../hooks/useHome';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
 import { useResponsive } from '../../../hooks/useResponsive';
-import { fetchSeasonalTrendingAnime, Anime } from '../../../../services/anilist';
+import { fetchSeasonalTrendingAnime, Anime } from '../../../../services/anime';
 import { fetchTrending, TrendingAnime } from '../../../../services/anime1v';
-import { getCachedSeasonalList, cacheSeasonalList, setIsNotificationsEnabled, getApiSource } from '../../../../services/cache';
+import { getCachedSeasonalList, cacheSeasonalList, getCachedTrendingPopular, cacheTrendingPopular, setIsNotificationsEnabled, getApiSource } from '../../../../services/cache';
 import { DownloadApkButton } from '../components/DownloadApkButton';
 import { UpdateNotification } from '../components/UpdateNotification/UpdateNotification';
-import { StreakBadge } from '../components/StreakBadge';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 import { inicializarNotificaciones } from '../../../../services/notification';
+import { SearchBar } from '../../explore/components/SearchBar';
 
 export function HomePage() {
   usePortraitOrientation();
@@ -53,6 +55,41 @@ export function HomePage() {
   const seasonalLoadingMoreRef = useRef(false);
 
   const [trendingPopular, setTrendingPopular] = useState<TrendingAnime[]>([]);
+  const [trendingPopularLoading, setTrendingPopularLoading] = useState(false);
+
+  // Firma de los datos populares para detectar cambios frente a la caché.
+  const popularSignature = useCallback((list: TrendingAnime[]): string =>
+    JSON.stringify(list.map((a) => ({
+      id: a.id,
+      title: a.title,
+      slug: a.slug,
+      url: a.url,
+      score: a.score ?? null,
+      status: a.status ?? null,
+      episode: a.lastEpisode?.number ?? null,
+      image: a.image,
+    }))),
+  []);
+
+  const loadTrendingPopular = useCallback(async () => {
+    setTrendingPopularLoading(true);
+    try {
+      const cached = await getCachedTrendingPopular();
+      if (cached && cached.length > 0) setTrendingPopular(cached);
+
+      const fresh = await fetchTrending(12);
+      if (fresh.length === 0) return;
+
+      if (!cached || popularSignature(cached) !== popularSignature(fresh)) {
+        setTrendingPopular(fresh);
+        await cacheTrendingPopular(fresh);
+      }
+    } catch (e) {
+      console.error('Error loading SenpaiCore trending:', e);
+    } finally {
+      setTrendingPopularLoading(false);
+    }
+  }, [popularSignature]);
 
   useFocusEffect(
     useCallback(() => {
@@ -106,17 +143,9 @@ export function HomePage() {
   useEffect(() => {
     (async () => {
       if (apiSource !== 'senpaicore') return;
-
-      try {
-        const data = await fetchTrending(12);
-        if (data.length > 0) {
-          setTrendingPopular(data);
-        }
-      } catch (e) {
-        console.error('Error loading SenpaiCore trending:', e);
-      }
+      loadTrendingPopular();
     })();
-  }, [apiSource]);
+  }, [apiSource, loadTrendingPopular]);
 
   useEffect(() => { preloadAllData(); }, []);
 
@@ -153,13 +182,20 @@ export function HomePage() {
   const { isWeb, getContentWidth, isMobile } = useResponsive();
   const router = useRouter();
 
-const isSenpaiCoreMode = !isWeb && apiSource === 'senpaicore';
+const isSenpaiCoreMode = apiSource === 'senpaicore';
 
   const handleTrendingPress = useCallback((item: TrendingAnime) => {
     router.push({
       pathname: '/animatedetailsepaicore',
       params: { url: item.url, title: item.title },
     });
+  }, [router]);
+
+  const handleContinueWatchingPress = useCallback((item: UserListItem) => {
+    const url = item.slug || item.anime?.slug || '';
+    const title = item.anime?.title?.romaji || item.anime?.title?.english || `Anime #${item.animeId}`;
+    if (!url) return;
+    router.push({ pathname: '/animatedetailsepaicore', params: { url, title, episode: String(item.progress || 1) } });
   }, [router]);
 
   return (
@@ -176,7 +212,6 @@ const isSenpaiCoreMode = !isWeb && apiSource === 'senpaicore';
               <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <StreakBadge />
               {isWeb && isMobile && <DownloadApkButton />}
             </View>
           </View>
@@ -194,19 +229,21 @@ const isSenpaiCoreMode = !isWeb && apiSource === 'senpaicore';
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />
             }
           >
+            {isMobile && <SearchBar onPress={() => router.push('/explore')} />}
             {featured && (
               <FeaturedBanner featured={featured} onPress={handleAnimePress} />
             )}
-            <ContinueWatching items={continueWatching} onPress={handleAnimePress} />
+            <ContinueWatching items={continueWatching} onPress={handleContinueWatchingPress} />
             <UpdateNotification />
             {isSenpaiCoreMode ? (
-              trendingPopular.length === 0 ? (
-                <View style={styles.loadingMoreContainer}>
-                  <ActivityIndicator size="small" color="#8b5cf6" />
-                </View>
-              ) : (
-                <TrendingSenpaiCore trending={trendingPopular} onPress={handleTrendingPress} />
-              )
+              <>
+                <Text style={styles.sectionTitlePopular}>Animes Populares</Text>
+                {trendingPopularLoading || trendingPopular.length === 0 ? (
+                  <TrendingPopularSkeleton />
+                ) : (
+                  <TrendingSenpaiCore trending={trendingPopular} onPress={handleTrendingPress} />
+                )}
+              </>
             ) : (
               <>
                 {!isWeb && <Text style={styles.sectionTitleSeason}>Tendencias de temporada</Text>}
@@ -255,6 +292,14 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 14,
     marginTop: 4,
+  },
+  sectionTitlePopular: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
   },
   sectionTitle: {
     color: '#ffffff',

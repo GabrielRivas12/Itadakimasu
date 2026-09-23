@@ -2,7 +2,7 @@ import React, { memo, useCallback } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Anime } from '../../../../services/anilist';
+import { Anime } from '../../../../services/types';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 export function getSeasonLabel(): string {

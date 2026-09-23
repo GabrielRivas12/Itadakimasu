@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Animated } from 'react-native';
 import { useResponsive } from '../../../hooks/useResponsive';
 
-function Pulse({ style, children }: { style?: any; children?: React.ReactNode }) {
+function Pulse({ style }: { style?: any }) {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -16,29 +16,26 @@ function Pulse({ style, children }: { style?: any; children?: React.ReactNode })
     return () => animation.stop();
   }, []);
 
-  return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
+  return <Animated.View style={[style, { opacity }]} />;
 }
 
-export function ExploreSkeleton() {
-  const { getColumns, isMobile } = useResponsive();
+export function AiringScheduleSkeleton() {
+  const { getColumns } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
 
   return (
     <View style={styles.grid}>
       {Array.from({ length: columns * 3 }).map((_, i) => (
-        <Pulse
-          key={i}
-          style={[
-            styles.card,
-            { width: `${100 / columns - 2}%` },
-          ]}
-        >
-          <Pulse style={[styles.image, isMobile && styles.imageMobile]} />
-          <View style={styles.content}>
-            <Pulse style={styles.title} />
-            <Pulse style={[styles.badge, { width: '40%' }]} />
+        <View key={i} style={[styles.card, { width: `${100 / columns - 2}%` }]}>
+          <View style={styles.imageWrapper}>
+            <Pulse style={styles.cardImage} />
+            <Pulse style={styles.badge} />
           </View>
-        </Pulse>
+          <View style={styles.cardContent}>
+            <Pulse style={styles.title} />
+            <Pulse style={[styles.meta, { width: '60%' }]} />
+          </View>
+        </View>
       ))}
     </View>
   );
@@ -49,36 +46,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 10,
-    paddingTop: 8,
+    paddingTop: 4,
+    paddingBottom: 24,
     justifyContent: 'flex-start',
   },
   card: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
     marginHorizontal: '1%',
     marginBottom: 16,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  image: {
+  imageWrapper: {
+    position: 'relative',
+  },
+  cardImage: {
     width: '100%',
-    height: 240,
+    aspectRatio: 2 / 3,
     backgroundColor: '#0f172a',
   },
-  imageMobile: {
-    height: 180,
+  badge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 48,
+    height: 16,
+    borderRadius: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
   },
-  content: {
+  cardContent: {
     padding: 10,
-    gap: 4,
+    gap: 5,
   },
   title: {
-    height: 16,
+    height: 15,
     backgroundColor: '#0f172a',
     borderRadius: 3,
     width: '100%',
   },
-  badge: {
-    height: 12,
+  meta: {
+    height: 11,
     backgroundColor: '#0f172a',
     borderRadius: 3,
   },

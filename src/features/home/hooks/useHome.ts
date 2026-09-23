@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Animated, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { fetchTrendingAnime, Anime } from '../../../../services/anilist';
+import { fetchTrendingAnime, Anime } from '../../../../services/anime';
 import {
   getUserList,
   UserListItem,
@@ -95,7 +95,7 @@ export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
 
       // Actualiza el listado de "Watching" en web solo si no estamos esperando autenticación, para evitar fetch innecesarios
       if (!(Platform.OS === 'web' && isWaitingAuth.current)) {
-        const inProcessList = userList.filter(item => item.status === 'En Proceso');
+        const inProcessList = userList.filter(item => item.status === 'En Proceso' && item.anime);
         sessionContinueWatching = inProcessList;
         setContinueWatching(inProcessList);
         await cacheContinueWatching(inProcessList);
@@ -133,7 +133,7 @@ export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
       // Lista de usuario solo se actualiza en web, para evitar fetch innecesarios en mobile
       try {
         const userList = await getUserList();
-        const inProcessList = userList.filter(item => item.status === 'En Proceso');
+        const inProcessList = userList.filter(item => item.status === 'En Proceso' && item.anime);
 
         sessionContinueWatching = inProcessList;
         setContinueWatching(inProcessList);
@@ -214,7 +214,15 @@ export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
   };
 
   const handleAnimePress = (id: number) => {
-    router.push({ pathname: '/animedetails', params: { id } });
+    const item =
+      sessionTrending.find(a => a.id === id) ||
+      sessionFeatured.find(a => a.id === id) ||
+      sessionContinueWatching.find(i => i.anime?.id === id)?.anime;
+    if (!item) return;
+    router.push({
+      pathname: '/animatedetailsepaicore',
+      params: { url: item.slug || '', title: item.title.romaji || item.title.english || '' },
+    });
   };
 
   return {

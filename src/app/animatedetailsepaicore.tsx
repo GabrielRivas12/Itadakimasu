@@ -1,2 +1,2 @@
-import { AnimeDetailSenpaiCorePage } from '../features/detailsepaicore/pages/AnimeDetailSenpaiCorePage';
+import { AnimeDetailSenpaiCorePage } from '../features/details/pages/AnimeDetailSenpaiCorePage';
 export default AnimeDetailSenpaiCorePage;

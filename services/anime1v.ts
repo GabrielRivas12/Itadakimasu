@@ -187,6 +187,28 @@ export interface Anime1VDetail {
   slug: string;
 }
 
+export interface Anime1VInfoBySlug {
+  title: string;
+  image: string | null;
+  year: string | null;
+  score: number | null;
+  totalEpisodes: number;
+  genres: Anime1VGenre[];
+}
+
+export async function getAnime1VInfoBySlug(
+  slug: string,
+  provider?: string
+): Promise<Anime1VInfoBySlug | null> {
+  const params: Record<string, string> = { slug };
+
+  if (provider) {
+    params.provider = provider;
+  }
+
+  return await fetchFromApi<Anime1VInfoBySlug>('/api/v1/anime/info-by-slug', params);
+}
+
 export async function getAnime1VDetail(
   url: string,
   limit?: number
@@ -225,6 +247,18 @@ export interface Anime1VDownloadLink {
   quality?: string;
 }
 
+const FETCH_TIMEOUT_MS = 15000;
+
+async function fetchWithTimeout(url: string, ms: number = FETCH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchFromApi<T>(
   endpoint: string,
   params: Record<string, string>
@@ -235,7 +269,7 @@ async function fetchFromApi<T>(
       apiKey: API_KEY ?? "",
     }).toString();
 
-    const response = await fetch(`${BASE_URL}${endpoint}?${queryParams}`);
+    const response = await fetchWithTimeout(`${BASE_URL}${endpoint}?${queryParams}`);
 
     //  1. Validar status HTTP
     if (!response.ok) {
@@ -376,7 +410,7 @@ async function fetchResolvedStream(
       apiKey: API_KEY ?? "",
     }).toString();
 
-    const response = await fetch(`${BASE_URL}/api/v1/anime/resolve?${queryParams}`);
+    const response = await fetchWithTimeout(`${BASE_URL}/api/v1/anime/resolve?${queryParams}`);
 
     if (!response.ok) {
       console.log(`HTTP ERROR ${response.status} en /resolve con params: ${JSON.stringify(params)}`);
@@ -442,6 +476,7 @@ export function isValidMediaUrl(url: string): boolean {
   if (NON_MEDIA_EXT_RE.test(lower)) return false;
   if (MEDIA_EXT_RE.test(lower)) return true;
   if (/\/m3u8\//.test(lower)) return true;
+  if (lower.startsWith('http')) return true;
   return false;
 }
 

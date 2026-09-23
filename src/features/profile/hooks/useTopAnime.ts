@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TopAnimeItem } from '../../../../services/firestore';
 import { getTopAnimeList, addToTopAnime, removeFromTopAnime, updateTopAnimeRank, topAnimeEvents } from '../../../../services/animeTop';
-import { Anime } from '../../../../services/anilist';
+import { Anime } from '../../../../services/types';
 import { getUserId } from '../../../hooks/userHelper';
 import { getUserList } from '../../../../services/animeList';
 import { getPreloadedTopAnime, getPreloadPromise } from '../../../../services/dataPreloader';
@@ -43,7 +43,11 @@ export const useTopAnime = () => {
   const loadUserList = useCallback(async () => {
     try {
       const list = await getUserList();
-      setUserList(list.filter(item => item.anime).map(item => ({ animeId: item.animeId, anime: item.anime })));
+      setUserList(
+        list
+          .filter((item): item is (typeof item & { anime: Anime }) => !!item.anime)
+          .map(item => ({ animeId: item.animeId, anime: item.anime }))
+      );
     } catch (e) {
       console.error('Error loading user list for top anime:', e);
     }

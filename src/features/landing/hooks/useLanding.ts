@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchTrendingAnime, Anime } from '../../../../services/anilist';
+import { fetchTrendingAnime, Anime } from '../../../../services/anime';
 import { LandingData } from '../types/landing';
 
 export const useLanding = (): LandingData & { bannerAnimes: Anime[] } => {

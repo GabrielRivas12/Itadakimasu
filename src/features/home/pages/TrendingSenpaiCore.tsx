@@ -5,7 +5,6 @@ import { useResponsive } from '../../../hooks/useResponsive';
 
 interface TrendingSenpaiCoreProps {
   trending: TrendingAnime[];
-  title?: string;
   onPress?: (item: TrendingAnime) => void;
 }
 
@@ -20,7 +19,6 @@ function getStatusColor(status: string | null): string {
 
 export const TrendingSenpaiCore = memo(function TrendingSenpaiCore({
   trending,
-  title = 'Animes Populares',
   onPress,
 }: TrendingSenpaiCoreProps) {
   const { getColumns } = useResponsive();
@@ -28,7 +26,6 @@ export const TrendingSenpaiCore = memo(function TrendingSenpaiCore({
 
   return (
     <View>
-      <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.grid}>
         {trending.map((item) => (
           <TouchableOpacity
@@ -68,14 +65,6 @@ export const TrendingSenpaiCore = memo(function TrendingSenpaiCore({
 });
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 16,
-  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

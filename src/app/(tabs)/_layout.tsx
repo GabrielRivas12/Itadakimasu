@@ -3,7 +3,6 @@ import { Feather } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../../hooks/useResponsive';
-import { StreakBadge } from '../../features/home/components/StreakBadge';
 import { SettingsButton } from '../../features/settings/components/SettingsButton';
 
 export default function TabLayout() {
@@ -34,11 +33,11 @@ export default function TabLayout() {
         headerShadowVisible: false,
         tabBarActiveTintColor: '#8b5cf6',
         tabBarInactiveTintColor: '#94a3b8',
-        tabBarShowLabel: false,
+        tabBarShowLabel: isMobile,
         tabBarLabelStyle: {
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 'bold',
-          marginBottom: 0,
+          marginBottom: isMobile ? 0 : -20,
           marginTop: 2,
         },
         tabBarStyle: showBottomTabs ? {
@@ -61,7 +60,6 @@ export default function TabLayout() {
         options={{
           title: 'Inicio',
           tabBarLabel: 'Inicio',
-          headerRight: () => (isNative ? <StreakBadge /> : null),
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
               <Feather
@@ -82,22 +80,6 @@ export default function TabLayout() {
             <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
               <Feather
                 name="tv"
-                size={23}
-                color={color}
-              />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explorar',
-          tabBarLabel: 'Explorar',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
-              <Feather
-                name="search"
                 size={23}
                 color={color}
               />
@@ -145,11 +127,11 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   iconWrapper: {
     width: 48,
-    height: 32,
+    height: 28,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 4,
   },
   activeIconWrapper: {
     backgroundColor: 'rgba(139, 92, 246, 0.12)',

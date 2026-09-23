@@ -1,60 +1,81 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, LayoutAnimation } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AnimeSeason } from '../../../../services/anilist';
-import { YearPickerModal } from './YearPickerModal';
 
 interface AdvancedFiltersProps {
   selectedGenre: string;
   onSelectGenre: (genre: string) => void;
-  selectedSeason: AnimeSeason | 'Todas';
-  onSelectSeason: (season: AnimeSeason | 'Todas') => void;
-  selectedYear: number | 'Todos';
-  onSelectYear: (year: number | 'Todos') => void;
+  selectedType: string;
+  onSelectType: (type: string) => void;
+  selectedHentaiTag: string;
+  onSelectHentaiTag: (tag: string) => void;
 }
 
+// Tipos de contenido -> slug usado por el endpoint /catalog (filtro server-side).
+const TYPE_MAP: Record<string, string> = {
+  'Todos': 'Todos',
+  'tv-anime': 'TV Anime',
+  'pelicula': 'Película',
+  'ova': 'OVA',
+  'especial': 'Especial',
+  'ona': 'ONA',
+};
+
+const TYPE_LIST = Object.keys(TYPE_MAP);
+
+// Labels en español -> slug usado por el endpoint /catalog (filtro server-side).
 const GENRE_MAP: Record<string, string> = {
   'Todos': 'Todos',
-  'Action': 'Acción',
-  'Adventure': 'Aventura',
-  'Comedy': 'Comedia',
-  'Drama': 'Drama',
-  'Ecchi': 'Ecchi',
-  'Fantasy': 'Fantasía',
-  'Horror': 'Terror',
-  'Mahou Shoujo': 'Chica Mágica',
-  'Mecha': 'Mecha',
-  'Music': 'Música',
-  'Mystery': 'Misterio',
-  'Psychological': 'Psicológico',
-  'Romance': 'Romance',
-  'Sci-Fi': 'Ciencia Ficción',
-  'Slice of Life': 'Recuentos de la Vida',
-  'Sports': 'Deportes',
-  'Supernatural': 'Sobrenatural',
-  'Thriller': 'Suspense',
-  'Hentai': 'Hentai'
+  'accion': 'Acción',
+  'aventura': 'Aventura',
+  'comedia': 'Comedia',
+  'drama': 'Drama',
+  'ecchi': 'Ecchi',
+  'fantasia': 'Fantasía',
+  'horror': 'Terror',
+  'mahou-shoujo': 'Mahou Shoujo',
+  'mecha': 'Mecha',
+  'musica': 'Música',
+  'misterio': 'Misterio',
+  'psicologico': 'Psicológico',
+  'romance': 'Romance',
+  'recuentos-de-la-vida': 'Recuentos de la Vida',
+  'ciencia-ficcion': 'Ciencia Ficción',
+  'sobrenatural': 'Sobrenatural',
+  'suspenso': 'Suspense',
+  'thriller': 'Thriller',
+  'deportes': 'Deportes',
+  'hentai': 'Hentai'
 };
 
 const GENRES = Object.keys(GENRE_MAP);
 
-const SEASONS: { label: string; value: AnimeSeason | 'Todas' }[] = [
-  { label: 'Todas', value: 'Todas' },
-  { label: 'Invierno', value: 'WINTER' },
-  { label: 'Primavera', value: 'SPRING' },
-  { label: 'Verano', value: 'SUMMER' },
-  { label: 'Otoño', value: 'FALL' },
-];
+// Tags/categorías del género hentai -> slug usado por el endpoint /catalog.
+const HENTAI_TAGS: Record<string, string> = {
+  'Todos': 'Todos',
+  'harem': 'Harem',
+  'escolares': 'Escolares',
+  'tetonas': 'Tetonas',
+  'vanilla': 'Vanilla',
+  'virgenes': 'Vírgenes',
+  'futanari': 'Futanari',
+  'tentaculos': 'Tentáculos',
+  'netorare': 'Netorare',
+  'yuri': 'Yuri',
+  'ahegao': 'Ahegao',
+  'milf': 'Milf',
+};
+
+const HENTAI_TAG_LIST = Object.keys(HENTAI_TAGS);
 
 export function GenreFilters({
   selectedGenre,
   onSelectGenre,
-  selectedSeason,
-  onSelectSeason,
-  selectedYear,
-  onSelectYear
+  selectedType,
+  onSelectType,
+  selectedHentaiTag,
+  onSelectHentaiTag,
 }: AdvancedFiltersProps) {
-  const [showYearPicker, setShowYearPicker] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleFilters = () => {
@@ -62,10 +83,14 @@ export function GenreFilters({
     setIsExpanded(!isExpanded);
   };
 
-  const hasActiveFilters = selectedGenre !== 'Todos' || selectedSeason !== 'Todas' || selectedYear !== 'Todos';
+  const isHentaiGenre = selectedGenre === 'hentai';
+  const hasActiveFilters =
+    selectedGenre !== 'Todos' ||
+    selectedType !== 'Todos' ||
+    (isHentaiGenre && selectedHentaiTag !== 'Todos');
 
   return (
-    <View style={styles.container}>
+    <View>
       <TouchableOpacity 
         style={styles.expandButton} 
         onPress={toggleFilters}
@@ -112,78 +137,63 @@ export function GenreFilters({
               </ScrollView>
             </View>
 
-            {/* Temporadas y Año Selector */}
-            <View style={styles.row}>
-              <View style={[styles.filterSection, { flex: 2 }]}>
-                <Text style={styles.sectionLabel}>Temporada</Text>
+            {/* Tipos */}
+            <View style={styles.filterSection}>
+              <Text style={styles.sectionLabel}>Tipo</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {TYPE_LIST.map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.chip, selectedType === type && styles.chipActive]}
+                    onPress={() => onSelectType(type)}
+                  >
+                    <Text style={[styles.chipText, selectedType === type && styles.chipTextActive]}>
+                      {TYPE_MAP[type]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {selectedGenre === 'hentai' && (
+              <View style={styles.filterSection}>
+                <Text style={styles.sectionLabel}>Categorías Hentai</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                  {SEASONS.map((s) => (
+                  {HENTAI_TAG_LIST.map((tag) => (
                     <TouchableOpacity
-                      key={s.value}
-                      style={[styles.chip, selectedSeason === s.value && styles.chipActive]}
-                      onPress={() => onSelectSeason(s.value)}
+                      key={tag}
+                      style={[styles.chip, selectedHentaiTag === tag && styles.chipActive]}
+                      onPress={() => onSelectHentaiTag(tag)}
                     >
-                      <Text style={[styles.chipText, selectedSeason === s.value && styles.chipTextActive]}>
-                        {s.label}
+                      <Text style={[styles.chipText, selectedHentaiTag === tag && styles.chipTextActive]}>
+                        {HENTAI_TAGS[tag]}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
-
-              <View style={[styles.filterSection, { flex: 1, marginLeft: 12 }]}>
-                <Text style={styles.sectionLabel}>Año</Text>
-                <View style={{ paddingHorizontal: 16 }}>
-                  <TouchableOpacity 
-                    style={[styles.yearPickerButton, selectedYear !== 'Todos' && styles.chipActive]}
-                    onPress={() => setShowYearPicker(true)}
-                  >
-                    <Text style={[styles.chipText, selectedYear !== 'Todos' && styles.chipTextActive]}>
-                      {selectedYear}
-                    </Text>
-                    <Ionicons 
-                      name="calendar-outline" 
-                      size={14} 
-                      color={selectedYear !== 'Todos' ? '#ffffff' : '#94a3b8'} 
-                      style={{ marginLeft: 6 }}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
+            )}
           </View>
         </View>
       )}
-
-      <YearPickerModal
-        visible={showYearPicker}
-        initialYear={selectedYear}
-        onClose={() => setShowYearPicker(false)}
-        onConfirm={(year) => {
-          onSelectYear(year);
-          setShowYearPicker(false);
-        }}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingBottom: 4,
-  },
-  expandButton: {
+expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    height: 48,
     backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    marginHorizontal: 16,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#334155',
+    marginRight: 13,
+    marginLeft: 13
   },
   expandButtonLeft: {
     flexDirection: 'row',
@@ -206,12 +216,13 @@ const styles = StyleSheet.create({
   },
   containerInner: {
     backgroundColor: 'rgba(15, 23, 42, 0.3)',
-    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#1e293b',
     paddingBottom: 4,
     marginBottom: 12,
+    marginRight: 13,
+    marginLeft: 13
   },
   content: {
     paddingTop: 12,
@@ -228,11 +239,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  row: {
-    flexDirection: 'row',
-    paddingRight: 16,
-    alignItems: 'flex-start',
-  },
   scrollContent: {
     paddingHorizontal: 16,
     gap: 8,
@@ -244,18 +250,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#334155',
-  },
-  yearPickerButton: {
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 85,
   },
   chipActive: {
     backgroundColor: '#8b5cf6',
@@ -271,4 +265,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
