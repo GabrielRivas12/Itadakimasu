@@ -17,11 +17,11 @@ export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnim
   if (!item) return null;
 
   const anime = item.anime;
-  const animeId = anime?.id ?? item.animeId;
+  const animeId = anime?.id ?? item.animeId ?? item.id;
   const coverImage = anime?.coverImage?.large;
   const title = anime
     ? anime.title.romaji || anime.title.english || 'Anime Desconocido'
-    : `Anime #${item.animeId}`;
+    : `Anime #${item.animeId ?? item.id}`;
 
   return (
     <TouchableOpacity

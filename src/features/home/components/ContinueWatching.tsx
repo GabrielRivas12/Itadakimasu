@@ -29,7 +29,7 @@ export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
           isWeb && { paddingBottom: 10 }
         ]}
       >
-        {items.map((item) => {
+        {items.map((item, index) => {
           const anime = item.anime;
           const slug = item.slug || anime?.slug || '';
           const coverImage = anime?.coverImage?.large;
@@ -38,7 +38,7 @@ export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
 
           return (
             <TouchableOpacity
-              key={item.animeId}
+              key={String(item.animeId ?? item.id ?? item.anime?.id ?? index)}
               style={styles.card}
               onPress={() => onPress(item)}
               activeOpacity={0.8}

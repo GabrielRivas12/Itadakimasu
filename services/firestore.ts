@@ -68,6 +68,9 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
     const cleanItem = sanitizeObject(item);
     if (cleanItem) {
       delete cleanItem.anime;
+      // El campo `animeId` solo se lee por compatibilidad: los registros nuevos
+      // persisten `id` como clave numérica del anime.
+      delete cleanItem.animeId;
       // Asegurar que el slug quede a nivel top-level, aunque el objeto `anime`
       // no se persista en Firestore
       if (!cleanItem.slug && anime?.slug) {
@@ -75,8 +78,8 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
       }
     }
 
-    const animeId = String(item.animeId ?? anime?.id);
-    if (!anime?.id && item.animeId == null) {
+    const animeId = String(item.animeId ?? item.id ?? anime?.id);
+    if (!anime?.id && item.animeId == null && item.id == null) {
       console.warn('No se puede sincronizar: El item no tiene animeId.');
       return;
     }
@@ -89,9 +92,9 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
       const docRef = webDoc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, animeId);
       await webSetDoc(docRef, {
         ...cleanItem,
-        animeId: Number(animeId),
+        id: Number(animeId),
         userId: user.uid,
-        updatedAt: webServerTimestamp(),
+        updatedAt: cleanItem.updatedAt || new Date().toISOString(),
       }, { merge: true });
     } else {
       // Uso de la API modular nativa
@@ -100,9 +103,9 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
       
       await setDoc(docRef, {
         ...cleanItem,
-        animeId: Number(animeId),
+        id: Number(animeId),
         userId: user.uid,
-        updatedAt: serverTimestamp(),
+        updatedAt: cleanItem.updatedAt || new Date().toISOString(),
       }, { merge: true });
     }
     console.log(`Sincronización exitosa para ID: ${animeId}`);
@@ -209,7 +212,7 @@ export async function updateProgressInFirestore(animeId: number, progress: numbe
       const docRef = webDoc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
       await webUpdateDoc(docRef, {
         progress,
-        updatedAt: webServerTimestamp(),
+        updatedAt: new Date().toISOString(),
       });
     } else {
       // Uso de la API modular nativa
@@ -217,7 +220,7 @@ export async function updateProgressInFirestore(animeId: number, progress: numbe
       const docRef = doc(db, ROOT_COLLECTION, user.uid, SUB_COLLECTION, id);
       await updateDoc(docRef, {
         progress,
-        updatedAt: serverTimestamp(),
+        updatedAt: new Date().toISOString(),
       });
     }
     console.log(`Progreso actualizado para ID: ${id}`);

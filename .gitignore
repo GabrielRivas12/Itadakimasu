@@ -8,6 +8,7 @@ google-services.json
 doc.md
 .opencode
 AGENTS.md
+endpoint.md
 
 # dependencies
 node_modules/

@@ -14,8 +14,24 @@ export const animeListEvents = new EventEmitter();
 
 export type UserListStatus = 'En Proceso' | 'Terminado' | 'Por Ver';
 
+const normalizeSlug = (value?: string | null): string =>
+  (value || '').replace(/^https?:\/\/[^/]+\/media\//i, '').replace(/\/+$/, '');
+
+// Coincide un item de la lista con un anime por id (numérico) o slug normalizado,
+// para soportar registros legacy que solo comparten slug.
+const matchesUserItem = (item: any, animeId: unknown, slug?: string): boolean => {
+  if (String(item.animeId ?? item.id ?? item.anime?.id) === String(animeId)) return true;
+  if (slug) {
+    const itemSlug = normalizeSlug(item.slug);
+    if (itemSlug && itemSlug === normalizeSlug(slug)) return true;
+  }
+  if (item.anime && String(item.anime.id) === String(animeId)) return true;
+  return false;
+};
+
 export interface UserListItem {
   animeId: number;
+  id?: number;
   anime?: Anime;
   slug?: string;
   status: UserListStatus;
@@ -79,7 +95,7 @@ async function enrichUserList(minimalList: any[]): Promise<UserListItem[]> {
 
   const resolvedItems = await Promise.all(
     minimalList.map(async (item) => {
-      const animeId = Number(item.animeId ?? item.anime?.id);
+      const animeId = Number(item.animeId ?? item.id ?? item.anime?.id);
       if (!animeId) {
         // Sin id, solo placeholder
         return { ...item };
@@ -188,8 +204,8 @@ export async function getUserList(): Promise<UserListItem[]> {
           const latestJson = await storage.getItem(currentKey);
           const currentLocalList: UserListItem[] = latestJson != null ? JSON.parse(latestJson) : [];
 
-          const localMap = new Map(currentLocalList.filter(item => item && (item.animeId != null || item.anime?.id != null)).map(item => [String(item.animeId ?? item.anime?.id), item]));
-          const remoteIds = new Set(enrichedRemote.filter(item => item && (item.animeId != null || item.anime?.id != null)).map(item => String(item.animeId ?? item.anime?.id)));
+          const localMap = new Map(currentLocalList.filter(item => item && (item.animeId != null || item.id != null || item.anime?.id != null)).map(item => [String(item.animeId ?? item.id ?? item.anime?.id), item]));
+          const remoteIds = new Set(enrichedRemote.filter(item => item && (item.animeId != null || item.id != null || item.anime?.id != null)).map(item => String(item.animeId ?? item.id ?? item.anime?.id)));
           let hasChanges = false;
 
           // 1. Detectar eliminaciones: Si está local pero NO en remoto, se borró en otro dispositivo
@@ -203,8 +219,8 @@ export async function getUserList(): Promise<UserListItem[]> {
 
           // 2. Fusionar cambios: Agregar nuevos o actualizar existentes
           enrichedRemote.forEach(remoteItem => {
-            if (!remoteItem || (remoteItem.animeId == null && (!remoteItem.anime || !remoteItem.anime.id))) return;
-            const animeId = String(remoteItem.animeId ?? remoteItem.anime?.id);
+            if (!remoteItem || (remoteItem.animeId == null && remoteItem.id == null && (!remoteItem.anime || !remoteItem.anime.id))) return;
+            const animeId = String(remoteItem.animeId ?? remoteItem.id ?? remoteItem.anime?.id);
             const localItem = localMap.get(animeId);
 
             if (!localItem) {
@@ -238,7 +254,7 @@ export async function getUserList(): Promise<UserListItem[]> {
             const localMapCopy = new Map(localMap);
             enrichedPlaceholders.forEach((item) => {
               if (!item || !item.anime) return;
-              const animeId = String(item.animeId ?? item.anime?.id);
+              const animeId = String(item.animeId ?? item.id ?? item.anime?.id);
               localMapCopy.set(animeId, item);
               hasChanges = true;
             });
@@ -292,11 +308,11 @@ export async function mergeGuestListIntoUser(userUid: string) {
     console.log(`Migrando ${guestList.length} items de la lista de invitado...`);
 
     const remoteList = await fetchUserListFromFirestore();
-    const remoteIds = new Set(remoteList.map(item => item.animeId || item.anime?.id));
+    const remoteIds = new Set(remoteList.map(item => item.animeId || item.id || item.anime?.id));
     const mergedList = [...remoteList];
 
     for (const item of guestList) {
-      const animeId = item.animeId || item.anime?.id;
+      const animeId = item.animeId || item.id || item.anime?.id;
       if (!remoteIds.has(animeId)) {
         await syncAnimeToFirestore(item);
         mergedList.push(item);
@@ -328,19 +344,19 @@ export async function clearLocalList() {
 // Métodos para componentes y vistas
 export async function getAnimeStatus(animeId: number): Promise<UserListStatus | null> {
   const list = await getUserList();
-  const item = list.find(item => String(item.animeId ?? item.anime?.id) === String(animeId));
+  const item = list.find(item => String(item.animeId ?? item.id ?? item.anime?.id) === String(animeId));
   return item ? item.status : null;
 }
 
 export async function getAnimeProgress(animeId: number): Promise<number> {
   const list = await getUserList();
-  const item = list.find(item => String(item.animeId ?? item.anime?.id) === String(animeId));
+  const item = list.find(item => String(item.animeId ?? item.id ?? item.anime?.id) === String(animeId));
   return item ? item.progress : 0;
 }
 
 export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatus, progress: number = 0): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const existingIndex = currentList.findIndex(item => String(item.animeId ?? item.anime?.id) === String(anime.id));
+  const existingIndex = currentList.findIndex(item => matchesUserItem(item, anime.id, anime.slug));
 
   const newItem: UserListItem = {
     animeId: anime.id,
@@ -375,7 +391,7 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
 
 export async function removeAnimeFromList(animeId: number): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const updatedList = currentList.filter(item => String(item.animeId ?? item.anime?.id) !== String(animeId));
+  const updatedList = currentList.filter(item => String(item.animeId ?? item.id ?? item.anime?.id) !== String(animeId));
 
   const user = getUserId();
 
@@ -393,7 +409,7 @@ export async function removeAnimeFromList(animeId: number): Promise<UserListItem
 
 export async function updateAnimeProgress(animeId: number, progress: number): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const existingIndex = currentList.findIndex(item => String(item.animeId ?? item.anime?.id) === String(animeId));
+  const existingIndex = currentList.findIndex(item => matchesUserItem(item, animeId));
 
   if (existingIndex > -1) {
     currentList[existingIndex].progress = progress;
