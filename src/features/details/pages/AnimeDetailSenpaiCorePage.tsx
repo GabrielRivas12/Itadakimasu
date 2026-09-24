@@ -12,9 +12,11 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SenpaiCoreHeader } from '../components/SenpaiCoreHeader';
+import { StatusSelector } from '../components/StatusSelector';
 import { RelatedAnimeRow } from '../components/RelatedAnimeRow';
 import { SkeletonLoader } from '../components/DetailsSkeleton';
 import { EpisodePicker } from '../components/EpisodePicker';
+import { EpisodeNavigation } from '../components/EpisodeNavigation';
 import { EpisodePlayer } from '../components/EpisodePlayer';
 import { NativeEpisodePlayer } from '../components/NativeEpisodePlayer';
 import { ProviderSelector } from '../components/ProviderSelector';
@@ -121,6 +123,13 @@ export function AnimeDetailSenpaiCorePage() {
     selectedVariant,
     hasDub,
     handleVariantChange,
+    userStatus,
+    userProgress,
+    showStatusSelector,
+    setShowStatusSelector,
+    isUpdatingStatus,
+    handleUpdateStatus,
+    handleRemove,
   } = useSenpaiCoreDetail();
 
   const heroRawBackdrop = detail ? detail.backcover || detail.backdrop : null;
@@ -219,8 +228,27 @@ export function AnimeDetailSenpaiCorePage() {
   const renderEpisodesSection = () => {
     if (!detail) return null;
 
+    const currentEpisodeIndex = currentEpisode
+      ? detail.episodes.findIndex((e) => e.number === currentEpisode.number)
+      : -1;
+    const prevEpisode = currentEpisodeIndex > 0 ? detail.episodes[currentEpisodeIndex - 1] : null;
+    const nextEpisode =
+      currentEpisodeIndex >= 0 && currentEpisodeIndex < detail.episodes.length - 1
+        ? detail.episodes[currentEpisodeIndex + 1]
+        : null;
+
     return (
       <>
+        {currentEpisode && detail.episodes.length > 0 && (
+          <EpisodeNavigation
+            currentEpisodeNumber={currentEpisode.number}
+            hasPrevious={!!prevEpisode}
+            hasNext={!!nextEpisode}
+            onPrevious={() => prevEpisode && handleEpisodeSelect(prevEpisode)}
+            onNext={() => nextEpisode && handleEpisodeSelect(nextEpisode)}
+          />
+        )}
+
         <Text style={styles.sectionHeader}>
           {currentEpisode
             ? `Reproduciendo: Episodio ${currentEpisode.number}`
@@ -414,18 +442,6 @@ export function AnimeDetailSenpaiCorePage() {
               <Text style={styles.specValue}>{detail.endDate}</Text>
             </View>
           )}
-          {detail.votes !== null && detail.votes !== undefined && (
-            <View style={styles.specRow}>
-              <Text style={styles.specLabel}>Votos</Text>
-              <Text style={styles.specValue}>{detail.votes.toLocaleString()}</Text>
-            </View>
-          )}
-          {!!detail.malId && (
-            <View style={styles.specRow}>
-              <Text style={styles.specLabel}>MyAnimeList ID</Text>
-              <Text style={styles.specValue}>#{detail.malId}</Text>
-            </View>
-          )}
         </View>
       </View>
     );
@@ -444,6 +460,16 @@ export function AnimeDetailSenpaiCorePage() {
           <View style={styles.webSidebar}>
             <SenpaiCoreHeader detail={detail} />
             <View style={styles.webSidebarActions}>
+              <StatusSelector
+                userStatus={userStatus}
+                userProgress={userProgress}
+                totalEpisodes={detail.totalEpisodes}
+                showStatusSelector={showStatusSelector}
+                setShowStatusSelector={setShowStatusSelector}
+                onUpdateStatus={handleUpdateStatus}
+                onRemove={handleRemove}
+                isUpdating={isUpdatingStatus}
+              />
               {renderStats()}
               {renderGenres()}
               {renderSpecs()}
@@ -463,6 +489,16 @@ export function AnimeDetailSenpaiCorePage() {
     return (
       <>
         <SenpaiCoreHeader detail={detail} />
+        <StatusSelector
+          userStatus={userStatus}
+          userProgress={userProgress}
+          totalEpisodes={detail.totalEpisodes}
+          showStatusSelector={showStatusSelector}
+          setShowStatusSelector={setShowStatusSelector}
+          onUpdateStatus={handleUpdateStatus}
+          onRemove={handleRemove}
+          isUpdating={isUpdatingStatus}
+        />
         {renderStats()}
         {renderGenres()}
         {renderSynopsis()}

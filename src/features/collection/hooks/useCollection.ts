@@ -40,8 +40,8 @@ export const useCollection = () => {
       return;
     }
 
-    // First load: try preloader cache
-    if (!initialized) {
+    // First load: try preloader cache (solo si no se fuerza una recarga)
+    if (!force && !initialized) {
       const preloadPromise = getPreloadPromise();
       if (preloadPromise) {
         await preloadPromise;
@@ -129,8 +129,10 @@ export const useCollection = () => {
   };
 
   const handleAnimePress = (item: UserListItem) => {
-    const title = item.anime?.title?.romaji || item.anime?.title?.english || `Anime #${item.animeId}`;
-    router.push({ pathname: '/animatedetailsepaicore', params: { url: item.slug || '', title } });
+    const title = item.anime?.title?.romaji || item.anime?.title?.english || `Anime #${item.animeId ?? item.id}`;
+    const params: Record<string, string> = { url: item.slug || '', title };
+    if (item.progress > 0) params.episode = String(item.progress);
+    router.push({ pathname: '/animatedetailsepaicore', params });
   };
 
   const filteredList = list.filter((item) => item.status === activeTab);

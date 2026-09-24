@@ -29,9 +29,9 @@ export function StatsCard({ inProcess, completed, planToWatch }: StatsCardProps)
     <View style={[styles.statsCard, isWeb && styles.webStatsCard]}>
       <StatBox value={inProcess} label="En Proceso" />
       <View style={styles.statDivider} />
-      <StatBox value={completed} label="Terminados" />
-      <View style={styles.statDivider} />
       <StatBox value={planToWatch} label="Por Ver" />
+      <View style={styles.statDivider} />
+      <StatBox value={completed} label="Terminados" />
     </View>
   );
 }

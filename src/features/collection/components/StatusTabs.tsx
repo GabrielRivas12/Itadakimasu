@@ -25,22 +25,22 @@ export function StatusTabs({ activeTab, onTabChange }: StatusTabsProps) {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.tabButton, activeTab === 'Terminado' && styles.tabButtonActive]}
-        onPress={() => onTabChange('Terminado')}
-      >
-        <Ionicons name="checkmark-done" size={14} color={activeTab === 'Terminado' ? '#8b5cf6' : '#94a3b8'} style={styles.tabIcon} />
-        <Text style={[styles.tabButtonText, activeTab === 'Terminado' && styles.tabButtonTextActive]}>
-          Terminados
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
         style={[styles.tabButton, activeTab === 'Por Ver' && styles.tabButtonActive]}
         onPress={() => onTabChange('Por Ver')}
       >
         <Ionicons name="bookmark" size={14} color={activeTab === 'Por Ver' ? '#8b5cf6' : '#94a3b8'} style={styles.tabIcon} />
         <Text style={[styles.tabButtonText, activeTab === 'Por Ver' && styles.tabButtonTextActive]}>
           Por Ver
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'Terminado' && styles.tabButtonActive]}
+        onPress={() => onTabChange('Terminado')}
+      >
+        <Ionicons name="checkmark-done" size={14} color={activeTab === 'Terminado' ? '#8b5cf6' : '#94a3b8'} style={styles.tabIcon} />
+        <Text style={[styles.tabButtonText, activeTab === 'Terminado' && styles.tabButtonTextActive]}>
+          Terminados
         </Text>
       </TouchableOpacity>
     </View>

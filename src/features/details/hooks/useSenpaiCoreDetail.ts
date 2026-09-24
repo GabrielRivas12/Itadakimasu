@@ -10,8 +10,36 @@ import {
   Anime1VDownloadLink,
   Anime1VVariant,
 } from '../../../../services/anime1v';
+import {
+  getUserList,
+  addOrUpdateAnimeInList,
+  removeAnimeFromList,
+  mapDetailToAnime,
+  UserListStatus,
+  UserListItem,
+  animeListEvents,
+} from '../../../../services/animeList';
 
 const EPISODES_PER_PAGE = 50;
+
+const toRawSlug = (value: string | null | undefined): string => {
+  if (!value) return '';
+  return value.replace(/^https?:\/\/[^/]+\/media\//i, '').replace(/\/+$/, '');
+};
+
+const findUserItem = (list: UserListItem[], detail: Anime1VDetail): UserListItem | undefined => {
+  const detailId = String(detail.id);
+  const detailSlug = toRawSlug(detail?.slug);
+  return list.find((item) => {
+    if (String(item.animeId ?? item.id ?? item.anime?.id) === detailId) return true;
+    if (detailSlug) {
+      const itemSlug = toRawSlug(item.slug);
+      if (itemSlug && itemSlug === detailSlug) return true;
+    }
+    if (item.anime && String(item.anime.id) === detailId) return true;
+    return false;
+  });
+};
 
 const isPlayerZillaServer = (s: Anime1VStreamLink): boolean =>
   /streamwish|zilla|strw|awish|playerzilla/i.test(`${s.server} ${s.url}`.toLowerCase());
@@ -87,6 +115,11 @@ export const useSenpaiCoreDetail = () => {
   const [hasMoreEpisodes, setHasMoreEpisodes] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  const [userStatus, setUserStatus] = useState<UserListStatus | null>(null);
+  const [userProgress, setUserProgress] = useState<number>(0);
+  const [showStatusSelector, setShowStatusSelector] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
   const animeUrl = typeof url === 'string' ? url : Array.isArray(url) ? url[0] : null;
 
   const loadDetail = useCallback(async () => {
@@ -116,6 +149,11 @@ export const useSenpaiCoreDetail = () => {
         setDisplayedEpisodes(data.episodes.slice(0, EPISODES_PER_PAGE));
         setCurrentPage(1);
         setHasMoreEpisodes(data.episodes.length > EPISODES_PER_PAGE);
+
+        const list = await getUserList();
+        const userItem = findUserItem(list, data);
+        setUserStatus(userItem?.status ?? null);
+        setUserProgress(userItem?.progress ?? 0);
       } else {
         setError(true);
       }
@@ -144,12 +182,42 @@ export const useSenpaiCoreDetail = () => {
     setCurrentPage(1);
     setHasMoreEpisodes(true);
     setIsLoadingMore(false);
+    setUserStatus(null);
+    setUserProgress(0);
+    setShowStatusSelector(false);
   }, [animeUrl]);
+
+  // Mantener el estado de la lista en vivo: si cambia (añadir/quitar/actualizar
+  // desde cualquier parte), el selector refleja el estado real inmediatamente.
+  useEffect(() => {
+    if (!detail) return;
+    const handleSync = (list: UserListItem[]) => {
+      const userItem = findUserItem(list, detail);
+      setUserStatus(userItem?.status ?? null);
+      setUserProgress(userItem?.progress ?? 0);
+    };
+    animeListEvents.on('listUpdated', handleSync);
+    return () => {
+      animeListEvents.off('listUpdated', handleSync);
+    };
+  }, [detail]);
 
   const handleEpisodeSelect = useCallback(async (episode: Anime1VEpisode) => {
     setCurrentEpisode(episode);
     setLoadingStream(true);
     setContentNotAvailable(false);
+
+    if (detail && userStatus) {
+      const isLastEpisode = detail.totalEpisodes ? episode.number >= detail.totalEpisodes : false;
+      const newStatus: UserListStatus = isLastEpisode ? 'Terminado' : userStatus;
+      const anime = mapDetailToAnime(detail.id, detail, toRawSlug(detail.slug));
+
+      addOrUpdateAnimeInList(anime, newStatus, episode.number).catch((err) =>
+        console.error('Error actualizando progreso al seleccionar episodio:', err)
+      );
+      setUserStatus(newStatus);
+      setUserProgress(episode.number);
+    }
 
     try {
       const links = await getAnime1VEpisodeLinks(episode.url);
@@ -192,7 +260,7 @@ export const useSenpaiCoreDetail = () => {
     } finally {
       setLoadingStream(false);
     }
-  }, [selectedServerName]);
+  }, [selectedServerName, detail, userStatus]);
 
   useEffect(() => {
     if (
@@ -203,12 +271,16 @@ export const useSenpaiCoreDetail = () => {
       !error
     ) {
       const targetEpisode =
-        typeof episode === 'string' && episode
+        (typeof episode === 'string' && episode && Number(episode) > 0
           ? detail.episodes.find((e) => e.number === Number(episode))
-          : undefined;
-      handleEpisodeSelect(targetEpisode ?? detail.episodes[0]);
+          : undefined) ??
+        (userProgress > 0
+          ? detail.episodes.find((e) => e.number === userProgress)
+          : undefined) ??
+        detail.episodes[0];
+      handleEpisodeSelect(targetEpisode);
     }
-  }, [detail, currentEpisode, loading, error, handleEpisodeSelect, episode]);
+  }, [detail, currentEpisode, loading, error, handleEpisodeSelect, episode, userProgress]);
 
   const loadMoreEpisodes = useCallback(async () => {
     if (!detail || !hasMoreEpisodes || isLoadingMore) return;
@@ -283,6 +355,49 @@ const hasDub = dubServers.length > 0;
     }
   }, []);
 
+  const handleUpdateStatus = useCallback(async (status: UserListStatus) => {
+    if (!detail) return;
+
+    let progress = userProgress;
+    if (status === 'Terminado') {
+      progress = detail.totalEpisodes || userProgress;
+    } else if (status === 'Por Ver') {
+      progress = 0;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      const anime = mapDetailToAnime(detail.id, detail, toRawSlug(detail.slug));
+      await addOrUpdateAnimeInList(anime, status, progress);
+      setUserStatus(status);
+      setUserProgress(progress);
+      setShowStatusSelector(false);
+      Alert.alert(
+        '¡Éxito!',
+        `Anime actualizado a "${status}"${progress > 0 ? ` con progreso ${progress}` : ''}`
+      );
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'No se pudo actualizar el estado del anime');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }, [detail, userProgress]);
+
+  const handleRemove = useCallback(async () => {
+    if (!detail) return;
+    try {
+      await removeAnimeFromList(detail.id);
+      setUserStatus(null);
+      setUserProgress(0);
+      setShowStatusSelector(false);
+      Alert.alert('¡Eliminado!', 'Anime quitado de tu lista personal');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'No se pudo eliminar el anime de tu lista');
+    }
+  }, [detail]);
+
   return {
     detail,
     loading,
@@ -304,5 +419,12 @@ const hasDub = dubServers.length > 0;
     selectedVariant,
     hasDub,
     handleVariantChange,
+    userStatus,
+    userProgress,
+    showStatusSelector,
+    setShowStatusSelector,
+    isUpdatingStatus,
+    handleUpdateStatus,
+    handleRemove,
   };
 };

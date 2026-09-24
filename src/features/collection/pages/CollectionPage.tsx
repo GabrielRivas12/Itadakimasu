@@ -56,7 +56,7 @@ export const CollectionPage = memo(function CollectionPage() {
       <FlatList
         key={columns}
         data={filteredList}
-        keyExtractor={(item) => String(item.animeId ?? item.anime?.id)}
+        keyExtractor={(item) => String(item.animeId ?? item.id ?? item.anime?.id)}
         numColumns={columns}
         contentContainerStyle={[
           styles.listContent,

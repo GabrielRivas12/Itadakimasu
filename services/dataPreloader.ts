@@ -1,4 +1,4 @@
-import { getUserList, UserListItem } from './animeList';
+import { getUserList, UserListItem, animeListEvents } from './animeList';
 import { getTopAnimeList } from './animeTop';
 import { getUserId } from '../src/hooks/userHelper';
 
@@ -6,6 +6,14 @@ let cachedUserList: UserListItem[] | null = null;
 let cachedTopAnime: any[] | null = null;
 let preloaded = false;
 let preloadPromise: Promise<void> | null = null;
+
+// Mantener la caché del preloader en sincronía: cada cambio de la lista
+// (añadir/quitar/actualizar) actualiza el snapshot en memoria para que
+// Colección muestre el dato inmediatamente, sin reiniciar la app.
+const syncCacheFromList = (list: UserListItem[]) => {
+  cachedUserList = list;
+};
+animeListEvents.on('listUpdated', syncCacheFromList);
 
 export async function preloadAllData(): Promise<void> {
   if (preloadPromise) return preloadPromise;
