@@ -5,13 +5,13 @@ import { fetchTrendingAnime, Anime } from '../../../../services/anime';
 import {
   getUserList,
   UserListItem,
-  animeListEvents
+  animeListEvents,
+  dedupeByIdentity
 } from '../../../../services/animeList';
 import { onAuthStateChangedCallback } from '../../../../services/auth';
 import {
   getCachedTrendingBanner,
   getCachedTrendingList,
-  getCachedContinueWatching,
   cacheTrendingBanner,
   cacheTrendingList,
   cacheContinueWatching
@@ -53,10 +53,9 @@ export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
     try {
       // 1. Initial Cache (AsyncStorage) - solo para AniList
       if (!isSenpaiCore && !forceRefresh && !homeInitialized && sessionTrending.length === 0) {
-        const [cachedList, cachedBanner, cachedContinue] = await Promise.all([
+        const [cachedList, cachedBanner] = await Promise.all([
           getCachedTrendingList(),
-          getCachedTrendingBanner(),
-          getCachedContinueWatching()
+          getCachedTrendingBanner()
         ]);
 
         if (cachedList && cachedList.length > 0) {
@@ -95,10 +94,14 @@ export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
 
       // Actualiza el listado de "Watching" en web solo si no estamos esperando autenticación, para evitar fetch innecesarios
       if (!(Platform.OS === 'web' && isWaitingAuth.current)) {
-        const inProcessList = userList.filter(item => item.status === 'En Proceso' && item.anime);
-        sessionContinueWatching = inProcessList;
-        setContinueWatching(inProcessList);
-        await cacheContinueWatching(inProcessList);
+          const inProcessList = dedupeByIdentity(
+            userList
+              .filter(item => item.status === 'En Proceso' && item.anime)
+              .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          );
+          sessionContinueWatching = inProcessList;
+          setContinueWatching(inProcessList);
+          await cacheContinueWatching(inProcessList);
       }
 
       if (trendingData.length > 0 || sessionTrending.length > 0) {
@@ -117,7 +120,11 @@ export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
 
     // Actualizaciones en tiempo real del listado de usuario, solo en web para evitar fetch innecesarios en mobile
     const handleListUpdate = (updatedList: UserListItem[]) => {
-      const inProcessList = updatedList.filter(item => item.status === 'En Proceso');
+      const inProcessList = dedupeByIdentity(
+        updatedList
+          .filter(item => item.status === 'En Proceso' && item.anime)
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      );
       sessionContinueWatching = inProcessList;
       setContinueWatching(inProcessList);
       cacheContinueWatching(inProcessList);
@@ -133,11 +140,15 @@ export const useHome = (apiSource: 'anilist' | 'senpaicore' = 'anilist') => {
       // Lista de usuario solo se actualiza en web, para evitar fetch innecesarios en mobile
       try {
         const userList = await getUserList();
-        const inProcessList = userList.filter(item => item.status === 'En Proceso' && item.anime);
+          const inProcessList = dedupeByIdentity(
+            userList
+              .filter(item => item.status === 'En Proceso' && item.anime)
+              .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          );
 
-        sessionContinueWatching = inProcessList;
-        setContinueWatching(inProcessList);
-        await cacheContinueWatching(inProcessList);
+          sessionContinueWatching = inProcessList;
+          setContinueWatching(inProcessList);
+          await cacheContinueWatching(inProcessList);
       } catch (e) {
         console.warn('[useHome] Error fetching user list after auth change:', e);
       }

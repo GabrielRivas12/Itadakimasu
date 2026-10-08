@@ -40,6 +40,124 @@ export interface UserListItem {
   updatedAt: string;
 }
 
+// Identidad de un item: SOLO el id del backend (animeId -> id -> anime.id).
+// El slug nunca se usa como identidad compartida entre ids distintos.
+export function getAnimeKey(item: Pick<UserListItem, 'animeId' | 'id' | 'anime'> | null | undefined): string {
+  const raw = item?.animeId ?? item?.id ?? item?.anime?.id;
+  return raw != null ? String(raw) : '';
+}
+
+// Elimina entradas duplicadas que compartan el mismo id del backend,
+// conservando la primera aparición (las listas vienen ordenadas por updatedAt desc).
+export function dedupeByIdentity(list: UserListItem[]): UserListItem[] {
+  const seen = new Set<string>();
+  return list.filter((item) => {
+    const key = getAnimeKey(item);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+const updatedAtTime = (item: UserListItem): number =>
+  new Date(item.updatedAt || 0).getTime();
+
+// Resuelve la id canónica del backend para un slug (mismo endpoint que usa
+// la página de detalle). Devuelve null si no hay red o no se resuelve.
+const resolveBackendIdForSlug = async (slug: string): Promise<string | null> => {
+  try {
+    const candidates = /^https?:\/\//i.test(slug)
+      ? [slug]
+      : [`https://animeav1.com/media/${slug}`, `https://hentaila.com/media/${slug}`];
+    for (const candidate of candidates) {
+      const detail = await getAnime1VDetail(candidate, 1);
+      if (detail?.id != null) return String(detail.id);
+    }
+  } catch {
+    // sin red: el llamador aplica el fallback por updatedAt
+  }
+  return null;
+};
+
+interface BackendIdCleanup {
+  list: UserListItem[];
+  changed: boolean;
+}
+
+// Garantiza que solo sobrevivan ids del backend:
+// 1. Entradas con el mismo id (duplicados locales) -> conserva la más reciente.
+// 2. Mismo slug con ids distintos (ids heredados de AniList / hashes) ->
+//    conserva SOLO la entrada cuyo id coincide con el id real del backend
+//    (fallback: la más reciente si no hay red) y borra los docs obsoletos
+//    de Firestore para que el sync no los resucite.
+async function resolveBackendIdConflicts(list: UserListItem[]): Promise<BackendIdCleanup> {
+  let changed = false;
+
+  // 1. Dedupe exacto por id del backend
+  const byKey = new Map<string, UserListItem>();
+  const withoutKey: UserListItem[] = [];
+  for (const item of list) {
+    if (!item) continue;
+    const key = getAnimeKey(item);
+    if (!key) {
+      withoutKey.push(item);
+      continue;
+    }
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, item);
+    } else {
+      changed = true;
+      if (updatedAtTime(item) > updatedAtTime(existing)) byKey.set(key, item);
+    }
+  }
+  let current = [...byKey.values(), ...withoutKey];
+
+  // 2. Conflictos: mismo slug normalizado con ids distintos
+  const groups = new Map<string, UserListItem[]>();
+  for (const item of current) {
+    const slug = normalizeSlug(item.slug);
+    if (!slug) continue;
+    const group = groups.get(slug);
+    if (group) group.push(item);
+    else groups.set(slug, [item]);
+  }
+
+  const discardedKeys = new Set<string>();
+
+  for (const [slug, items] of groups) {
+    const keys = new Set(items.map(getAnimeKey));
+    if (keys.size <= 1) continue;
+
+    changed = true;
+    const backendId = await resolveBackendIdForSlug(slug);
+    const keeper =
+      (backendId ? items.find((i) => getAnimeKey(i) === backendId) : undefined) ??
+      [...items].sort((a, b) => updatedAtTime(b) - updatedAtTime(a))[0];
+
+    const keptKey = getAnimeKey(keeper);
+    for (const item of items) {
+      if (item === keeper) continue;
+      current = current.filter((x) => x !== item);
+      const droppedKey = getAnimeKey(item);
+      if (droppedKey && droppedKey !== keptKey) discardedKeys.add(droppedKey);
+    }
+  }
+
+  // Borrar los docs obsoletos de Firestore (solo ids numéricos y usuario logueado)
+  if (discardedKeys.size > 0 && getUserId()) {
+    await Promise.all(
+      [...discardedKeys]
+        .filter((key) => /^\d+$/.test(key))
+        .map((key) => removeFromFirestore(Number(key)).catch(() => undefined))
+    );
+  }
+
+  current.sort((a, b) => updatedAtTime(b) - updatedAtTime(a));
+  return { list: current, changed };
+}
+
 // Convierte la respuesta reducida de /info-by-slug al shape `Anime` que consume la UI
 export function mapSlugInfoToAnime(animeId: number, info: Anime1VInfoBySlug, slug?: string): Anime {
   const image = buildImageProxyUrl(info.image || '');
@@ -181,7 +299,14 @@ export async function getUserList(): Promise<UserListItem[]> {
 
     // 1. Obtener lo que hay en caché local inmediatamente
     const jsonValue = await storage.getItem(currentKey);
-    const localList: UserListItem[] = jsonValue != null ? JSON.parse(jsonValue) : [];
+    const localRaw: UserListItem[] = jsonValue != null ? JSON.parse(jsonValue) : [];
+
+    // Limpieza de ids heredados: solo deben sobrevivir ids del backend
+    const localCleanup = await resolveBackendIdConflicts(localRaw);
+    let localList: UserListItem[] = localCleanup.list;
+    if (localCleanup.changed) {
+      await saveUserListLocally(localList, user);
+    }
 
     // 2. Si el usuario está logueado, sincronizamos con Firestore en segundo plano
     if (user) {
@@ -190,8 +315,9 @@ export async function getUserList(): Promise<UserListItem[]> {
         const remoteList = await fetchUserListFromFirestore();
         if (remoteList && remoteList.length > 0) {
           const enrichedRemote = await enrichUserList(remoteList);
-          await saveUserListLocally(enrichedRemote, user);
-          return enrichedRemote;
+          const firstLoadCleanup = await resolveBackendIdConflicts(enrichedRemote);
+          await saveUserListLocally(firstLoadCleanup.list, user);
+          return firstLoadCleanup.list;
         }
       } else {
         // Sincronización en segundo plano:
@@ -264,9 +390,11 @@ export async function getUserList(): Promise<UserListItem[]> {
 
           if (hasChanges) {
             const mergedList = Array.from(localMap.values());
+            const mergeCleanup = await resolveBackendIdConflicts(mergedList);
+            const finalList = mergeCleanup.list;
             console.log(`[Cache] Sincronización completa: Se aplicaron cambios y eliminaciones desde la nube.`);
-            await saveUserListLocally(mergedList, user);
-            animeListEvents.emit('listUpdated', mergedList);
+            await saveUserListLocally(finalList, user);
+            animeListEvents.emit('listUpdated', finalList);
           }
         }).catch(err => console.error('Error en sincronización de fondo:', err));
       }
@@ -308,19 +436,29 @@ export async function mergeGuestListIntoUser(userUid: string) {
     console.log(`Migrando ${guestList.length} items de la lista de invitado...`);
 
     const remoteList = await fetchUserListFromFirestore();
-    const remoteIds = new Set(remoteList.map(item => item.animeId || item.id || item.anime?.id));
-    const mergedList = [...remoteList];
+    const remoteKeys = new Set(remoteList.map(item => getAnimeKey(item)).filter(Boolean));
+    const candidates: UserListItem[] = [...remoteList];
 
     for (const item of guestList) {
-      const animeId = item.animeId || item.id || item.anime?.id;
-      if (!remoteIds.has(animeId)) {
-        await syncAnimeToFirestore(item);
-        mergedList.push(item);
+      const key = getAnimeKey(item);
+      if (!key || !remoteKeys.has(key)) {
+        candidates.push(item);
       }
     }
 
-    const userKey = `@AnimeLT:user_list:${userUid}`;
-    await storage.setItem(userKey, JSON.stringify(mergedList));
+    // Solo deben sobrevivir ids del backend: resuelve conflictos de slug
+    // ANTES de sincronizar, para no crear docs que quedarían obsoletos.
+    const cleanup = await resolveBackendIdConflicts(candidates);
+    const mergedList = cleanup.list;
+
+    for (const item of mergedList) {
+      const key = getAnimeKey(item);
+      if (key && !remoteKeys.has(key)) {
+        await syncAnimeToFirestore(item);
+      }
+    }
+
+    await saveUserListLocally(mergedList, userUid);
     await storage.removeItem(GUEST_STORAGE_KEY);
 
     console.log('Migración completada con éxito');
@@ -368,7 +506,13 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
     updatedAt: new Date().toISOString(),
   };
 
+  let staleKey: string | null = null;
   if (existingIndex > -1) {
+    const existingKey = getAnimeKey(currentList[existingIndex]);
+    const newKey = getAnimeKey(newItem);
+    // Si la entrada existente tenía otro id (registro heredado), su doc en
+    // Firestore queda obsoleto y debe borrarse para que el sync no lo resucite.
+    if (existingKey && newKey && existingKey !== newKey) staleKey = existingKey;
     currentList[existingIndex] = newItem;
   } else {
     currentList.push(newItem);
@@ -381,6 +525,9 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
   promises.push(saveUserListLocally(currentList, user));
   if (user) {
     promises.push(syncAnimeToFirestore(newItem));
+    if (staleKey && /^\d+$/.test(staleKey)) {
+      promises.push(removeFromFirestore(Number(staleKey)).catch(() => undefined));
+    }
   }
 
   await Promise.all(promises);
@@ -391,14 +538,36 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
 
 export async function removeAnimeFromList(animeId: number): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const updatedList = currentList.filter(item => String(item.animeId ?? item.id ?? item.anime?.id) !== String(animeId));
+  const targetKey = String(animeId);
+  const targetSlug = normalizeSlug(
+    currentList.find(item => getAnimeKey(item) === targetKey)?.slug
+  );
+
+  // Además del id solicitado, eliminar registros con otro id pero mismo slug
+  // (ids heredados) para que ninguna reaparezca en el próximo sync.
+  const keysToRemove = new Set<string>([targetKey]);
+  if (targetSlug) {
+    for (const item of currentList) {
+      const itemSlug = normalizeSlug(item.slug);
+      if (itemSlug && itemSlug === targetSlug) keysToRemove.add(getAnimeKey(item));
+    }
+  }
+
+  const updatedList = currentList.filter(item => {
+    const key = getAnimeKey(item);
+    return !key || !keysToRemove.has(key);
+  });
 
   const user = getUserId();
 
   const promises: Promise<any>[] = [];
   promises.push(saveUserListLocally(updatedList, user));
   if (user) {
-    promises.push(removeFromFirestore(animeId));
+    for (const key of keysToRemove) {
+      if (/^\d+$/.test(key)) {
+        promises.push(removeFromFirestore(Number(key)).catch(() => undefined));
+      }
+    }
   }
 
   await Promise.all(promises);
@@ -424,6 +593,7 @@ export async function updateAnimeProgress(animeId: number, progress: number): Pr
     }
 
     await Promise.all(promises);
+    animeListEvents.emit('listUpdated', currentList);
   }
 
   return currentList;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { UserListItem } from '../../../../services/animeList';
+import { UserListItem, getAnimeKey } from '../../../../services/animeList';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 interface ContinueWatchingProps {
@@ -38,7 +38,7 @@ export function ContinueWatching({ items, onPress }: ContinueWatchingProps) {
 
           return (
             <TouchableOpacity
-              key={String(item.animeId ?? item.id ?? item.anime?.id ?? index)}
+              key={getAnimeKey(item) || `cw-${index}`}
               style={styles.card}
               onPress={() => onPress(item)}
               activeOpacity={0.8}

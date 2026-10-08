@@ -68,9 +68,9 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
     const cleanItem = sanitizeObject(item);
     if (cleanItem) {
       delete cleanItem.anime;
-      // El campo `animeId` solo se lee por compatibilidad: los registros nuevos
-      // persisten `id` como clave numérica del anime.
-      delete cleanItem.animeId;
+      // El campo `animeId` (id heredado de AniList) se conserva en el documento
+      // aunque ya no se use como identificador: los registros nuevos usan `id`
+      // como clave numérica del anime.
       // Asegurar que el slug quede a nivel top-level, aunque el objeto `anime`
       // no se persista en Firestore
       if (!cleanItem.slug && anime?.slug) {
