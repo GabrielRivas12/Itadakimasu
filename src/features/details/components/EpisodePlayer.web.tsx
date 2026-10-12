@@ -1,11 +1,22 @@
 import Hls from 'hls.js';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
-import { resolveAnime1VStream, buildVideoProxyUrl, isValidMediaUrl, isDirectMediaUrl, Anime1VStreamLink } from '../../../../services/anime1v';
+import {
+  resolveAnime1VStream,
+  buildVideoProxyUrl,
+  isValidMediaUrl,
+  isDirectMediaUrl,
+  Anime1VStreamLink,
+  Anime1VSubtitle,
+  fetchSubtitleAsVtt,
+} from '../../../../services/anime1v';
+import { isHentaiDirectSource } from '../utils/customPlayer';
 
 interface EpisodePlayerProps {
   url: string | null;
   servers?: Anime1VStreamLink[];
+  // Solo afecta el estilo de los subtítulos del player web de HentaiLA .moe.
+  isHentaiMoe?: boolean;
 }
 
 const MAX_RESOLVE_RETRIES = 1;
@@ -180,6 +191,43 @@ const buildCleanerScript = (adKeywords: string[], adSelectors: string[]) => `
 
 const IFRAME_CLEANER_SCRIPT = buildCleanerScript(AD_OVERLAY_KEYWORDS, MP4UPLOAD_AD_SELECTORS);
 
+// Subtítulos por defecto (resto de fuentes).
+const DEFAULT_CUE_CSS = `
+  video::cue {
+    background-color: rgba(0, 0, 0, 0.75) !important;
+    color: #ffffff !important;
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+  }
+`;
+
+// HentaiLA .moe (web): sin fondo de color y fuente un poco más grande.
+const MOE_CUE_CSS = `
+  video::cue {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  }
+`;
+
+const isSpanishSubtitle = (sub: Anime1VSubtitle): boolean => {
+  const lang = (sub.language || '').toLowerCase();
+  const label = (sub.label || '').toLowerCase();
+  return (
+    lang.startsWith('es') ||
+    lang.startsWith('spa') ||
+    label.includes('español') ||
+    label.includes('spanish') ||
+    label.includes('castellano')
+  );
+};
+
 function buildProxySrcdoc(targetUrl: string): string {
   return `<!DOCTYPE html>
 <html>
@@ -216,12 +264,15 @@ const isByseUrl = (u: string): boolean => /byse|byselapuix/i.test(u);
 
 const isVoeUrl = (u: string): boolean => /voe\.|voe\.sx|\bvoe\b/i.test(u);
 
-export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) => {
+export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers, isHentaiMoe = false }) => {
   const [playerState, setPlayerState] = useState<PlayerState>('loading');
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'hls' | 'mp4' | null>(null);
   const [resolving, setResolving] = useState(false);
   const [activeUrl, setActiveUrl] = useState<string | null>(url);
+  const [subtitles, setSubtitles] = useState<Anime1VSubtitle[]>([]);
+  // true cuando el stream se reproduce DIRECTO (sin /video-proxy), p. ej. HentaiLA.
+  const [directMode, setDirectMode] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -278,6 +329,9 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
   }, [servers, activeUrl]);
 
   const handleServerFallback = useCallback(() => {
+    // Servidor nuevo = intentos frescos de reintento de token.
+    retryResolveCountRef.current = 0;
+    hlsFatalCountRef.current = 0;
     const mp4Url = getFallbackMp4Url();
     if (mp4Url) {
       console.warn('[EpisodePlayer] PlayerZilla no pudo cargar, cambiando a MP4Upload');
@@ -306,7 +360,9 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
     setPlayerState('loading');
     setStreamUrl(null);
     setMediaType(null);
+    setSubtitles([]);
     setResolving(false);
+    setDirectMode(false);
   }, [url, stopVideo]);
 
   useEffect(() => {
@@ -315,12 +371,16 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
     const lowerUrl = activeUrl.toLowerCase();
     const isHls = lowerUrl.endsWith('.m3u8') || lowerUrl.includes('.m3u8?');
     const isMp4 = lowerUrl.endsWith('.mp4') || lowerUrl.includes('.mp4?');
+    const directHentai = isHentaiDirectSource(activeUrl);
 
     if (isHls || isMp4) {
       setResolving(false);
-      // Directo también por el proxy (Referer/Range/206 del lado servidor)
-      setStreamUrl(buildVideoProxyUrl(activeUrl));
+      // HentaiLA se carga DIRECTO (Cloudflare bloquea el proxy de servidor);
+      // el resto pasa por /video-proxy (Referer/Range/206 del lado servidor).
+      setStreamUrl(directHentai ? activeUrl : buildVideoProxyUrl(activeUrl));
+      setDirectMode(directHentai);
       setMediaType(isHls ? 'hls' : 'mp4');
+      setSubtitles([]);
       setPlayerState('stream_ready');
       return;
     }
@@ -328,6 +388,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
     // Byse no se puede resolver en backend; reproducir el embed directo (iframe)
     if (isByseUrl(lowerUrl)) {
       setResolving(false);
+      setSubtitles([]);
       setPlayerState('iframe');
       return;
     }
@@ -342,11 +403,21 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
         const voeStreamOk = !isVoeUrl(lowerUrl) || isDirectMediaUrl(res?.streamUrl ?? '');
         if (voeStreamOk && res?.success && res.streamUrl && (res.mediaType === 'hls' || res.mediaType === 'mp4') && isValidMediaUrl(res.streamUrl)) {
           hlsFatalCountRef.current = 0;
-          retryResolveCountRef.current = 0;
-          // Siempre por el proxy: el navegador no puede fijar Referer y sin él
-          // mp4upload devuelve 403. El proxy reenvía Range y responde 206.
-          setStreamUrl(buildVideoProxyUrl(res.streamUrl));
+          // El contador de reintentos de token NO se reinicia acá: si se
+          // reiniciara, capar a 1 reintento no serviría y entraría en bucle
+          // (error -> re-resolver -> error -> ...). Solo se resetea al cambiar
+          // de servidor (handleServerFallback) o de episodio (effect de url).
+          // HentaiLA -> URL directa (sin proxy). El resto por el proxy: el
+          // navegador no puede fijar Referer y sin él mp4upload devuelve 403;
+          // el proxy reenvía Range y responde 206.
+          const direct =
+            directHentai ||
+            isHentaiDirectSource(res.streamUrl) ||
+            isHentaiDirectSource(res.resolvedFrom);
+          setStreamUrl(direct ? res.streamUrl : buildVideoProxyUrl(res.streamUrl));
+          setDirectMode(direct);
           setMediaType(res.mediaType);
+          setSubtitles(res.subtitles ?? []);
           setPlayerState('stream_ready');
         } else {
           if (isVoeUrl(lowerUrl)) {
@@ -405,6 +476,15 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
             hls.recoverMediaError();
             return;
           }
+          if (isHentaiDirectSource(source)) {
+            // Misma sesión atada al token de 1hanime que el MP4: reintentar no
+            // sirve, ir directo al embed.
+            console.error('[EpisodePlayer] HLS de HentaiLA no reproducible, aplicando fallback al embed');
+            hls.destroy();
+            hlsRef.current = null;
+            handleServerFallback();
+            return;
+          }
           hlsFatalCountRef.current += 1;
           if (hlsFatalCountRef.current <= 2) {
             console.warn(`[EpisodePlayer] HLS fatal (intento ${hlsFatalCountRef.current}/2), recargando...`);
@@ -423,6 +503,13 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
       const vid = videoRef.current;
       const onError = () => {
         console.warn('[EpisodePlayer] Video error, details:', vid.error?.code, vid.error?.message);
+        // HentaiLA directo: el token verify de r2.1hanime.com está atado a la
+        // sesión del backend (Cloudflare), nunca va a tocar desde nuestro
+        // origen. Re-resolver no lo arregla -> caer al embed (iframe) ya.
+        if (isHentaiDirectSource(streamUrl)) {
+          handleServerFallback();
+          return;
+        }
         if (retryResolveCountRef.current < MAX_RESOLVE_RETRIES) {
           retryResolveCountRef.current += 1;
           // El token de mp4upload se rota en cada fetch del embed; si quedó "viejo",
@@ -442,6 +529,131 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
       };
     }
   }, [playerState, streamUrl, mediaType, stopHls, handleServerFallback, retryResolve]);
+
+  /* Estilos globales para subtítulos (::cue), con variante HentaiLA .moe */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const styleId = '__itadakimasu_cue_styles__';
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = isHentaiMoe ? MOE_CUE_CSS : DEFAULT_CUE_CSS;
+  }, [isHentaiMoe]);
+
+  /* Carga y montaje de subtítulos en el elemento <video> */
+  useEffect(() => {
+    if (playerState !== 'stream_ready' || !videoRef.current) return;
+    const video = videoRef.current;
+
+    // Quitar pistas de subtítulos anteriores
+    const prevTracks = video.querySelectorAll('track');
+    prevTracks.forEach((t) => t.remove());
+
+    if (!subtitles || subtitles.length === 0) return;
+
+    let cancelled = false;
+    const createdBlobUrls: string[] = [];
+
+    // Posicionamiento anti-letterbox (guía HentaiLA): la línea de subtítulos
+    // queda 88% (~1 línea) o 82% (~2 líneas) de la altura del video.
+    const positionCues = () => {
+      const active = Array.from(video.textTracks).filter(
+        (t) => t.mode === 'showing' && t.activeCues && t.activeCues.length > 0
+      );
+      active.forEach((t) => {
+        const cues = t.activeCues as VTTCue[] | null;
+        if (!cues) return;
+        for (let i = 0; i < cues.length; i += 1) {
+          const cue = cues[i];
+          try {
+            cue.snapToLines = false;
+            cue.line = cues.length > 1 ? 82 : 88;
+            cue.lineAlign = 'end';
+            cue.position = 50;
+            cue.align = 'center';
+          } catch (_) {}
+        }
+      });
+    };
+
+    (async () => {
+      for (const sub of subtitles) {
+        if (cancelled) break;
+        const vttText = await fetchSubtitleAsVtt(sub);
+        if (cancelled || !vttText) continue;
+
+        let trackUrl: string;
+        try {
+          const blob = new Blob([vttText], { type: 'text/vtt; charset=utf-8' });
+          trackUrl = URL.createObjectURL(blob);
+          createdBlobUrls.push(trackUrl);
+        } catch (_) {
+          trackUrl = `data:text/vtt;charset=utf-8,${encodeURIComponent(vttText)}`;
+        }
+
+        const track = document.createElement('track');
+        track.kind = 'subtitles';
+        track.label = sub.label || (isSpanishSubtitle(sub) ? 'Español' : sub.language) || 'Subtítulos';
+        track.srclang = (sub.language || 'es').toLowerCase();
+        track.src = trackUrl;
+        // En HentaiLA .moe SOLO se marca por defecto la pista en español.
+        if (isHentaiMoe ? isSpanishSubtitle(sub) : (sub.default || isSpanishSubtitle(sub) || subtitles.length === 1)) {
+          track.default = true;
+        }
+
+        track.addEventListener('load', () => {
+          const tTrack = Array.from(video.textTracks).find((t) => t.label === track.label);
+          const shouldShow = isHentaiMoe
+            ? isSpanishSubtitle(sub)
+            : (track.default || isSpanishSubtitle(sub));
+          if (tTrack && shouldShow) {
+            tTrack.mode = 'showing';
+          }
+        });
+
+        video.appendChild(track);
+      }
+
+      video.addEventListener('cuechange', positionCues);
+
+      // Asegurar el track seleccionado tenga mode = 'showing'
+      setTimeout(() => {
+        if (cancelled || !video) return;
+        const tracks = Array.from(video.textTracks);
+        const spanish = tracks.find((t) => {
+          const lang = (t.language || '').toLowerCase();
+          const label = (t.label || '').toLowerCase();
+          return (
+            lang.startsWith('es') ||
+            lang.startsWith('spa') ||
+            label.includes('español') ||
+            label.includes('spanish')
+          );
+        });
+        if (isHentaiMoe) {
+          // Solo español: si no hay pista en español, ninguno se muestra.
+          tracks.forEach((t) => {
+            t.mode = t === spanish ? 'showing' : 'disabled';
+          });
+          return;
+        }
+        const def = tracks.find((t) => (t as any).default);
+        const target = spanish || def || tracks[0];
+        if (target) {
+          target.mode = 'showing';
+        }
+      }, 350);
+    })();
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener('cuechange', positionCues);
+      createdBlobUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [playerState, subtitles]);
 
   /* cleanup on unmount */
   useEffect(() => () => {
@@ -614,6 +826,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, servers }) =>
           style={videoStyles.element}
           controls
           playsInline
+          crossOrigin={directMode ? undefined : 'anonymous'}
         />
       </View>
     );

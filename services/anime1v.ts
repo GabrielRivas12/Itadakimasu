@@ -393,12 +393,22 @@ export async function getAnime1VInfoWithAllEpisodes(
   return info;
 }
 
+export interface Anime1VSubtitle {
+  language: string;
+  label: string;
+  default?: boolean;
+  url: string;
+  format?: string;
+  sourceUrl?: string;
+}
+
 export interface Anime1VResolvedStream {
   success: boolean;
   server: string;
   mediaType: string;
   streamUrl: string;
   resolvedFrom: string;
+  subtitles?: Anime1VSubtitle[];
 }
 
 async function fetchResolvedStream(
@@ -422,7 +432,7 @@ async function fetchResolvedStream(
     try {
       const json = JSON.parse(text);
 
-      // /resolve responde plano: { success, server, mediaType, streamUrl, resolvedFrom }
+      // /resolve responde plano: { success, server, mediaType, streamUrl, resolvedFrom, subtitles }
       if (json?.success && typeof json.streamUrl === 'string') {
         return json as Anime1VResolvedStream;
       }
@@ -460,6 +470,128 @@ export function buildVideoProxyUrl(streamUrl: string): string {
   return `${BASE_URL}/api/v1/anime/video-proxy?url=${encodeURIComponent(streamUrl)}`;
 }
 
+export function buildSubtitlesProxyUrl(subtitleUrl: string): string {
+  if (!subtitleUrl) return '';
+  if (subtitleUrl.includes('/api/v1/anime/subtitles-proxy.vtt')) return subtitleUrl;
+  // Normalizar antes de codificar: si la URL ya trae %20 el encodeURIComponent
+  // los doble-codifica (%2520) y el backend busca un archivo inexistente.
+  let clean = subtitleUrl;
+  try {
+    clean = decodeURI(subtitleUrl);
+  } catch (_) {}
+  return `${BASE_URL}/api/v1/anime/subtitles-proxy.vtt?url=${encodeURIComponent(clean)}`;
+}
+
+export function srtToVtt(input: string): string {
+  if (!input) return 'WEBVTT\n\n';
+  if (input.trim().startsWith('WEBVTT')) return input;
+  const text = String(input).replace(/^\uFEFF/, '').replace(/\r/g, '');
+  const blocks = text.trim().split(/\n\s*\n/);
+  const vttBlocks: string[] = [];
+
+  for (const block of blocks) {
+    const lines = block.trim().split('\n');
+    if (!lines.length) continue;
+
+    const timeIdx = lines.findIndex((l) =>
+      /\d{1,2}:\d{2}:\d{2},\d{1,3}\s*-->\s*\d{1,2}:\d{2}:\d{2},\d{1,3}/.test(l)
+    );
+    if (timeIdx === -1) continue;
+
+    const timeLine = lines[timeIdx];
+    const textLines = lines.slice(timeIdx + 1).filter((l) => l.trim().length > 0);
+
+    const convertedTime = timeLine.replace(
+      /(\d{1,2}):(\d{2}):(\d{2}),(\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2}),(\d{1,3})/,
+      (_m, h1, m1, s1, ms1, h2, m2, s2, ms2) =>
+        `${h1.padStart(2, '0')}:${m1}:${s1}.${ms1.padStart(3, '0')} --> ${h2.padStart(2, '0')}:${m2}:${s2}.${ms2.padStart(3, '0')}`
+    );
+
+    vttBlocks.push(`${convertedTime}\n${textLines.join('\n')}`);
+  }
+
+  return `WEBVTT\n\n${vttBlocks.join('\n\n')}\n`;
+}
+
+export async function fetchSubtitleAsVtt(sub: Anime1VSubtitle): Promise<string | null> {
+  if (!sub?.url) return null;
+  const isSrt = /\.srt(\?|#|$)/i.test(sub.url) || sub.format === 'srt';
+  let targetUrl = sub.url;
+  try {
+    targetUrl = encodeURI(decodeURI(sub.url));
+  } catch (_) {}
+
+  // 1. Intento directo desde CDN
+  try {
+    const res = await fetch(targetUrl);
+    if (res.ok) {
+      const rawText = await res.text();
+      return isSrt ? srtToVtt(rawText) : rawText;
+    }
+  } catch (_e) {}
+
+  // 2. Respaldo a través del proxy de subtítulos del backend
+  try {
+    const proxyUrl = buildSubtitlesProxyUrl(targetUrl);
+    const res = await fetch(proxyUrl);
+    if (res.ok) {
+      const rawText = await res.text();
+      return isSrt ? srtToVtt(rawText) : rawText;
+    }
+  } catch (_e) {}
+
+  return null;
+}
+
+export interface SubtitleCue {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export function parseTimestampToSeconds(timeStr: string): number {
+  const parts = timeStr.trim().replace(',', '.').split(':');
+  if (parts.length === 3) {
+    return (parseFloat(parts[0]) || 0) * 3600 + (parseFloat(parts[1]) || 0) * 60 + (parseFloat(parts[2]) || 0);
+  } else if (parts.length === 2) {
+    return (parseFloat(parts[0]) || 0) * 60 + (parseFloat(parts[1]) || 0);
+  }
+  return 0;
+}
+
+export function parseSubtitles(content: string): SubtitleCue[] {
+  if (!content) return [];
+  const text = String(content).replace(/^\uFEFF/, '').replace(/\r/g, '');
+  const blocks = text.trim().split(/\n\s*\n/);
+  const cues: SubtitleCue[] = [];
+
+  for (const block of blocks) {
+    const lines = block.trim().split('\n');
+    if (!lines.length) continue;
+
+    const timeIdx = lines.findIndex((l) =>
+      /\d{1,2}:\d{2}(?::\d{2})?[.,]\d{1,3}\s*-->\s*\d{1,2}:\d{2}(?::\d{2})?[.,]\d{1,3}/.test(l)
+    );
+    if (timeIdx === -1) continue;
+
+    const timeLine = lines[timeIdx];
+    const match = timeLine.match(/(\d{1,2}:\d{2}(?::\d{2})?[.,]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}(?::\d{2})?[.,]\d{1,3})/);
+    if (!match) continue;
+
+    const start = parseTimestampToSeconds(match[1]);
+    const end = parseTimestampToSeconds(match[2]);
+    const textLines = lines.slice(timeIdx + 1)
+      .map((l) => l.replace(/<[^>]+>/g, '').trim())
+      .filter(Boolean);
+
+    if (textLines.length > 0 && end > start) {
+      cues.push({ start, end, text: textLines.join('\n') });
+    }
+  }
+
+  return cues;
+}
+
 const NON_MEDIA_EXT_RE = /\.(css|js|json|xml|html?|txt|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|eot|map|php|asp|aspx|jsp)(\?|#|$)/i;
 const MEDIA_EXT_RE = /\.(m3u8|mp4|mkv|webm|ts|m4v|mov|ogv|ogg|avi)(\?|#|$)/i;
 
@@ -480,22 +612,52 @@ export function isValidMediaUrl(url: string): boolean {
   return false;
 }
 
-export interface LatestEpisode {
+export interface RecentEpisode {
   title: string;
   slug: string;
   url: string;
   image: string;
   episode: number;
-  dateLabel: string;
-  timestamp: string;
+  dateLabel: string | null;
+  timestamp: string | null;
+  malId?: number | null;
   provider: string;
-  malId: number | null;
 }
 
-export async function fetchLatestEpisodes(isAdult: boolean = false): Promise<LatestEpisode[]> {
+export async function fetchRecentEpisodes(): Promise<RecentEpisode[]> {
+  try {
+    const data = await fetchFromApi<{ results: RecentEpisode[]; count: number }>(
+      '/api/v1/anime/recent-episodes',
+      {}
+    );
+    return data?.results || [];
+  } catch (error) {
+    console.error('Error fetching recent episodes:', error);
+    return [];
+  }
+}
+
+export interface LatestEpisode {
+  title: string;
+  slug: string;
+  url: string;
+  image: string;
+  backdrop?: string;
+  episode: number;
+  dateLabel: string;
+  timestamp: string;
+  domain?: string;
+  provider: string;
+  malId?: number | null;
+  playable?: boolean;
+}
+
+export async function fetchLatestEpisodes(providerOrAdult: string | boolean = false): Promise<LatestEpisode[]> {
   try {
     const params: Record<string, string> = {};
-    if (isAdult) {
+    if (typeof providerOrAdult === 'string') {
+      params.provider = providerOrAdult;
+    } else if (providerOrAdult) {
       params.provider = 'hentaila';
     }
 
@@ -528,6 +690,7 @@ export async function fetchLatestEpisodes(isAdult: boolean = false): Promise<Lat
     return [];
   }
 }
+
 
 export interface ScheduleEpisode {
   id?: number;

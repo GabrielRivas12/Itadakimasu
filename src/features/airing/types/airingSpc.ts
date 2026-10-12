@@ -4,8 +4,19 @@ export interface AiringSpcItem {
   url: string;
   image: string;
   episode: number;
-  dateLabel: string;
-  timestamp: string;
+  dateLabel?: string | null;
+  timestamp?: string | null;
   provider: string;
-  malId: number | null;
+  malId?: number | null;
+  backdrop?: string | null;
+  domain?: string | null;
+  category?: string;
+  dayOfWeek?: string;
+  time?: string;
+  predicted?: boolean;
 }
+
+export interface ProviderSection {
+  provider: string;
+  items: AiringSpcItem[];
+}

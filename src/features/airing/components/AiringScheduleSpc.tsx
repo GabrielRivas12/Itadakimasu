@@ -6,40 +6,35 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  FlatList,
   RefreshControl,
-  Platform,
 } from 'react-native';
 import { ScheduleGroup, ScheduleEpisode, buildImageProxyUrl } from '../../../../services/anime1v';
+import { AiringSpcItem, ProviderSection } from '../types/airingSpc';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { AiringScheduleSkeleton } from './AiringScheduleSkeleton';
+import { AiringSpcSkeleton } from './AiringSpcSkeleton';
+import { AiringProviderSections } from './AiringProviderSections';
+
+const WEEKDAYS = ['Día 7', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+const RECENT_KEY = '__recent__';
 
 interface AiringScheduleSpcProps {
   groups: ScheduleGroup[];
-  loading: boolean;
-  onPressEpisode: (episode: ScheduleEpisode) => void;
+  loadingSchedule: boolean;
+  recentSections: ProviderSection[];
+  loadingRecent: boolean;
+  recentEpisodesCount: number;
+  onPressEpisode: (episode: ScheduleEpisode | AiringSpcItem) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
 }
 
 interface DayTabEntry {
   key: string;
-  date: Date;
-  originIndex: number;
-  tabLabel: string;
-}
-
-function pad(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
-function dateToMMDD(date: Date): string {
-  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-// Devuelve la fecha calendario de hoy en el huso local (sin hora).
-function todayOnly(now: Date): Date {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  day: number;
+  label: string;
+  count: number;
 }
 
 function sortEpisodesByTime(list: ScheduleEpisode[]): ScheduleEpisode[] {
@@ -52,217 +47,233 @@ function sortEpisodesByTime(list: ScheduleEpisode[]): ScheduleEpisode[] {
 
 export const AiringScheduleSpc = memo(function AiringScheduleSpc({
   groups = [],
-  loading = false,
+  loadingSchedule = false,
+  recentSections = [],
+  loadingRecent = false,
+  recentEpisodesCount = 0,
   onPressEpisode,
   onRefresh,
   refreshing = false,
 }: AiringScheduleSpcProps) {
   const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  // Construye las pestañas ordenadas: Hoy, Ayer, luego fechas ascendentes.
-  const tabs = useMemo<DayTabEntry[]>(() => {
-    if (groups.length === 0) return [];
-    const now = new Date();
-    const today = todayOnly(now);
-    const todayJsDay = now.getDay(); // 0=Domingo
-    const todayApiDay = ((todayJsDay + 6) % 7) + 1; // Lunes=1..Domingo=7
+  // Por defecto siempre carga desde recent-episodes
+  const [selectedKey, setSelectedKey] = useState<string>(RECENT_KEY);
 
-    const entries: DayTabEntry[] = groups.map((group, index) => {
-      const apiDay = group.day ?? index + 1;
-      const diff = apiDay - todayApiDay;
-      const date = new Date(today);
-      date.setDate(today.getDate() + diff);
+  // Construye las pestañas de horario: una por día de la semana con su nombre.
+  const scheduleTabs = useMemo<DayTabEntry[]>(() => {
+    return groups.map((group, index) => {
+      const day = group.day ?? index + 1;
       return {
-        key: group.day ? String(group.day) : `${index}`,
-        date,
-        originIndex: index,
-        tabLabel: '',
+        key: String(day),
+        day,
+        label: group.dayName || WEEKDAYS[day] || `Día ${index + 1}`,
+        count: group.episodes?.length || 0,
       };
     });
-
-    // Filtra fechas pasadas anteriores a ayer (solo se muestran Ayer, Hoy y futuros).
-    const filtered = entries.filter((e) => e.date.getTime() >= today.getTime() - 86400000);
-
-    // Ordena: Hoy primero (diff 0), Ayer segundo (diff -1), luego ascendente por fecha.
-    filtered.sort((a, b) => {
-      const aDiff = a.date.getTime() - today.getTime();
-      const bDiff = b.date.getTime() - today.getTime();
-      if (aDiff === 0) return -1;
-      if (bDiff === 0) return 1;
-      if (aDiff === -86400000) return -1;
-      if (bDiff === -86400000) return 1;
-      return a.date.getTime() - b.date.getTime();
-    });
-
-    filtered.forEach((entry) => {
-      const diff = entry.date.getTime() - today.getTime();
-      if (diff === 0) {
-        entry.tabLabel = 'Hoy';
-      } else if (diff === -86400000) {
-        entry.tabLabel = 'Ayer';
-      } else {
-        entry.tabLabel = dateToMMDD(entry.date);
-      }
-    });
-
-    return filtered;
   }, [groups]);
 
-  const activeEntry = useMemo(() => {
-    if (tabs.length === 0) return null;
-    const selected =
-      tabs.find((t) => t.key === selectedKey) ||
-      tabs.find((t) => t.tabLabel === 'Hoy') ||
-      tabs[0];
-    return selected;
-  }, [tabs, selectedKey]);
-
   const activeGroup = useMemo(() => {
-    if (activeEntry == null) return null;
-    return groups[activeEntry.originIndex] || null;
-  }, [groups, activeEntry]);
+    if (selectedKey === RECENT_KEY) return null;
+    return groups.find((g) => String(g.day) === selectedKey) || null;
+  }, [groups, selectedKey]);
 
-  const episodes = useMemo(
+  const scheduleEpisodes = useMemo(
     () => (activeGroup ? sortEpisodesByTime(activeGroup.episodes || []) : []),
     [activeGroup]
   );
 
-  if (loading && groups.length === 0) {
-    return (
-      <View style={[
-        styles.flex,
-        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-      ]}>
-        <AiringScheduleSkeleton />
-      </View>
-    );
-  }
+  const handleTabPress = (tabKey: string) => {
+    if (selectedKey === tabKey && tabKey !== RECENT_KEY) {
+      // Si toca de nuevo la fecha de horario seleccionada, vuelve a Recientes
+      setSelectedKey(RECENT_KEY);
+    } else {
+      setSelectedKey(tabKey);
+    }
+  };
+
+  const cardWidth = `${100 / columns - 2}%` as any;
 
   return (
-    <View style={styles.flex}>
-      {/* Grid de episodios del día seleccionado */}
-      {episodes.length > 0 ? (
-        <FlatList
-          key={`schedule-col-${columns}`}
-          data={episodes}
-          keyExtractor={(item, index) => `${item.slug}-${item.episode}-${index}`}
-          numColumns={columns}
-          contentContainerStyle={[
-            styles.gridContent,
-            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-            isWeb && isMobile && { paddingHorizontal: 8 },
-          ]}
-          columnWrapperStyle={styles.gridRow}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            onRefresh ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor="#8b5cf6"
-              />
-            ) : undefined
-          }
-          ListHeaderComponent={() => (
-            /* Selector de días / pestañas */
-            groups.length > 0 ? (
-              <View style={styles.tabsWrapper}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={[
-                    styles.tabsContainer,
-                    isWeb && { maxWidth: getContentWidth(), alignSelf: 'center' },
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={[
+        styles.scrollContent,
+        isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+        isWeb && isMobile && { paddingHorizontal: 8 },
+      ]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8b5cf6"
+          />
+        ) : undefined
+      }
+    >
+      {/* Selector de pestañas: Recientes + Días del horario */}
+      <View style={styles.tabsWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsContainer}
+        >
+          {/* Pestaña: Recientes (siempre visible) */}
+          <TouchableOpacity
+            style={[
+              styles.dayTab,
+              selectedKey === RECENT_KEY && styles.dayTabActive,
+            ]}
+            onPress={() => setSelectedKey(RECENT_KEY)}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.dayTabText,
+                selectedKey === RECENT_KEY && styles.dayTabTextActive,
+              ]}
+            >
+              Recientes
+            </Text>
+            {recentEpisodesCount > 0 && (
+              <View
+                style={[
+                  styles.countBadge,
+                  selectedKey === RECENT_KEY && styles.countBadgeActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.countBadgeText,
+                    selectedKey === RECENT_KEY && styles.countBadgeTextActive,
                   ]}
                 >
-                  {tabs.map((tab) => {
-                    const isSelected = tab.key === activeEntry?.key;
-                    const group = groups[tab.originIndex];
-                    const count = group?.episodes?.length || 0;
-                    return (
-                      <TouchableOpacity
-                        key={`${tab.key}-${tab.date.toISOString()}`}
-                        style={[styles.dayTab, isSelected && styles.dayTabActive]}
-                        onPress={() => setSelectedKey(tab.key)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.dayTabText, isSelected && styles.dayTabTextActive]}>
-                          {tab.tabLabel}
-                        </Text>
-                        {count > 0 && (
-                          <View
-                            style={[styles.countBadge, isSelected && styles.countBadgeActive]}
-                          >
-                            <Text
-                              style={[styles.countBadgeText, isSelected && styles.countBadgeTextActive]}
-                            >
-                              {count}
-                            </Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                  {recentEpisodesCount}
+                </Text>
               </View>
-            ) : null
-          )}
-          renderItem={({ item }) => {
-            const imageUri = item.image ? buildImageProxyUrl(item.image) : null;
+            )}
+          </TouchableOpacity>
+
+          {/* Pestañas de días del horario (Lunes, Martes, etc.) */}
+          {scheduleTabs.map((tab) => {
+            const isSelected = tab.key === selectedKey;
+
             return (
               <TouchableOpacity
-                style={[styles.card, { width: `${100 / columns - 2}%` }]}
-                onPress={() => onPressEpisode(item)}
-                activeOpacity={0.8}
+                key={tab.key}
+                style={[styles.dayTab, isSelected && styles.dayTabActive]}
+                onPress={() => handleTabPress(tab.key)}
+                activeOpacity={0.7}
               >
-                <View style={styles.imageWrapper}>
-                  {imageUri ? (
-                    <Image
-                      source={{ uri: imageUri }}
-                      style={styles.cardImage}
-                      fadeDuration={300}
-                    />
-                  ) : (
-                    <View style={styles.cardPlaceholder} />
-                  )}
-                  <View style={styles.cardBadge}>
-                    <Text style={styles.cardBadgeText}>EP {item.episode}</Text>
+                <Text
+                  style={[
+                    styles.dayTabText,
+                    isSelected && styles.dayTabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+                {tab.count > 0 && (
+                  <View
+                    style={[
+                      styles.countBadge,
+                      isSelected && styles.countBadgeActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.countBadgeText,
+                        isSelected && styles.countBadgeTextActive,
+                      ]}
+                    >
+                      {tab.count}
+                    </Text>
                   </View>
-                  {item.predicted && (
-                    <View style={styles.predictedBadge}>
-                      <Text style={styles.predictedBadgeText}>Próximo</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  {(!!item.category || !!item.dayOfWeek) && (
-                    <View style={styles.cardMetaRow}>
-                      {!!item.category && (
-                        <Text style={styles.cardCategoryText} numberOfLines={1}>
-                          {item.category}
-                        </Text>
-                      )}
-                      {!!item.dayOfWeek && (
-                        <Text style={styles.cardDayText}>{item.dayOfWeek}</Text>
-                      )}
-                    </View>
-                  )}
-                  </View>
+                )}
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Contenido Condicional */}
+      {selectedKey === RECENT_KEY ? (
+        // Modo Recientes: Cards separadas por secciones de proveedores
+        loadingRecent && recentEpisodesCount === 0 ? (
+          <AiringSpcSkeleton />
+        ) : (
+          <AiringProviderSections
+            sections={recentSections}
+            onPressItem={onPressEpisode}
+            columns={columns}
+            emptyMessage="No hay episodios recientes disponibles."
+          />
+        )
       ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No hay episodios programados para este día.</Text>
-        </View>
+        // Modo Día de Horario: Episodios programados para el día seleccionado
+        loadingSchedule && groups.length === 0 ? (
+          <AiringScheduleSkeleton />
+        ) : scheduleEpisodes.length > 0 ? (
+          <View style={styles.cardsGrid}>
+            {scheduleEpisodes.map((item, index) => {
+              const imageUri = item.image ? buildImageProxyUrl(item.image) : null;
+              return (
+                <TouchableOpacity
+                  key={`${item.slug}-${item.episode}-${index}`}
+                  style={[styles.card, { width: cardWidth }]}
+                  onPress={() => onPressEpisode(item)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.imageWrapper}>
+                    {imageUri ? (
+                      <Image
+                        source={{ uri: imageUri }}
+                        style={styles.cardImage}
+                        fadeDuration={300}
+                      />
+                    ) : (
+                      <View style={styles.cardPlaceholder} />
+                    )}
+                    <View style={styles.cardBadge}>
+                      <Text style={styles.cardBadgeText}>EP {item.episode}</Text>
+                    </View>
+                    {item.predicted && (
+                      <View style={styles.predictedBadge}>
+                        <Text style={styles.predictedBadgeText}>Próximo</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    {(!!item.category || !!item.dayOfWeek) && (
+                      <View style={styles.cardMetaRow}>
+                        {!!item.category && (
+                          <Text style={styles.cardCategoryText} numberOfLines={1}>
+                            {item.category}
+                          </Text>
+                        )}
+                        {!!item.dayOfWeek && (
+                          <Text style={styles.cardDayText}>{item.dayOfWeek}</Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No hay episodios programados para este día.</Text>
+          </View>
+        )
       )}
-    </View>
+    </ScrollView>
   );
 });
 
@@ -270,12 +281,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 32,
+  },
   tabsWrapper: {
     backgroundColor: '#0b0f19',
-    paddingBottom: 10,
+    paddingVertical: 10,
+    marginBottom: 4,
   },
   tabsContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     gap: 8,
   },
   dayTab: {
@@ -318,13 +333,11 @@ const styles = StyleSheet.create({
   countBadgeTextActive: {
     color: '#ffffff',
   },
-  gridContent: {
-    paddingHorizontal: 10,
-    paddingBottom: 24,
-    paddingTop: 4,
-  },
-  gridRow: {
+  cardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'flex-start',
+    paddingHorizontal: 4,
   },
   card: {
     backgroundColor: '#1e293b',
@@ -403,10 +416,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   emptyContainer: {
-    flex: 1,
+    padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 30,
   },
   emptyText: {
     color: '#64748b',

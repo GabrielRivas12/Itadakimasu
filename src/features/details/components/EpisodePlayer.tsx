@@ -10,10 +10,16 @@ import * as SystemUI from 'expo-system-ui';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { resolveAnime1VStream, buildVideoProxyUrl, isValidMediaUrl, isDirectMediaUrl, Anime1VStreamLink } from '../../../../services/anime1v';
+import { isHentaiPlayerEmbed } from '../utils/customPlayer';
 
 interface EpisodePlayerProps {
   url: string | null;
   servers?: Anime1VStreamLink[];
+  // HentaiLA .io: el embed de hentaiplayer.com carga un iframe de player.php solo
+  // tras pulsar play; con esto el WebView lo dispara automáticamente.
+  autoPlay?: boolean;
+  // Solo se usa en el player web (EpisodePlayer.web): estilo de subtítulos .moe.
+  isHentaiMoe?: boolean;
 }
 
 const ALLOWED_DOMAINS = [
@@ -22,6 +28,7 @@ const ALLOWED_DOMAINS = [
   'strw.com',
   'awish.pro',
   'mp4upload.com',
+  'hentaiplayer.com',
 ];
 
 const isAllowedUrl = (requestUrl: string): boolean => {
@@ -212,6 +219,25 @@ const ANTI_AD_SCRIPT = `
 true;
 `;
 
+// El embed de hentaiplayer.com deja un <iframe src=""> hasta que el usuario
+// pulsa el botón .play. Disparamos ese click para arrancar automáticamente.
+const AUTO_PLAY_SCRIPT = `
+(function() {
+  var tries = 0;
+  var iv = setInterval(function() {
+    tries++;
+    try {
+      var btn = document.querySelector('.play') || document.querySelector('.p-pulse');
+      if (btn && typeof btn.click === 'function') btn.click();
+    } catch (e) {}
+    try {
+      var f = document.querySelector('iframe');
+      if ((f && f.getAttribute('src')) || tries > 25) clearInterval(iv);
+    } catch (e) { if (tries > 25) clearInterval(iv); }
+  }, 500);
+})();
+`;
+
 let _immersiveCount = 0;
 
 async function enterImmersiveMode() {
@@ -275,7 +301,7 @@ async function exitImmersiveMode() {
   }
 }
 
-export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
+export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url, autoPlay }) => {
   const lastValidUrl = useRef<string | null>(null);
   if (url !== null) lastValidUrl.current = url;
   const activeUrl = lastValidUrl.current;
@@ -306,6 +332,15 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
     const isDirect = isDirectMediaUrl(url);
 
     if (isDirect) {
+      setResolving(false);
+      setWebUrl(url);
+      return;
+    }
+
+    // Embed de HentaiLA (hentaiplayer.com): lo cargamos tal cual; su reproductor
+    // integra video + subtítulos y el WebView es un navegador real, así que
+    // Cloudflare lo deja pasar (a diferencia de ExoPlayer).
+    if (isHentaiPlayerEmbed(url)) {
       setResolving(false);
       setWebUrl(url);
       return;
@@ -437,7 +472,7 @@ export const EpisodePlayer: React.FC<EpisodePlayerProps> = ({ url }) => {
         cacheEnabled
         setSupportMultipleWindows={false}
         originWhitelist={['*']}
-        injectedJavaScriptBeforeContentLoaded={ANTI_AD_SCRIPT}
+        injectedJavaScriptBeforeContentLoaded={autoPlay ? ANTI_AD_SCRIPT + AUTO_PLAY_SCRIPT : ANTI_AD_SCRIPT}
         injectedJavaScriptBeforeContentLoadedForMainFrameOnly={false}
 
         onMessage={handleMessage}

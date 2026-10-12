@@ -2,14 +2,14 @@ import React, { memo } from 'react';
 import {
   StyleSheet,
   View,
-  FlatList,
-  ActivityIndicator,
+  ScrollView,
+  RefreshControl,
   Text,
   TouchableOpacity as RNTouchableOpacity,
 } from 'react-native';
-import { AiringSpcGridCard } from '../components/AiringSpcGridCard';
 import { AiringSpcSkeleton } from '../components/AiringSpcSkeleton';
 import { AiringScheduleSpc } from '../components/AiringScheduleSpc';
+import { AiringProviderSections } from '../components/AiringProviderSections';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useAiringSpc } from '../hooks/useAiringSpc';
@@ -19,19 +19,25 @@ import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 export const AiringSpcPage = memo(function AiringSpcPage() {
   usePortraitOrientation();
   const {
-    results,
-    loadingAdult,
-    loadingMore,
+    // Normal mode
+    recentEpisodes,
+    recentSections,
+    loadingRecent,
     scheduleGroups,
     loadingSchedule,
-    refreshingSchedule,
-    refreshSchedule,
+
+    // Adult mode
+    adultEpisodes,
+    adultSections,
+    loadingAdult,
+
+    // Controls
     isAdult,
     isAdultSettingEnabled,
     toggleAdult,
-    handleLoadMore,
+    refreshing,
+    refreshData,
     handleAnimePress,
-    handleScheduleEpisodePress,
   } = useAiringSpc();
 
   const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
@@ -60,16 +66,18 @@ export const AiringSpcPage = memo(function AiringSpcPage() {
         }}
       />
       {isWeb && (
-        <View style={[
-          styles.header,
-          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-          isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
-        ]}>
+        <View
+          style={[
+            styles.header,
+            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+            isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 },
+          ]}
+        >
           <View style={styles.headerTop}>
             <View>
               <Text style={styles.headerTitle}>En Emisión</Text>
               <Text style={styles.headerSubtitle}>
-                {isAdult ? 'Contenido para Adultos' : 'Calendario de emisión'}
+                {isAdult ? 'Contenido para Adultos (+18)' : 'Episodios recientes y calendario'}
               </Text>
             </View>
             {isAdultSettingEnabled && (
@@ -90,55 +98,52 @@ export const AiringSpcPage = memo(function AiringSpcPage() {
       )}
 
       {isAdult ? (
-        // Modo R18: Grid de episodios de HentaiLA
-        loadingAdult && results.length === 0 ? (
-          <View style={[
-            styles.flex,
-            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-          ]}>
+        // Modo R18: Episodios de HentaiLA separados por proveedor
+        loadingAdult && adultEpisodes.length === 0 ? (
+          <View
+            style={[
+              styles.flex,
+              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+            ]}
+          >
             <AiringSpcSkeleton />
           </View>
         ) : (
-          <View style={styles.flex}>
-            <FlatList
-              key={`adult-col-${columns}`}
-              data={results}
-              keyExtractor={(item, index) => `${item.slug}-${item.episode}-${index}`}
-              numColumns={columns}
-              contentContainerStyle={[
-                styles.gridContent,
-                isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-                isWeb && isMobile && { paddingHorizontal: 8 }
-              ]}
-              columnWrapperStyle={styles.gridRow}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <AiringSpcGridCard
-                  item={item}
-                  onPress={handleAnimePress}
-                  width={`${100 / columns - 2}%`}
-                />
-              )}
-              onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.5}
-              ListFooterComponent={() =>
-                loadingMore ? (
-                  <View style={styles.footerLoader}>
-                    <ActivityIndicator size="small" color="#8b5cf6" />
-                  </View>
-                ) : null
-              }
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={[
+              styles.scrollContent,
+              isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
+              isWeb && isMobile && { paddingHorizontal: 8 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={refreshData}
+                tintColor="#f43f5e"
+              />
+            }
+          >
+            <AiringProviderSections
+              sections={adultSections}
+              onPressItem={handleAnimePress}
+              columns={columns}
+              emptyMessage="No hay episodios para adultos disponibles."
             />
-          </View>
+          </ScrollView>
         )
       ) : (
-        // Modo Normal: Calendario de emisión de SenpaiCore
+        // Modo Normal: Recientes + Calendario de emisión interactivo por día de la semana
         <AiringScheduleSpc
           groups={scheduleGroups}
-          loading={loadingSchedule}
-          onPressEpisode={handleScheduleEpisodePress}
-          onRefresh={refreshSchedule}
-          refreshing={refreshingSchedule}
+          loadingSchedule={loadingSchedule}
+          recentSections={recentSections}
+          loadingRecent={loadingRecent}
+          recentEpisodesCount={recentEpisodes.length}
+          onPressEpisode={handleAnimePress}
+          onRefresh={refreshData}
+          refreshing={refreshing}
         />
       )}
     </View>
@@ -152,6 +157,10 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+    paddingTop: 8,
   },
   header: {
     paddingHorizontal: 20,
@@ -199,17 +208,5 @@ const styles = StyleSheet.create({
   },
   r18TextActive: {
     color: '#ffffff',
-  },
-  gridContent: {
-    paddingHorizontal: 10,
-    paddingBottom: 24,
-    paddingTop: 8,
-  },
-  gridRow: {
-    justifyContent: 'flex-start',
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    alignItems: 'center',
   },
 });

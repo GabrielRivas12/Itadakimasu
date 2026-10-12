@@ -1,5 +1,5 @@
 if (typeof globalThis.setImmediate === 'undefined') {
-  globalThis.setImmediate = (fn: (...args: any[]) => void, ...args: any[]) => setTimeout(fn, 0, ...args);
+  (globalThis as any).setImmediate = (fn: (...args: any[]) => void, ...args: any[]) => setTimeout(fn, 0, ...args);
 }
 
 import { usePathname, Stack } from 'expo-router';

@@ -12,6 +12,8 @@ interface AiringSpcGridCardProps {
 
 export const AiringSpcGridCard = memo(function AiringSpcGridCard({ item, onPress, width }: AiringSpcGridCardProps) {
   const timeAgo = item.timestamp ? getTimeAgo(item.timestamp) : null;
+  const timeText = timeAgo || item.dateLabel || item.provider;
+  const imageUri = item.image ? buildImageProxyUrl(item.image) : null;
 
   return (
     <TouchableOpacity
@@ -20,11 +22,14 @@ export const AiringSpcGridCard = memo(function AiringSpcGridCard({ item, onPress
       activeOpacity={0.8}
     >
       <View style={styles.imageWrapper}>
-        {item.image && (
+        {imageUri ? (
           <Image
-            source={{ uri: buildImageProxyUrl(item.image) }}
+            source={{ uri: imageUri }}
             style={styles.cardImage}
+            fadeDuration={300}
           />
+        ) : (
+          <View style={styles.cardPlaceholder} />
         )}
         <View style={styles.cardBadge}>
           <Text style={styles.cardBadgeText}>EP {item.episode}</Text>
@@ -34,13 +39,14 @@ export const AiringSpcGridCard = memo(function AiringSpcGridCard({ item, onPress
         <Text style={styles.cardTitle} numberOfLines={1}>
           {item.title}
         </Text>
-        {timeAgo && (
-          <Text style={styles.timeText}>{timeAgo}</Text>
-        )}
+        {timeText ? (
+          <Text style={styles.timeText} numberOfLines={1}>{timeText}</Text>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
 });
+
 
 const styles = StyleSheet.create({
   card: {
@@ -59,6 +65,11 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     aspectRatio: 2 / 3,
+  },
+  cardPlaceholder: {
+    width: '100%',
+    aspectRatio: 2 / 3,
+    backgroundColor: '#1e293b',
   },
   cardBadge: {
     position: 'absolute',
