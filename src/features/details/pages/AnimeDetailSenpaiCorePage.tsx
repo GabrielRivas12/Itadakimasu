@@ -5,11 +5,10 @@ import {
   View,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
   ScrollView,
   Image,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SenpaiCoreHeader } from '../components/SenpaiCoreHeader';
 import { StatusSelector } from '../components/StatusSelector';
@@ -25,6 +24,7 @@ import { VariantSelector } from '../components/VariantSelector';
 import { AnimeTrailer } from '../components/AnimeTrailer';
 import { useSenpaiCoreDetail } from '../hooks/useSenpaiCoreDetail';
 import { cleanHtmlText } from '../utils/animeMatching';
+import { getSeasonLabel, getStatusLabel } from '../utils/detailFormat';
 import {
   isCustomPlayerUrl,
   isCustomPlayerProvider,
@@ -44,26 +44,6 @@ import {
   isDirectMediaUrl,
   Anime1VSubtitle,
 } from '../../../../services/anime1v';
-
-const getStatusLabel = (status?: string | null): string => {
-  if (!status) return 'Desconocido';
-
-  const statusMap: Record<string, string> = {
-    'En emisión': 'En emisión',
-    'Currently Airing': 'En emisión',
-    'Airing': 'En emisión',
-    'Finalizado': 'Finalizado',
-    'Finished': 'Finalizado',
-    'Próximamente': 'Próximamente',
-    'Not yet aired': 'Próximamente',
-    'Cancelado': 'Cancelado',
-    'Cancelled': 'Cancelado',
-    'En pausa': 'En pausa',
-    'On Hiatus': 'En pausa',
-  };
-
-  return statusMap[status] || status;
-};
 
 function parseTrailer(url: string | null | undefined): { id: string; site: string; thumbnail: string | null } | null {
   if (!url) return null;
@@ -85,16 +65,6 @@ function parseTrailer(url: string | null | undefined): { id: string; site: strin
   }
   return null;
 }
-
-const getSeasonLabel = (season: any): string | null => {
-  if (!season) return null;
-  if (typeof season === 'string') return season;
-  if (season.label) return season.label;
-  if (season.name) {
-    return season.year ? `${season.name} ${season.year}` : season.name;
-  }
-  return null;
-};
 
 const MOBILE_BROWSER_UA =
   'Mozilla/5.0 (Linux; Android 12; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
@@ -648,6 +618,7 @@ export function AnimeDetailSenpaiCorePage() {
     return (
       <>
         <SenpaiCoreHeader detail={detail} />
+        {renderGenres()}
         <StatusSelector
           userStatus={userStatus}
           userProgress={userProgress}
@@ -658,11 +629,8 @@ export function AnimeDetailSenpaiCorePage() {
           onRemove={handleRemove}
           isUpdating={isUpdatingStatus}
         />
-        {renderStats()}
-        {renderGenres()}
         {renderSynopsis()}
         {renderTrailer()}
-        {renderSpecs()}
         {renderRelated()}
 
         <View style={styles.playerSection}>{renderEpisodesSection()}</View>
@@ -672,20 +640,6 @@ export function AnimeDetailSenpaiCorePage() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: !isWeb,
-          title: loading ? 'Cargando...' : (detail?.title || 'Detalles'),
-          headerTransparent: true,
-          headerTintColor: '#ffffff',
-          headerLeft: () => (
-            <TouchableOpacity onPress={goBack} style={styles.headerIconButton}>
-              <Ionicons name="arrow-back" size={24} color="#ffffff" />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-
       {loading ? (
         <ResponsiveContainer>
           <SkeletonLoader />
@@ -737,17 +691,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
-  },
-  headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-    marginRight: 8,
-    marginTop: Platform.OS === 'ios' ? 0 : 12,
   },
   statsRow: {
     flexDirection: 'row',

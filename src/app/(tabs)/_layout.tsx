@@ -11,8 +11,6 @@ export default function TabLayout() {
 
   // En web, si no es móvil (tablet/desktop), ocultamos la barra de pestañas inferior
   const showBottomTabs = !isWeb || isMobile;
-  // En móvil nativo el header lo controla el navigator; en web lo dibuja cada página
-  const isNative = !isWeb;
 
   return (
     <Tabs
@@ -43,8 +41,10 @@ export default function TabLayout() {
         tabBarStyle: showBottomTabs ? {
           backgroundColor: '#0f172a',
           borderTopWidth: 0,
-          height: isWeb ? 78 : (45 + Math.max(insets.bottom, 12)),
-          paddingBottom: isWeb ? 16 : Math.max(insets.bottom, 16),
+          // En web-móvil (layout responsivo) la barra es algo más baja que en
+          // el diseño nativo para no comer tanto alto de pantalla.
+          height: isWeb ? 64 : (45 + Math.max(insets.bottom, 12)),
+          paddingBottom: isWeb ? 10 : Math.max(insets.bottom, 16),
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
           elevation: 20,
@@ -108,7 +108,7 @@ export default function TabLayout() {
         options={{
           title: 'Mi Perfil',
           tabBarLabel: 'Perfil',
-          headerRight: () => (isNative ? <SettingsButton /> : null),
+          headerRight: () => <SettingsButton />,
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
               <Feather

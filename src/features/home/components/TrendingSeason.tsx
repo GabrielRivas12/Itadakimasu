@@ -49,7 +49,7 @@ function WebTrendingSeason({ trending, onPress }: { trending: Anime[]; onPress: 
               source={{ uri: item.coverImage.large }}
               style={styles.cardImage}
             />
-            {item.averageScore && (
+            {!!item.averageScore && (
               <View style={styles.ratingBadge}>
                 <Text style={styles.ratingText}>★ {(item.averageScore / 10).toFixed(1)}</Text>
               </View>
@@ -98,7 +98,7 @@ function MobileTrendingSeason({ trending, onPress, onLoadMore }: TrendingSeasonP
             source={{ uri: item.coverImage.large }}
             style={styles.mobileImage}
           />
-          {item.averageScore && (
+          {!!item.averageScore && (
             <View style={styles.ratingBadge}>
               <Text style={styles.ratingText}>★ {(item.averageScore / 10).toFixed(1)}</Text>
             </View>

@@ -41,12 +41,8 @@ export const ProfilePage = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {isWeb && (
-          <View style={[
-            styles.header,
-            isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
-            isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
-          ]}>
+        {isWeb && !isMobile && (
+          <View style={styles.header}>
             <View style={styles.headerRow}>
               <View>
                 <Text style={styles.headerTitle}>Mi Perfil</Text>

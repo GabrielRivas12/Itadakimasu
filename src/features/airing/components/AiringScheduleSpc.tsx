@@ -9,25 +9,36 @@ import {
   RefreshControl,
 } from 'react-native';
 import { ScheduleGroup, ScheduleEpisode, buildImageProxyUrl } from '../../../../services/anime1v';
-import { AiringSpcItem, ProviderSection } from '../types/airingSpc';
+import { AiringSpcItem } from '../types/airingSpc';
+import { RECENT_PROVIDER_TABS } from '../constants/recentProviders';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { AiringScheduleSkeleton } from './AiringScheduleSkeleton';
 import { AiringSpcSkeleton } from './AiringSpcSkeleton';
-import { AiringProviderSections } from './AiringProviderSections';
+import { AiringSpcGridCard } from './AiringSpcGridCard';
 
 const WEEKDAYS = ['Día 7', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 const RECENT_KEY = '__recent__';
 
+// Día de la semana actual con la misma numeración del horario (1 = Lunes ... 7 = Domingo).
+function getTodayDayNumber(): number {
+  const jsDay = new Date().getDay(); // 0 = Domingo ... 6 = Sábado
+  return jsDay === 0 ? 7 : jsDay;
+}
+
 interface AiringScheduleSpcProps {
   groups: ScheduleGroup[];
   loadingSchedule: boolean;
-  recentSections: ProviderSection[];
+  recentEpisodes: AiringSpcItem[];
+  recentProvider: string;
+  recentProviderCounts: Record<string, number>;
+  onSelectRecentProvider: (provider: string) => void;
   loadingRecent: boolean;
-  recentEpisodesCount: number;
   onPressEpisode: (episode: ScheduleEpisode | AiringSpcItem) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  /** Encabezado web que se desplaza junto con el contenido. */
+  header?: React.ReactNode;
 }
 
 interface DayTabEntry {
@@ -48,18 +59,24 @@ function sortEpisodesByTime(list: ScheduleEpisode[]): ScheduleEpisode[] {
 export const AiringScheduleSpc = memo(function AiringScheduleSpc({
   groups = [],
   loadingSchedule = false,
-  recentSections = [],
+  recentEpisodes = [],
+  recentProvider,
+  recentProviderCounts = {},
+  onSelectRecentProvider,
   loadingRecent = false,
-  recentEpisodesCount = 0,
   onPressEpisode,
   onRefresh,
   refreshing = false,
+  header,
 }: AiringScheduleSpcProps) {
   const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
 
-  // Por defecto siempre carga desde recent-episodes
+  // Por defecto siempre se muestra Recientes (AnimeAV1)
   const [selectedKey, setSelectedKey] = useState<string>(RECENT_KEY);
+
+  // Día de hoy: solo se usa como indicador visual mientras estamos en Recientes.
+  const todayKey = useMemo(() => String(getTodayDayNumber()), []);
 
   // Construye las pestañas de horario: una por día de la semana con su nombre.
   const scheduleTabs = useMemo<DayTabEntry[]>(() => {
@@ -94,6 +111,9 @@ export const AiringScheduleSpc = memo(function AiringScheduleSpc({
   };
 
   const cardWidth = `${100 / columns - 2}%` as any;
+  const isRecentMode = selectedKey === RECENT_KEY;
+  // En móvil nativo (Android/iOS) damos un poco más de aire a las secciones.
+  const isNativeMobile = !isWeb && isMobile;
 
   return (
     <ScrollView
@@ -114,64 +134,40 @@ export const AiringScheduleSpc = memo(function AiringScheduleSpc({
         ) : undefined
       }
     >
-      {/* Selector de pestañas: Recientes + Días del horario */}
-      <View style={styles.tabsWrapper}>
+      {header}
+
+      {/* Selector de pestañas: días del horario (el día de hoy se marca como indicador) */}
+      <View
+        style={[
+          styles.tabsWrapper,
+          isWeb && styles.tabsWrapperWeb,
+          isNativeMobile && styles.tabsWrapperMobile,
+        ]}
+      >
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsContainer}
         >
-          {/* Pestaña: Recientes (siempre visible) */}
-          <TouchableOpacity
-            style={[
-              styles.dayTab,
-              selectedKey === RECENT_KEY && styles.dayTabActive,
-            ]}
-            onPress={() => setSelectedKey(RECENT_KEY)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.dayTabText,
-                selectedKey === RECENT_KEY && styles.dayTabTextActive,
-              ]}
-            >
-              Recientes
-            </Text>
-            {recentEpisodesCount > 0 && (
-              <View
-                style={[
-                  styles.countBadge,
-                  selectedKey === RECENT_KEY && styles.countBadgeActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.countBadgeText,
-                    selectedKey === RECENT_KEY && styles.countBadgeTextActive,
-                  ]}
-                >
-                  {recentEpisodesCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
           {/* Pestañas de días del horario (Lunes, Martes, etc.) */}
           {scheduleTabs.map((tab) => {
+            // El día seleccionado manda; si estamos en Recientes, hoy solo se marca
+            // como indicador (estilo activo) sin disparar la selección.
             const isSelected = tab.key === selectedKey;
+            const isTodayIndicator = selectedKey === RECENT_KEY && tab.key === todayKey;
+            const isActive = isSelected || isTodayIndicator;
 
             return (
               <TouchableOpacity
                 key={tab.key}
-                style={[styles.dayTab, isSelected && styles.dayTabActive]}
+                style={[styles.dayTab, isActive && styles.dayTabActive]}
                 onPress={() => handleTabPress(tab.key)}
                 activeOpacity={0.7}
               >
                 <Text
                   style={[
                     styles.dayTabText,
-                    isSelected && styles.dayTabTextActive,
+                    isActive && styles.dayTabTextActive,
                   ]}
                 >
                   {tab.label}
@@ -180,13 +176,13 @@ export const AiringScheduleSpc = memo(function AiringScheduleSpc({
                   <View
                     style={[
                       styles.countBadge,
-                      isSelected && styles.countBadgeActive,
+                      isActive && styles.countBadgeActive,
                     ]}
                   >
                     <Text
                       style={[
                         styles.countBadgeText,
-                        isSelected && styles.countBadgeTextActive,
+                        isActive && styles.countBadgeTextActive,
                       ]}
                     >
                       {tab.count}
@@ -199,79 +195,153 @@ export const AiringScheduleSpc = memo(function AiringScheduleSpc({
         </ScrollView>
       </View>
 
-      {/* Contenido Condicional */}
-      {selectedKey === RECENT_KEY ? (
-        // Modo Recientes: Cards separadas por secciones de proveedores
-        loadingRecent && recentEpisodesCount === 0 ? (
-          <AiringSpcSkeleton />
-        ) : (
-          <AiringProviderSections
-            sections={recentSections}
-            onPressItem={onPressEpisode}
-            columns={columns}
-            emptyMessage="No hay episodios recientes disponibles."
-          />
-        )
-      ) : (
-        // Modo Día de Horario: Episodios programados para el día seleccionado
-        loadingSchedule && groups.length === 0 ? (
-          <AiringScheduleSkeleton />
-        ) : scheduleEpisodes.length > 0 ? (
-          <View style={styles.cardsGrid}>
-            {scheduleEpisodes.map((item, index) => {
-              const imageUri = item.image ? buildImageProxyUrl(item.image) : null;
+      {/* Etiquetas de proveedor (siempre visibles): cada una carga su propio feed */}
+      <View
+        style={[
+          styles.providerTabsWrapper,
+          isNativeMobile && styles.providerTabsWrapperMobile,
+        ]}
+      >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabsContainer}
+          >
+            {RECENT_PROVIDER_TABS.map((provider) => {
+              const isSelected = provider.id === recentProvider;
+              const count = recentProviderCounts[provider.id] ?? 0;
+
               return (
                 <TouchableOpacity
-                  key={`${item.slug}-${item.episode}-${index}`}
-                  style={[styles.card, { width: cardWidth }]}
-                  onPress={() => onPressEpisode(item)}
-                  activeOpacity={0.8}
+                  key={provider.id}
+                  style={[
+                    styles.providerTab,
+                    isSelected && {
+                      backgroundColor: provider.color,
+                      borderColor: provider.color,
+                    },
+                  ]}
+                  onPress={() => {
+                    // Cambiar de proveedor vuelve a Recientes y carga su feed
+                    setSelectedKey(RECENT_KEY);
+                    onSelectRecentProvider(provider.id);
+                  }}
+                  activeOpacity={0.7}
                 >
-                  <View style={styles.imageWrapper}>
-                    {imageUri ? (
-                      <Image
-                        source={{ uri: imageUri }}
-                        style={styles.cardImage}
-                        fadeDuration={300}
-                      />
-                    ) : (
-                      <View style={styles.cardPlaceholder} />
-                    )}
-                    <View style={styles.cardBadge}>
-                      <Text style={styles.cardBadgeText}>EP {item.episode}</Text>
+                  <View
+                    style={[
+                      styles.providerDot,
+                      { backgroundColor: isSelected ? '#ffffff' : provider.color },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.providerTabText,
+                      isSelected && styles.providerTabTextActive,
+                    ]}
+                  >
+                    {provider.label}
+                  </Text>
+                  {count > 0 && (
+                    <View
+                      style={[
+                        styles.countBadge,
+                        isSelected && styles.countBadgeActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.countBadgeText,
+                          isSelected && styles.countBadgeTextActive,
+                        ]}
+                      >
+                        {count}
+                      </Text>
                     </View>
-                    {item.predicted && (
-                      <View style={styles.predictedBadge}>
-                        <Text style={styles.predictedBadgeText}>Próximo</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-                    {(!!item.category || !!item.dayOfWeek) && (
-                      <View style={styles.cardMetaRow}>
-                        {!!item.category && (
-                          <Text style={styles.cardCategoryText} numberOfLines={1}>
-                            {item.category}
-                          </Text>
-                        )}
-                        {!!item.dayOfWeek && (
-                          <Text style={styles.cardDayText}>{item.dayOfWeek}</Text>
-                        )}
-                      </View>
-                    )}
-                  </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
+          </ScrollView>
+        </View>
+
+      {/* Contenido: Recientes por proveedor o el horario del día seleccionado */}
+      {isRecentMode ? (
+        loadingRecent && recentEpisodes.length === 0 ? (
+          <AiringSpcSkeleton />
+        ) : recentEpisodes.length > 0 ? (
+          <View style={[styles.cardsGrid, isNativeMobile && styles.cardsGridMobile]}>
+            {recentEpisodes.map((item, index) => (
+              <AiringSpcGridCard
+                key={`${item.provider}-${item.slug}-${item.episode}-${index}`}
+                item={item}
+                onPress={onPressEpisode}
+                width={cardWidth}
+              />
+            ))}
           </View>
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No hay episodios programados para este día.</Text>
+            <Text style={styles.emptyText}>No hay episodios recientes disponibles.</Text>
           </View>
         )
+      ) : loadingSchedule && groups.length === 0 ? (
+        <AiringScheduleSkeleton />
+      ) : scheduleEpisodes.length > 0 ? (
+        <View style={[styles.cardsGrid, isNativeMobile && styles.cardsGridMobile]}>
+          {scheduleEpisodes.map((item, index) => {
+            const imageUri = item.image ? buildImageProxyUrl(item.image) : null;
+            return (
+              <TouchableOpacity
+                key={`${item.slug}-${item.episode}-${index}`}
+                style={[styles.card, { width: cardWidth }]}
+                onPress={() => onPressEpisode(item)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.imageWrapper}>
+                  {imageUri ? (
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={styles.cardImage}
+                      fadeDuration={300}
+                    />
+                  ) : (
+                    <View style={styles.cardPlaceholder} />
+                  )}
+                  <View style={styles.cardBadge}>
+                    <Text style={styles.cardBadgeText}>EP {item.episode}</Text>
+                  </View>
+                  {item.predicted && (
+                    <View style={styles.predictedBadge}>
+                      <Text style={styles.predictedBadgeText}>Próximo</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  {(!!item.category || !!item.dayOfWeek) && (
+                    <View style={styles.cardMetaRow}>
+                      {!!item.category && (
+                        <Text style={styles.cardCategoryText} numberOfLines={1}>
+                          {item.category}
+                        </Text>
+                      )}
+                      {!!item.dayOfWeek && (
+                        <Text style={styles.cardDayText}>{item.dayOfWeek}</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No hay episodios programados para este día.</Text>
+        </View>
       )}
     </ScrollView>
   );
@@ -286,8 +356,16 @@ const styles = StyleSheet.create({
   },
   tabsWrapper: {
     backgroundColor: '#0b0f19',
-    paddingVertical: 10,
+    paddingTop: 10,
     marginBottom: 4,
+  },
+  tabsWrapperWeb: {
+    marginBottom: 16,
+  },
+  tabsWrapperMobile: {
+    paddingTop: 12,
+    paddingBottom: 2,
+    marginBottom: 8,
   },
   tabsContainer: {
     paddingHorizontal: 12,
@@ -316,6 +394,40 @@ const styles = StyleSheet.create({
   dayTabTextActive: {
     color: '#ffffff',
   },
+  providerTabsWrapper: {
+    backgroundColor: '#0b0f19',
+    paddingBottom: 10,
+    marginBottom: 4,
+  },
+  providerTabsWrapperMobile: {
+    paddingTop: 6,
+    paddingBottom: 14,
+    marginBottom: 8,
+  },
+  providerTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    gap: 6,
+  },
+  providerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  providerTabText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  providerTabTextActive: {
+    color: '#ffffff',
+  },
   countBadge: {
     backgroundColor: '#334155',
     paddingHorizontal: 6,
@@ -338,6 +450,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
     paddingHorizontal: 4,
+  },
+  cardsGridMobile: {
+    paddingHorizontal: 8,
   },
   card: {
     backgroundColor: '#1e293b',

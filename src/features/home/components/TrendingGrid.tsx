@@ -39,7 +39,7 @@ function WebTrendingGrid({ trending, onPress }: { trending: Anime[]; onPress: (i
               source={{ uri: item.coverImage.large }}
               style={styles.webCardImage}
             />
-            {item.averageScore && (
+            {!!item.averageScore && (
               <View style={styles.ratingBadge}>
                 <Text style={styles.ratingText}>★ {(item.averageScore / 10).toFixed(1)}</Text>
               </View>
@@ -88,7 +88,7 @@ function MobileTrendingGrid({ trending, onPress, onLoadMore }: TrendingGridProps
             source={{ uri: item.coverImage.large }}
             style={styles.mobileImage}
           />
-          {item.averageScore && (
+          {!!item.averageScore && (
             <View style={styles.ratingBadge}>
               <Text style={styles.ratingText}>★ {(item.averageScore / 10).toFixed(1)}</Text>
             </View>

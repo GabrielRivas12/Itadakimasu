@@ -3,17 +3,17 @@ import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
 import { Link, usePathname } from 'expo-router';
 import { useResponsive } from '../../hooks/useResponsive';
 import { DownloadApkButton } from '../../features/home/components/DownloadApkButton';
+import { HeaderSearch } from '../../features/explore/components/HeaderSearch';
 
 const NAV_ITEMS = [
   { name: 'Inicio', path: '/home', icon: 'home' },
   { name: 'En Emisión', path: '/airing', icon: 'radio' },
-  { name: 'Explorar', path: '/explore', icon: 'search' },
   { name: 'Colección', path: '/collection', icon: 'book' },
   { name: 'Perfil', path: '/profile', icon: 'person' },
 ];
 
 export function WebHeader() {
-  const { getContentWidth, isMobile } = useResponsive();
+  const { getContentWidth, isMobile, isDesktop } = useResponsive();
   const pathname = usePathname();
 
   return (
@@ -50,7 +50,8 @@ export function WebHeader() {
         </View>
 
         <View style={styles.rightSection}>
-          {!isMobile && <DownloadApkButton />}
+          <HeaderSearch />
+          {!isMobile && isDesktop && <DownloadApkButton />}
           {isMobile && <View style={{ width: 40 }} />}
         </View>
       </View>
@@ -65,6 +66,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1e293b',
     justifyContent: 'center',
+    overflow: 'visible',
     zIndex: 1000,
   },
   container: {
@@ -74,6 +76,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
+    overflow: 'visible',
   },
   leftSection: {
     flexDirection: 'row',
@@ -111,9 +115,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#1e293b',
+    flexShrink: 1,
   },
   navItem: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
   },
@@ -129,10 +134,12 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   rightSection: {
-    width: 150,
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
+    gap: 12,
+    minWidth: 0,
   },
   iconButton: {
     padding: 8,

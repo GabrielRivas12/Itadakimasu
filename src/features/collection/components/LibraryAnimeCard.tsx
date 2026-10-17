@@ -7,7 +7,7 @@ import { useResponsive } from '../../../hooks/useResponsive';
 interface LibraryAnimeCardProps {
   item: UserListItem;
   onPress: (item: UserListItem) => void;
-  onRemove: (id: number, title: string) => void;
+  onRemove: (id: number | undefined, title: string, slug?: string) => void;
   width?: DimensionValue;
 }
 
@@ -45,7 +45,7 @@ export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnim
         {anime && (
           <>
             <View style={styles.metaRow}>
-              {anime.averageScore && (
+              {!!anime.averageScore && (
                 <View style={styles.ratingBadge}>
                   <Text style={styles.ratingText}>★ {(anime.averageScore / 10).toFixed(1)}</Text>
                 </View>
@@ -73,7 +73,7 @@ export function LibraryAnimeCard({ item, onPress, onRemove, width }: LibraryAnim
 
       <TouchableOpacity
         style={styles.removeButton}
-        onPress={() => onRemove(animeId, title)}
+        onPress={() => onRemove(animeId, title, item.slug)}
       >
         <Ionicons name="trash-outline" size={18} color="#f43f5e" />
       </TouchableOpacity>

@@ -179,7 +179,7 @@ export function HomePage() {
     checkAppVersion();
   }, []);
 
-  const { isWeb, getContentWidth, isMobile } = useResponsive();
+  const { isWeb, isMobile } = useResponsive();
   const router = useRouter();
 
 const isSenpaiCoreMode = apiSource === 'senpaicore';
@@ -198,27 +198,26 @@ const isSenpaiCoreMode = apiSource === 'senpaicore';
     router.push({ pathname: '/animatedetailsepaicore', params: { url, title, episode: String(item.progress || 1) } });
   }, [router]);
 
+  // Encabezado web (solo escritorio/tablet): en web móvil se usa el header nativo.
+  const webHeader = isWeb && !isMobile ? (
+    <View style={styles.header}>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.headerTitle}>Inicio</Text>
+          <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <DownloadApkButton />
+        </View>
+      </View>
+    </View>
+  ) : null;
+
   return (
     <View style={styles.container}>
-      {isWeb && (
-        <View style={[
-          styles.header,
-          isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-          isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 }
-        ]}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>Inicio</Text>
-              <Text style={styles.headerSubtitle}>Bienvenido a Itadakimasu!</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {isWeb && isMobile && <DownloadApkButton />}
-            </View>
-          </View>
-        </View>
-      )}
       {loading ? (
         <ResponsiveContainer>
+          {webHeader}
           <HomeSkeleton />
         </ResponsiveContainer>
       ) : (
@@ -229,6 +228,7 @@ const isSenpaiCoreMode = apiSource === 'senpaicore';
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />
             }
           >
+            {webHeader}
             {isMobile && <SearchBar onPress={() => router.push('/explore')} />}
             {featured && (
               <FeaturedBanner featured={featured} onPress={handleAnimePress} />

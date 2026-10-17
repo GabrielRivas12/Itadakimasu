@@ -48,8 +48,6 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 10,
-    paddingTop: 8,
     justifyContent: 'flex-start',
   },
   card: {

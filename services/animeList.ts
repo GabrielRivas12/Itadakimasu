@@ -17,6 +17,17 @@ export type UserListStatus = 'En Proceso' | 'Terminado' | 'Por Ver';
 const normalizeSlug = (value?: string | null): string =>
   (value || '').replace(/^https?:\/\/[^/]+\/media\//i, '').replace(/\/+$/, '');
 
+// Id numérico corto y aleatorio para items de proveedores que no exponen id
+// (tioanime, monoschinos). Se usa el rango 9.000.000–9.999.999 para minimizar
+// choques con los ids reales del backend (que son mucho más bajos).
+function generateShortId(usedKeys: Set<string> = new Set()): number {
+  let id: number;
+  do {
+    id = 9000000 + Math.floor(Math.random() * 1000000);
+  } while (usedKeys.has(String(id)));
+  return id;
+}
+
 // Coincide un item de la lista con un anime por id (numérico) o slug normalizado,
 // para soportar registros legacy que solo comparten slug.
 const matchesUserItem = (item: any, animeId: unknown, slug?: string): boolean => {
@@ -156,6 +167,34 @@ async function resolveBackendIdConflicts(list: UserListItem[]): Promise<BackendI
 
   current.sort((a, b) => updatedAtTime(b) - updatedAtTime(a));
   return { list: current, changed };
+}
+
+interface IdMigration {
+  list: UserListItem[];
+  migrated: UserListItem[];
+}
+
+// Migración de ids: los items de proveedores que no exponen id (tioanime,
+// monoschinos) reciben un id corto y aleatorio, de modo que puedan
+// identificarse, sincronizarse y eliminarse por id.
+function assignMissingIds(list: UserListItem[]): IdMigration {
+  const usedKeys = new Set(list.map((item) => getAnimeKey(item)).filter(Boolean));
+  const migrated: UserListItem[] = [];
+
+  const next = list.map((item) => {
+    if (!item || getAnimeKey(item) || !item.slug) return item;
+    const id = generateShortId(usedKeys);
+    usedKeys.add(String(id));
+    const updated: UserListItem = {
+      ...item,
+      animeId: id,
+      anime: item.anime ? { ...item.anime, id } : item.anime,
+    };
+    migrated.push(updated);
+    return updated;
+  });
+
+  return { list: next, migrated };
 }
 
 // Convierte la respuesta reducida de /info-by-slug al shape `Anime` que consume la UI
@@ -304,8 +343,21 @@ export async function getUserList(): Promise<UserListItem[]> {
     // Limpieza de ids heredados: solo deben sobrevivir ids del backend
     const localCleanup = await resolveBackendIdConflicts(localRaw);
     let localList: UserListItem[] = localCleanup.list;
-    if (localCleanup.changed) {
+
+    // Migración: los items sin id de backend reciben un id corto y aleatorio.
+    const idMigration = assignMissingIds(localList);
+    localList = idMigration.list;
+
+    if (localCleanup.changed || idMigration.migrated.length > 0) {
       await saveUserListLocally(localList, user);
+    }
+
+    if (user && idMigration.migrated.length > 0) {
+      // Subir los items migrados ANTES del sync de fondo, para que este no los
+      // interprete como eliminaciones remotas y los borre.
+      await Promise.all(
+        idMigration.migrated.map((item) => syncAnimeToFirestore(item).catch(() => undefined))
+      );
     }
 
     // 2. Si el usuario está logueado, sincronizamos con Firestore en segundo plano
@@ -316,8 +368,14 @@ export async function getUserList(): Promise<UserListItem[]> {
         if (remoteList && remoteList.length > 0) {
           const enrichedRemote = await enrichUserList(remoteList);
           const firstLoadCleanup = await resolveBackendIdConflicts(enrichedRemote);
-          await saveUserListLocally(firstLoadCleanup.list, user);
-          return firstLoadCleanup.list;
+          const firstLoadMigration = assignMissingIds(firstLoadCleanup.list);
+          if (user && firstLoadMigration.migrated.length > 0) {
+            await Promise.all(
+              firstLoadMigration.migrated.map((item) => syncAnimeToFirestore(item).catch(() => undefined))
+            );
+          }
+          await saveUserListLocally(firstLoadMigration.list, user);
+          return firstLoadMigration.list;
         }
       } else {
         // Sincronización en segundo plano:
@@ -389,7 +447,13 @@ export async function getUserList(): Promise<UserListItem[]> {
           }
 
           if (hasChanges) {
-            const mergedList = Array.from(localMap.values());
+            // Los items sin id de backend (tioanime, monoschinos) no tienen
+            // contraparte remota (no se sincronizan), así que se conservan
+            // tal cual para no perderlos al reconstruir la lista.
+            const mergedList = [
+              ...Array.from(localMap.values()),
+              ...currentLocalList.filter((item) => item && !getAnimeKey(item)),
+            ];
             const mergeCleanup = await resolveBackendIdConflicts(mergedList);
             const finalList = mergeCleanup.list;
             console.log(`[Cache] Sincronización completa: Se aplicaron cambios y eliminaciones desde la nube.`);
@@ -496,6 +560,20 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
   const currentList = await getUserList();
   const existingIndex = currentList.findIndex(item => matchesUserItem(item, anime.id, anime.slug));
 
+  // Los proveedores sin id de backend (tioanime, monoschinos) devuelven `id: null`.
+  // Generamos un id corto y aleatorio para el item (que se persiste localmente y
+  // en Firestore) para poder identificarlo, sincronizarlo y eliminarlo.
+  if (!anime.id) {
+    const existingKey = existingIndex > -1 ? getAnimeKey(currentList[existingIndex]) : '';
+    if (/^\d+$/.test(existingKey)) {
+      // Reutilizar el id del registro existente para no cambiar su identidad.
+      anime = { ...anime, id: Number(existingKey) };
+    } else {
+      const usedKeys = new Set(currentList.map((item) => getAnimeKey(item)).filter(Boolean));
+      anime = { ...anime, id: generateShortId(usedKeys) };
+    }
+  }
+
   const newItem: UserListItem = {
     animeId: anime.id,
     slug: anime.slug,
@@ -536,26 +614,36 @@ export async function addOrUpdateAnimeInList(anime: Anime, status: UserListStatu
   return currentList;
 }
 
-export async function removeAnimeFromList(animeId: number): Promise<UserListItem[]> {
+export async function removeAnimeFromList(
+  animeId?: number | null,
+  slug?: string | null
+): Promise<UserListItem[]> {
   const currentList = await getUserList();
-  const targetKey = String(animeId);
+
+  const targetId =
+    animeId != null && Number.isFinite(Number(animeId)) ? String(animeId) : null;
   const targetSlug = normalizeSlug(
-    currentList.find(item => getAnimeKey(item) === targetKey)?.slug
+    slug ?? currentList.find((item) => targetId && getAnimeKey(item) === targetId)?.slug
   );
 
-  // Además del id solicitado, eliminar registros con otro id pero mismo slug
-  // (ids heredados) para que ninguna reaparezca en el próximo sync.
-  const keysToRemove = new Set<string>([targetKey]);
-  if (targetSlug) {
-    for (const item of currentList) {
-      const itemSlug = normalizeSlug(item.slug);
-      if (itemSlug && itemSlug === targetSlug) keysToRemove.add(getAnimeKey(item));
-    }
-  }
+  // Se elimina por id Y por slug: los proveedores sin id de backend
+  // (tioanime, monoschinos) solo pueden identificarse por su slug.
+  const keysToRemove = new Set<string>();
+  if (targetId) keysToRemove.add(targetId);
 
-  const updatedList = currentList.filter(item => {
+  const updatedList = currentList.filter((item) => {
     const key = getAnimeKey(item);
-    return !key || !keysToRemove.has(key);
+    const itemSlug = normalizeSlug(item.slug);
+    const matchesId = targetId != null && key === targetId;
+    const matchesSlug = !!targetSlug && !!itemSlug && itemSlug === targetSlug;
+
+    if (matchesId || matchesSlug) {
+      // Además del id solicitado, purgar de Firestore los ids con otro id pero
+      // mismo slug (registros heredados) para que el sync no los resucite.
+      if (key && /^\d+$/.test(key)) keysToRemove.add(key);
+      return false;
+    }
+    return true;
   });
 
   const user = getUserId();

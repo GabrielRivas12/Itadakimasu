@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, LayoutAnimation } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { DropdownPicker, DropdownOption } from './DropdownPicker';
+import { useResponsive } from '../../../hooks/useResponsive';
 
 interface AdvancedFiltersProps {
   selectedGenre: string;
   onSelectGenre: (genre: string) => void;
   selectedType: string;
   onSelectType: (type: string) => void;
+  selectedStatus: string;
+  onSelectStatus: (status: string) => void;
+  selectedYear: string;
+  onSelectYear: (year: string) => void;
   selectedHentaiTag: string;
   onSelectHentaiTag: (tag: string) => void;
 }
@@ -20,8 +25,6 @@ const TYPE_MAP: Record<string, string> = {
   'especial': 'Especial',
   'ona': 'ONA',
 };
-
-const TYPE_LIST = Object.keys(TYPE_MAP);
 
 // Labels en español -> slug usado por el endpoint /catalog (filtro server-side).
 const GENRE_MAP: Record<string, string> = {
@@ -48,7 +51,13 @@ const GENRE_MAP: Record<string, string> = {
   'hentai': 'Hentai'
 };
 
-const GENRES = Object.keys(GENRE_MAP);
+// Estados de emisión -> slug usado por el endpoint /catalog (filtro server-side).
+const STATUS_MAP: Record<string, string> = {
+  'Todos': 'Todos',
+  'en-emision': 'En emisión',
+  'finalizado': 'Finalizado',
+  'proximamente': 'Próximamente',
+};
 
 // Tags/categorías del género hentai -> slug usado por el endpoint /catalog.
 const HENTAI_TAGS: Record<string, string> = {
@@ -66,202 +75,97 @@ const HENTAI_TAGS: Record<string, string> = {
   'milf': 'Milf',
 };
 
-const HENTAI_TAG_LIST = Object.keys(HENTAI_TAGS);
+const toOptions = (map: Record<string, string>): DropdownOption[] =>
+  Object.entries(map).map(([value, label]) => ({ value, label }));
+
+// Años de emisión (del año actual hacia atrás).
+const buildYearOptions = (): DropdownOption[] => {
+  const currentYear = new Date().getFullYear();
+  const options: DropdownOption[] = [{ value: 'Todos', label: 'Todos' }];
+  for (let year = currentYear; year >= 1990; year--) {
+    options.push({ value: String(year), label: String(year) });
+  }
+  return options;
+};
+
+const TYPE_OPTIONS = toOptions(TYPE_MAP);
+const GENRE_OPTIONS = toOptions(GENRE_MAP);
+const STATUS_OPTIONS = toOptions(STATUS_MAP);
+const YEAR_OPTIONS = buildYearOptions();
+const HENTAI_OPTIONS = toOptions(HENTAI_TAGS);
 
 export function GenreFilters({
   selectedGenre,
   onSelectGenre,
   selectedType,
   onSelectType,
+  selectedStatus,
+  onSelectStatus,
+  selectedYear,
+  onSelectYear,
   selectedHentaiTag,
   onSelectHentaiTag,
 }: AdvancedFiltersProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const toggleFilters = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsExpanded(!isExpanded);
-  };
-
+  const { isMobile } = useResponsive();
   const isHentaiGenre = selectedGenre === 'hentai';
-  const hasActiveFilters =
-    selectedGenre !== 'Todos' ||
-    selectedType !== 'Todos' ||
-    (isHentaiGenre && selectedHentaiTag !== 'Todos');
 
   return (
-    <View>
-      <TouchableOpacity 
-        style={styles.expandButton} 
-        onPress={toggleFilters}
-        activeOpacity={0.7}
-      >
-        <View style={styles.expandButtonLeft}>
-          <Ionicons 
-            name="options-outline" 
-            size={18} 
-            color={hasActiveFilters ? "#8b5cf6" : "#94a3b8"} 
-          />
-          <Text style={[styles.expandButtonText, hasActiveFilters && styles.expandButtonTextActive]}>
-            Filtros Avanzados
-          </Text>
-          {hasActiveFilters && !isExpanded && (
-            <View style={styles.activeDot} />
-          )}
-        </View>
-        <Ionicons 
-          name={isExpanded ? "chevron-up" : "chevron-down"} 
-          size={18} 
-          color="#94a3b8" 
+    <View style={styles.row}>
+      <DropdownPicker
+        label="Tipo"
+        value={selectedType}
+        options={TYPE_OPTIONS}
+        onChange={onSelectType}
+        fill={isMobile}
+      />
+      <DropdownPicker
+        label="Género"
+        value={selectedGenre}
+        options={GENRE_OPTIONS}
+        onChange={onSelectGenre}
+        menuWidth={240}
+        fill={isMobile}
+      />
+      {isHentaiGenre ? (
+        // hentaila solo soporta page y genre: no hay estado/año.
+        <DropdownPicker
+          label="Categoría"
+          value={selectedHentaiTag}
+          options={HENTAI_OPTIONS}
+          onChange={onSelectHentaiTag}
+          fill={isMobile}
         />
-      </TouchableOpacity>
-
-      {isExpanded && (
-        <View style={styles.containerInner}>
-          <View style={styles.content}>
-            {/* Géneros */}
-            <View style={styles.filterSection}>
-              <Text style={styles.sectionLabel}>Géneros</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {GENRES.map((genre) => (
-                  <TouchableOpacity
-                    key={genre}
-                    style={[styles.chip, selectedGenre === genre && styles.chipActive]}
-                    onPress={() => onSelectGenre(genre)}
-                  >
-                    <Text style={[styles.chipText, selectedGenre === genre && styles.chipTextActive]}>
-                      {GENRE_MAP[genre]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Tipos */}
-            <View style={styles.filterSection}>
-              <Text style={styles.sectionLabel}>Tipo</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                {TYPE_LIST.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.chip, selectedType === type && styles.chipActive]}
-                    onPress={() => onSelectType(type)}
-                  >
-                    <Text style={[styles.chipText, selectedType === type && styles.chipTextActive]}>
-                      {TYPE_MAP[type]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {selectedGenre === 'hentai' && (
-              <View style={styles.filterSection}>
-                <Text style={styles.sectionLabel}>Categorías Hentai</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                  {HENTAI_TAG_LIST.map((tag) => (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[styles.chip, selectedHentaiTag === tag && styles.chipActive]}
-                      onPress={() => onSelectHentaiTag(tag)}
-                    >
-                      <Text style={[styles.chipText, selectedHentaiTag === tag && styles.chipTextActive]}>
-                        {HENTAI_TAGS[tag]}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-        </View>
+      ) : (
+        <>
+          <DropdownPicker
+            label="Estado"
+            value={selectedStatus}
+            options={STATUS_OPTIONS}
+            onChange={onSelectStatus}
+            menuWidth={200}
+            fill={isMobile}
+          />
+          <DropdownPicker
+            label="Año"
+            value={selectedYear}
+            options={YEAR_OPTIONS}
+            onChange={onSelectYear}
+            menuWidth={160}
+            fill={isMobile}
+          />
+        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-expandButton: {
+  row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 48,
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginRight: 13,
-    marginLeft: 13
-  },
-  expandButtonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  expandButtonText: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  expandButtonTextActive: {
-    color: '#8b5cf6',
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#8b5cf6',
-  },
-  containerInner: {
-    backgroundColor: 'rgba(15, 23, 42, 0.3)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#1e293b',
-    paddingBottom: 4,
-    marginBottom: 12,
-    marginRight: 13,
-    marginLeft: 13
-  },
-  content: {
-    paddingTop: 12,
-  },
-  filterSection: {
-    marginBottom: 12,
-  },
-  sectionLabel: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: 'bold',
-    marginLeft: 20,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
     gap: 8,
-  },
-  chip: {
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  chipActive: {
-    backgroundColor: '#8b5cf6',
-    borderColor: '#a78bfa',
-  },
-  chipText: {
-    color: '#cbd5e1',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+    paddingHorizontal: '1%',
+    paddingBottom: 10,
   },
 });

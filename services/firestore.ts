@@ -68,9 +68,9 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
     const cleanItem = sanitizeObject(item);
     if (cleanItem) {
       delete cleanItem.anime;
-      // El campo `animeId` (id heredado de AniList) se conserva en el documento
-      // aunque ya no se use como identificador: los registros nuevos usan `id`
-      // como clave numérica del anime.
+      // `animeId` es un id heredado de AniList que ya no se persiste: los
+      // registros usan únicamente `id` como clave numérica del anime.
+      delete cleanItem.animeId;
       // Asegurar que el slug quede a nivel top-level, aunque el objeto `anime`
       // no se persista en Firestore
       if (!cleanItem.slug && anime?.slug) {
@@ -78,11 +78,15 @@ export async function syncAnimeToFirestore(item: UserListItem): Promise<void> {
       }
     }
 
-    const animeId = String(item.animeId ?? item.id ?? anime?.id);
-    if (!anime?.id && item.animeId == null && item.id == null) {
-      console.warn('No se puede sincronizar: El item no tiene animeId.');
+    // La clave del documento se resuelve desde animeId (registros legados),
+    // id o anime.id, pero ese valor NO se sube como campo.
+    const resolvedId = item.animeId ?? item.id ?? anime?.id;
+    if (resolvedId == null) {
+      // Sin id de backend no hay documento que crear (p. ej. proveedores que no
+      // exponen id). El item queda solo en el almacenamiento local, sin ruido.
       return;
     }
+    const animeId = String(resolvedId);
     console.log(`Sincronizando anime ${animeId} (${anime?.title?.romaji})...`);
 
     if (Platform.OS === 'web') {

@@ -133,10 +133,12 @@ export const useSenpaiCoreDetail = () => {
     setError(false);
 
     try {
-      // Si es un slug crudo, probar en cascada: slug directo, animeav1 y hentaila
+      // Si es un slug crudo, resolverlo contra los proveedores soportados.
+      // No mandamos el slug "pelado" a /info: la API responde 500 con él,
+      // por eso probamos directamente las URLs derivadas (igual que animeList.ts).
       const candidates = /^https?:\/\//i.test(animeUrl)
         ? [animeUrl]
-        : [animeUrl, `https://animeav1.com/media/${animeUrl}`, `https://hentaila.com/media/${animeUrl}`];
+        : [`https://animeav1.com/media/${animeUrl}`, `https://hentaila.com/media/${animeUrl}`];
 
       let data: Anime1VDetail | null = null;
       for (const candidate of candidates) {
@@ -387,7 +389,7 @@ const hasDub = dubServers.length > 0;
   const handleRemove = useCallback(async () => {
     if (!detail) return;
     try {
-      await removeAnimeFromList(detail.id);
+      await removeAnimeFromList(detail.id, toRawSlug(detail.slug));
       setUserStatus(null);
       setUserProgress(0);
       setShowStatusSelector(false);

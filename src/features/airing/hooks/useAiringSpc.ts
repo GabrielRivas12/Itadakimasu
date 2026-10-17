@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import {
-  fetchRecentEpisodes,
+  fetchRecentEpisodesByProvider,
+  fetchRecentEpisodesCount,
   fetchLatestEpisodes,
   fetchSchedule,
   ScheduleGroup,
@@ -9,6 +10,10 @@ import {
 } from '../../../../services/anime1v';
 import { getIsAdultContentEnabled } from '../../../../services/cache';
 import { AiringSpcItem, ProviderSection } from '../types/airingSpc';
+import {
+  DEFAULT_RECENT_PROVIDER,
+  RECENT_PROVIDER_TABS,
+} from '../constants/recentProviders';
 
 function cleanAnimeUrl(url: string): string {
   if (!url) return '';
@@ -45,9 +50,12 @@ export const useAiringSpc = () => {
   const [adultEpisodes, setAdultEpisodes] = useState<AiringSpcItem[]>([]);
   const [loadingAdult, setLoadingAdult] = useState(false);
 
-  // Normal mode: Recent episodes state (/recent-episodes)
-  const [recentEpisodes, setRecentEpisodes] = useState<AiringSpcItem[]>([]);
-  const [loadingRecent, setLoadingRecent] = useState(true);
+  // Normal mode: Recientes por proveedor (/recent-episodes-by-provider)
+  // El proveedor activo se carga bajo demanda y se cachea en memoria.
+  const [recentProvider, setRecentProvider] = useState<string>(DEFAULT_RECENT_PROVIDER);
+  const [providerFeeds, setProviderFeeds] = useState<Record<string, AiringSpcItem[]>>({});
+  const [loadingProviders, setLoadingProviders] = useState<Record<string, boolean>>({});
+  const [recentProviderCounts, setRecentProviderCounts] = useState<Record<string, number>>({});
 
   // Normal mode: Schedule state (/schedule)
   const [scheduleGroups, setScheduleGroups] = useState<ScheduleGroup[]>([]);
@@ -71,16 +79,35 @@ export const useAiringSpc = () => {
     loadSetting();
   }, []);
 
-  // Carga de episodios recientes (/api/v1/anime/recent-episodes)
-  const loadRecentData = useCallback(async () => {
+  // Carga de episodios recientes de un proveedor individual
+  const loadRecentProvider = useCallback(async (provider: string) => {
+    setLoadingProviders((prev) => ({ ...prev, [provider]: true }));
     try {
-      setLoadingRecent(true);
-      const episodes = await fetchRecentEpisodes();
-      setRecentEpisodes((episodes || []) as AiringSpcItem[]);
+      const episodes = await fetchRecentEpisodesByProvider(provider);
+      setProviderFeeds((prev) => ({
+        ...prev,
+        [provider]: (episodes || []) as AiringSpcItem[],
+      }));
     } catch (error) {
-      console.error('Error loading recent episodes:', error);
+      console.error(`Error loading recent episodes (${provider}):`, error);
+      setProviderFeeds((prev) => ({ ...prev, [provider]: [] }));
     } finally {
-      setLoadingRecent(false);
+      setLoadingProviders((prev) => ({ ...prev, [provider]: false }));
+    }
+  }, []);
+
+  // Carga de los badges (conteo por proveedor)
+  const loadRecentCounts = useCallback(async () => {
+    try {
+      const entries = await Promise.all(
+        RECENT_PROVIDER_TABS.map(async ({ id }) => {
+          const count = await fetchRecentEpisodesCount(id);
+          return [id, count] as const;
+        })
+      );
+      setRecentProviderCounts(Object.fromEntries(entries));
+    } catch (error) {
+      console.error('Error loading recent episodes counts:', error);
     }
   }, []);
 
@@ -115,10 +142,33 @@ export const useAiringSpc = () => {
     if (isAdult && isAdultSettingEnabled) {
       loadAdultData();
     } else {
-      loadRecentData();
       loadScheduleData();
+      loadRecentCounts();
     }
-  }, [isAdult, isAdultSettingEnabled, loadAdultData, loadRecentData, loadScheduleData]);
+  }, [isAdult, isAdultSettingEnabled, loadAdultData, loadScheduleData, loadRecentCounts]);
+
+  // Carga bajo demanda del proveedor activo (AnimeAV1 por defecto)
+  useEffect(() => {
+    if (isAdult && isAdultSettingEnabled) return;
+    if (
+      providerFeeds[recentProvider] === undefined &&
+      !loadingProviders[recentProvider]
+    ) {
+      loadRecentProvider(recentProvider);
+    }
+  }, [
+    isAdult,
+    isAdultSettingEnabled,
+    recentProvider,
+    providerFeeds,
+    loadingProviders,
+    loadRecentProvider,
+  ]);
+
+  // Cambiar de etiqueta de proveedor (dispara la solicitud del proveedor elegido)
+  const selectRecentProvider = useCallback((provider: string) => {
+    setRecentProvider(provider);
+  }, []);
 
   // Recarga manual (Pull to Refresh)
   const refreshData = useCallback(async () => {
@@ -127,14 +177,26 @@ export const useAiringSpc = () => {
       if (isAdult && isAdultSettingEnabled) {
         await loadAdultData();
       } else {
-        await Promise.all([loadRecentData(), loadScheduleData()]);
+        await Promise.all([
+          loadRecentProvider(recentProvider),
+          loadRecentCounts(),
+          loadScheduleData(),
+        ]);
       }
     } catch (error) {
       console.error('Error refreshing airing data:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [isAdult, isAdultSettingEnabled, loadAdultData, loadRecentData, loadScheduleData]);
+  }, [
+    isAdult,
+    isAdultSettingEnabled,
+    recentProvider,
+    loadAdultData,
+    loadRecentProvider,
+    loadRecentCounts,
+    loadScheduleData,
+  ]);
 
   const toggleAdult = () => {
     if (isAdultSettingEnabled) {
@@ -149,11 +211,13 @@ export const useAiringSpc = () => {
     });
   };
 
-  // Secciones agrupadas por proveedor
-  const recentSections = useMemo(
-    () => groupItemsByProvider(recentEpisodes),
-    [recentEpisodes]
+  // Episodios del proveedor activo
+  const recentEpisodes = useMemo(
+    () => providerFeeds[recentProvider] ?? [],
+    [providerFeeds, recentProvider]
   );
+
+  const loadingRecent = !!loadingProviders[recentProvider];
 
   const adultSections = useMemo(
     () => groupItemsByProvider(adultEpisodes),
@@ -163,7 +227,9 @@ export const useAiringSpc = () => {
   return {
     // Normal mode data
     recentEpisodes,
-    recentSections,
+    recentProvider,
+    recentProviderCounts,
+    selectRecentProvider,
     loadingRecent,
     scheduleGroups,
     loadingSchedule,

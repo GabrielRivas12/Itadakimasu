@@ -38,21 +38,6 @@ export const CollectionPage = memo(function CollectionPage() {
 
   return (
     <View style={styles.container}>
-      {isWeb && (
-        <View style={[
-          styles.stickyHeader,
-          isWeb && { maxWidth: contentWidth, alignSelf: 'center', width: '100%' },
-          isWeb && isMobile && { paddingHorizontal: 16 }
-        ]}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Mi Colección</Text>
-            <Text style={styles.headerSubtitle}>
-              {user ? 'Gestiona tu lista personal' : 'Inicia sesión para gestionar tu colección'}
-            </Text>
-          </View>
-        </View>
-      )}
-
       <FlatList
         key={columns}
         data={filteredList}
@@ -67,6 +52,15 @@ export const CollectionPage = memo(function CollectionPage() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
+            {isWeb && !isMobile && (
+              <View style={styles.header}>
+                <Text style={styles.headerTitle}>Mi Colección</Text>
+                <Text style={styles.headerSubtitle}>
+                  {user ? 'Gestiona tu lista personal' : 'Inicia sesión para gestionar tu colección'}
+                </Text>
+              </View>
+            )}
+
             {!user && (
               <View style={styles.loginPrompt}>
                 <Ionicons name="log-in-outline" size={20} color="#94a3b8" />
@@ -114,13 +108,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0b0f19',
   },
-  stickyHeader: {
-    paddingHorizontal: 20,
+  header: {
+    paddingHorizontal: 4,
     paddingTop: 45,
     paddingBottom: 15,
     backgroundColor: '#0b0f19',
-  },
-  header: {
   },
   headerTop: {
     flexDirection: 'row',

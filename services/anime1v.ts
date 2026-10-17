@@ -109,6 +109,8 @@ export interface Anime1VSearchResult {
   image: string | null;
   backdrop: string | null;
   type: string | number;
+  /** Proveedor de origen (ej. "AnimeAV1", "HentaiLA .io"). */
+  provider?: string;
   hasEpisodes?: boolean;
   titleScore?: number;
   seasonMatch?: boolean;
@@ -141,6 +143,41 @@ export interface Anime1VGenre {
   slug: string;
   malId: number | null;
 }
+
+// Algunos proveedores (p. ej. MonosChinos) devuelven `genres` como un array de
+// strings, mientras que otros (AnimeAV1, TioAnime) devuelven objetos. Lo
+// normalizamos a `Anime1VGenre` para que la UI siempre pueda leer `genre.name`.
+const normalizeGenre = (genre: unknown): Anime1VGenre | null => {
+  if (!genre) return null;
+
+  if (typeof genre === 'string') {
+    const name = genre.trim();
+    return name ? { id: null, name, slug: '', malId: null } : null;
+  }
+
+  if (typeof genre === 'object') {
+    const g = genre as Record<string, unknown>;
+    const name =
+      typeof g.name === 'string' ? g.name : typeof g.title === 'string' ? g.title : null;
+    if (!name) return null;
+    return {
+      id: typeof g.id === 'number' ? g.id : null,
+      name,
+      slug: typeof g.slug === 'string' ? g.slug : '',
+      malId: typeof g.malId === 'number' ? g.malId : null,
+    };
+  }
+
+  return null;
+};
+
+const normalizeGenres = (genres: unknown): Anime1VGenre[] | null => {
+  if (!Array.isArray(genres)) return null;
+  const normalized = genres
+    .map(normalizeGenre)
+    .filter((genre): genre is Anime1VGenre => genre !== null);
+  return normalized.length ? normalized : null;
+};
 
 export interface Anime1VSeason {
   name: string;
@@ -206,7 +243,10 @@ export async function getAnime1VInfoBySlug(
     params.provider = provider;
   }
 
-  return await fetchFromApi<Anime1VInfoBySlug>('/api/v1/anime/info-by-slug', params);
+  const data = await fetchFromApi<Anime1VInfoBySlug>('/api/v1/anime/info-by-slug', params);
+  if (!data) return null;
+
+  return { ...data, genres: normalizeGenres(data.genres) ?? [] };
 }
 
 export async function getAnime1VDetail(
@@ -219,7 +259,10 @@ export async function getAnime1VDetail(
     params.limit = limit.toString();
   }
 
-  return await fetchFromApi<Anime1VDetail>('/api/v1/anime/info', params);
+  const data = await fetchFromApi<Anime1VDetail>('/api/v1/anime/info', params);
+  if (!data) return null;
+
+  return { ...data, genres: normalizeGenres(data.genres) };
 }
 
 export type Anime1VVariant = 'SUB' | 'DUB';
@@ -248,12 +291,28 @@ export interface Anime1VDownloadLink {
 }
 
 const FETCH_TIMEOUT_MS = 15000;
+// /resolve proxya sitios externos (streaming), por lo que suele tardar más que
+// una llamada normal; le damos más margen antes de abortar.
+const RESOLVE_TIMEOUT_MS = 30000;
 
 async function fetchWithTimeout(url: string, ms: number = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ms);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, ms);
   try {
     return await fetch(url, { signal: controller.signal });
+  } catch (error) {
+    // Distinguimos el timeout propio de un abort externo: así el llamador puede
+    // tratarlo como un fallo esperado (fallback) en vez de un error inesperado.
+    if (timedOut) {
+      const timeoutError = new Error(`Request timed out after ${ms}ms`);
+      timeoutError.name = 'TimeoutError';
+      throw timeoutError;
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -293,8 +352,12 @@ async function fetchFromApi<T>(
       console.log("Respuesta no es JSON (probable HTML):", text.slice(0, 200));
       return null;
     }
-  } catch (error) {
-    console.error(`Error fetching from Anime1V API (${endpoint}):`, error);
+  } catch (error: any) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+      console.warn(`[Anime1V] ${endpoint} sin respuesta (timeout/abort); usando fallback.`);
+    } else {
+      console.error(`Error fetching from Anime1V API (${endpoint}):`, error);
+    }
     return null;
   }
 }
@@ -420,7 +483,10 @@ async function fetchResolvedStream(
       apiKey: API_KEY ?? "",
     }).toString();
 
-    const response = await fetchWithTimeout(`${BASE_URL}/api/v1/anime/resolve?${queryParams}`);
+    const response = await fetchWithTimeout(
+      `${BASE_URL}/api/v1/anime/resolve?${queryParams}`,
+      RESOLVE_TIMEOUT_MS
+    );
 
     if (!response.ok) {
       console.log(`HTTP ERROR ${response.status} en /resolve con params: ${JSON.stringify(params)}`);
@@ -448,8 +514,14 @@ async function fetchResolvedStream(
       console.log("Respuesta no es JSON (probable HTML):", text.slice(0, 200));
       return null;
     }
-  } catch (error) {
-    console.error("Error fetching Anime1V resolve:", error);
+  } catch (error: any) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+      console.warn(
+        `[Anime1V] /resolve sin respuesta (timeout/abort); se usará el WebView. params: ${JSON.stringify(params).slice(0, 120)}`
+      );
+    } else {
+      console.error("Error fetching Anime1V resolve:", error);
+    }
     return null;
   }
 }
@@ -634,6 +706,51 @@ export async function fetchRecentEpisodes(): Promise<RecentEpisode[]> {
   } catch (error) {
     console.error('Error fetching recent episodes:', error);
     return [];
+  }
+}
+
+export interface RecentEpisodesByProvider {
+  provider: string;
+  label: string;
+  results: RecentEpisode[];
+  count: number;
+  updatedAt?: string;
+}
+
+/**
+ * Feed de episodios recientes de un proveedor individual
+ * (`/api/v1/anime/recent-episodes-by-provider`).
+ */
+export async function fetchRecentEpisodesByProvider(
+  provider: string
+): Promise<RecentEpisode[]> {
+  try {
+    const data = await fetchFromApi<RecentEpisodesByProvider>(
+      '/api/v1/anime/recent-episodes-by-provider',
+      { provider }
+    );
+    return data?.results || [];
+  } catch (error) {
+    console.error('Error fetching recent episodes by provider:', error);
+    return [];
+  }
+}
+
+/**
+ * Número de animes distintos con episodios recientes de un proveedor
+ * (`/api/v1/anime/recent-episodes-count`). Usado para el badge de las etiquetas.
+ */
+export async function fetchRecentEpisodesCount(provider: string): Promise<number> {
+  try {
+    const data = await fetchFromApi<{
+      provider: string;
+      label: string;
+      count: number;
+    }>('/api/v1/anime/recent-episodes-count', { provider });
+    return data?.count ?? 0;
+  } catch (error) {
+    console.error('Error fetching recent episodes count:', error);
+    return 0;
   }
 }
 

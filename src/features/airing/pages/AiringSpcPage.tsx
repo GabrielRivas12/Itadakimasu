@@ -21,7 +21,9 @@ export const AiringSpcPage = memo(function AiringSpcPage() {
   const {
     // Normal mode
     recentEpisodes,
-    recentSections,
+    recentProvider,
+    recentProviderCounts,
+    selectRecentProvider,
     loadingRecent,
     scheduleGroups,
     loadingSchedule,
@@ -43,12 +45,39 @@ export const AiringSpcPage = memo(function AiringSpcPage() {
   const { getColumns, isWeb, getContentWidth, isMobile } = useResponsive();
   const columns = getColumns(2, 3, 4, 6);
 
+  // Encabezado web (solo escritorio/tablet): en web móvil se usa el header nativo.
+  const webHeader = isWeb && !isMobile ? (
+    <View style={styles.header}>
+      <View style={styles.headerTop}>
+        <View>
+          <Text style={styles.headerTitle}>En Emisión</Text>
+          <Text style={styles.headerSubtitle}>
+            {isAdult ? 'Contenido para Adultos (+18)' : 'Episodios recientes y calendario'}
+          </Text>
+        </View>
+        {isAdultSettingEnabled && (
+          <RNTouchableOpacity
+            style={[styles.r18Button, isAdult && styles.r18ButtonActive]}
+            onPress={toggleAdult}
+          >
+            <Text style={[styles.r18Text, isAdult && styles.r18TextActive]}>R18</Text>
+            <Ionicons
+              name={isAdult ? "eye" : "eye-off"}
+              size={18}
+              color={isAdult ? "#ffffff" : "#94a3b8"}
+            />
+          </RNTouchableOpacity>
+        )}
+      </View>
+    </View>
+  ) : null;
+
   return (
     <View style={styles.container}>
       <Tabs.Screen
         options={{
           headerRight: () =>
-            !isWeb && isAdultSettingEnabled ? (
+            isAdultSettingEnabled ? (
               <View style={styles.headerRightWrap}>
                 <RNTouchableOpacity
                   style={[styles.r18Button, isAdult && styles.r18ButtonActive]}
@@ -65,38 +94,6 @@ export const AiringSpcPage = memo(function AiringSpcPage() {
             ) : null,
         }}
       />
-      {isWeb && (
-        <View
-          style={[
-            styles.header,
-            isWeb && { maxWidth: getContentWidth(), alignSelf: 'center', width: '100%' },
-            isWeb && isMobile && { paddingTop: 20, paddingHorizontal: 16 },
-          ]}
-        >
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.headerTitle}>En Emisión</Text>
-              <Text style={styles.headerSubtitle}>
-                {isAdult ? 'Contenido para Adultos (+18)' : 'Episodios recientes y calendario'}
-              </Text>
-            </View>
-            {isAdultSettingEnabled && (
-              <RNTouchableOpacity
-                style={[styles.r18Button, isAdult && styles.r18ButtonActive]}
-                onPress={toggleAdult}
-              >
-                <Text style={[styles.r18Text, isAdult && styles.r18TextActive]}>R18</Text>
-                <Ionicons
-                  name={isAdult ? "eye" : "eye-off"}
-                  size={18}
-                  color={isAdult ? "#ffffff" : "#94a3b8"}
-                />
-              </RNTouchableOpacity>
-            )}
-          </View>
-        </View>
-      )}
-
       {isAdult ? (
         // Modo R18: Episodios de HentaiLA separados por proveedor
         loadingAdult && adultEpisodes.length === 0 ? (
@@ -125,6 +122,7 @@ export const AiringSpcPage = memo(function AiringSpcPage() {
               />
             }
           >
+            {webHeader}
             <AiringProviderSections
               sections={adultSections}
               onPressItem={handleAnimePress}
@@ -136,11 +134,14 @@ export const AiringSpcPage = memo(function AiringSpcPage() {
       ) : (
         // Modo Normal: Recientes + Calendario de emisión interactivo por día de la semana
         <AiringScheduleSpc
+          header={webHeader}
           groups={scheduleGroups}
           loadingSchedule={loadingSchedule}
-          recentSections={recentSections}
+          recentEpisodes={recentEpisodes}
+          recentProvider={recentProvider}
+          recentProviderCounts={recentProviderCounts}
+          onSelectRecentProvider={selectRecentProvider}
           loadingRecent={loadingRecent}
-          recentEpisodesCount={recentEpisodes.length}
           onPressEpisode={handleAnimePress}
           onRefresh={refreshData}
           refreshing={refreshing}
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingTop: 45,
     paddingBottom: 15,
     backgroundColor: '#0b0f19',

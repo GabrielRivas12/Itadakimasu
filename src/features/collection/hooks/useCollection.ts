@@ -101,11 +101,11 @@ export const useCollection = () => {
     };
   }, [loadList]);
 
-  const handleRemove = (animeId: number, title: string) => {
+  const handleRemove = (animeId: number | undefined, title: string, slug?: string) => {
     if (Platform.OS === 'web') {
       const confirmar = window.confirm(`¿Estás seguro de que deseas quitar "${title}" de tu lista personal?`);
       if (confirmar) {
-        removeAnimeFromList(animeId).then((updated) => {
+        removeAnimeFromList(animeId, slug).then((updated) => {
           setList(updated);
         });
       }
@@ -119,7 +119,7 @@ export const useCollection = () => {
             text: 'Quitar',
             style: 'destructive',
             onPress: async () => {
-              const updated = await removeAnimeFromList(animeId);
+              const updated = await removeAnimeFromList(animeId, slug);
               setList(updated);
             },
           },

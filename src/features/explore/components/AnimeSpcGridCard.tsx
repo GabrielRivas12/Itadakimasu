@@ -7,11 +7,22 @@ interface AnimeSpcGridCardProps {
   item: ExploreSpcItem;
   onPress: (item: ExploreSpcItem) => void;
   width?: DimensionValue;
+  /** Muestra metadatos de búsqueda (origen HentaiLA) — solo en el buscador web móvil. */
+  showSearchMeta?: boolean;
 }
 
-export const AnimeSpcGridCard = memo(function AnimeSpcGridCard({ item, onPress, width }: AnimeSpcGridCardProps) {
+// Dominio de origen de un resultado de HentaiLA (.com / .moe / .io).
+const getHentailaSource = (item: ExploreSpcItem): string | null => {
+  const match = (item.url || '').match(/hentaila\.(com|moe|io)/i);
+  return match ? `HentaiLA .${match[1].toLowerCase()}` : null;
+};
+
+export const AnimeSpcGridCard = memo(function AnimeSpcGridCard({ item, onPress, width, showSearchMeta = false }: AnimeSpcGridCardProps) {
   const score = 'score' in item && item.score != null ? item.score : null;
   const year = 'year' in item && item.year ? item.year : null;
+  const typeLabel =
+    item.type != null && String(item.type).trim() !== '' ? String(item.type) : null;
+  const source = showSearchMeta ? getHentailaSource(item) : null;
 
   return (
     <TouchableOpacity
@@ -25,9 +36,11 @@ export const AnimeSpcGridCard = memo(function AnimeSpcGridCard({ item, onPress, 
           style={styles.cardImage}
         />
       )}
-      <View style={styles.cardBadge}>
-        <Text style={styles.cardBadgeText}>{String(item.type)}</Text>
-      </View>
+      {typeLabel && (
+        <View style={styles.cardBadge}>
+          <Text style={styles.cardBadgeText}>{typeLabel}</Text>
+        </View>
+      )}
       {score != null && (
         <View style={styles.ratingBadge}>
           <Text style={styles.ratingText}>★ {score.toFixed(1)}</Text>
@@ -39,6 +52,9 @@ export const AnimeSpcGridCard = memo(function AnimeSpcGridCard({ item, onPress, 
         </Text>
         {year && (
           <Text style={styles.cardYear}>{year}</Text>
+        )}
+        {source && (
+          <Text style={styles.cardSource}>{source}</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -100,5 +116,11 @@ const styles = StyleSheet.create({
   cardYear: {
     color: '#64748b',
     fontSize: 12,
+  },
+  cardSource: {
+    color: '#fb7185',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
   },
 });
