@@ -8,30 +8,16 @@ import { getStatusLabel } from '../utils/detailFormat';
 
 interface SenpaiCoreHeaderProps {
   detail: Anime1VDetail;
+  compact?: boolean;
 }
 
-// Degradado inferior simulado con muchas bandas finas y una curva continua:
-// transparente arriba y opaco hacia abajo (donde van el título y los datos).
-// Con muchas franjas el paso entre bandas es imperceptible (sin efecto
-// escalonado) y el final funde a opacidad 1 con el fondo #0b0f19 de la página.
-const SCRIM_STEPS = 120;
-const SCRIM_OPACITIES = Array.from({ length: SCRIM_STEPS }, (_, i) => {
-  const t = (i + 1) / SCRIM_STEPS; // 0 (arriba) -> 1 (abajo)
-  const start = 0.32; // tramo superior totalmente limpio
-  if (t <= start) return 0;
-  const p = (t - start) / (1 - start);
-  return Math.pow(p, 1.25);
-});
-
-export function SenpaiCoreHeader({ detail }: SenpaiCoreHeaderProps) {
+export function SenpaiCoreHeader({ detail, compact = false }: SenpaiCoreHeaderProps) {
   const { isWeb } = useResponsive();
   const insets = useSafeAreaInsets();
 
   const rawBackdrop = detail.backcover || detail.backdrop;
   const backdropUri = rawBackdrop ? buildImageProxyUrl(rawBackdrop) : null;
   const coverUri = detail.image ? buildImageProxyUrl(detail.image) : null;
-  // En móvil usamos la portada vertical como fondo; el backdrop queda de reserva.
-  const heroUri = coverUri || backdropUri;
   const displayTitle = detail.title || 'Detalles';
 
   if (isWeb) {
@@ -56,70 +42,78 @@ export function SenpaiCoreHeader({ detail }: SenpaiCoreHeaderProps) {
   const status = getStatusLabel(detail.status);
 
   return (
-    <View style={styles.hero}>
-      {heroUri ? (
+    <View style={[styles.hero, { paddingTop: compact ? 0 : insets.top + 0 }]}>
+      {backdropUri && (
         <Image
-          source={{ uri: heroUri }}
-          style={styles.heroImage}
+          source={{ uri: backdropUri }}
+          style={styles.heroBackdrop}
           resizeMode="cover"
           fadeDuration={300}
         />
-      ) : (
-        <View style={styles.heroFallback} />
       )}
+      <View pointerEvents="none" style={styles.heroOverlay} />
 
-      <View pointerEvents="none" style={styles.heroScrim}>
-        {SCRIM_OPACITIES.map((opacity, index) => (
-          <View key={`scrim-${index}`} style={[styles.scrimBand, { opacity }]} />
-        ))}
-      </View>
+      <View style={styles.heroContent}>
+        <View style={styles.coverContainer}>
+          {coverUri ? (
+            <Image
+              source={{ uri: coverUri }}
+              style={styles.coverImage}
+              resizeMode="cover"
+              fadeDuration={300}
+            />
+          ) : (
+            <View style={styles.coverPlaceholder}>
+              <Ionicons name="image-outline" size={26} color="#475569" />
+            </View>
+          )}
+        </View>
 
-      <View style={[styles.heroContent, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.titleBlock}>
+        <View style={styles.infoColumn}>
           <Text style={styles.animeTitle} numberOfLines={3}>
             {displayTitle}
           </Text>
-        </View>
 
-        <View style={styles.statRow}>
-          <View style={styles.statPill}>
-            <Ionicons name="star" size={13} color="#fbbf24" />
-            <Text style={styles.statPillValue} numberOfLines={1}>
-              {score !== null ? score.toFixed(1) : 'N/A'}
-            </Text>
-          </View>
-
-          <View style={styles.statPill}>
-            <Ionicons name="albums-outline" size={13} color="#a78bfa" />
-            <Text style={styles.statPillValue} numberOfLines={1}>
-              {totalEpisodes > 0 ? `${totalEpisodes} eps` : '—'}
-            </Text>
-          </View>
-
-          <View style={styles.statPill}>
-            <Ionicons name="pulse-outline" size={13} color="#4ade80" />
-            <Text style={styles.statPillValue} numberOfLines={1}>
-              {status}
-            </Text>
-          </View>
-
-          {!!detail.type && (
+          <View style={styles.statRow}>
             <View style={styles.statPill}>
-              <Ionicons name="tv-outline" size={13} color="#60a5fa" />
+              <Ionicons name="star" size={12} color="#fbbf24" />
               <Text style={styles.statPillValue} numberOfLines={1}>
-                {detail.type}
+                {score !== null ? score.toFixed(1) : 'N/A'}
               </Text>
             </View>
-          )}
 
-          {!!detail.year && (
             <View style={styles.statPill}>
-              <Ionicons name="calendar-outline" size={13} color="#f472b6" />
+              <Ionicons name="albums-outline" size={12} color="#a78bfa" />
               <Text style={styles.statPillValue} numberOfLines={1}>
-                {detail.year}
+                {totalEpisodes > 0 ? `${totalEpisodes} eps` : '—'}
               </Text>
             </View>
-          )}
+
+            <View style={styles.statPill}>
+              <Ionicons name="pulse-outline" size={12} color="#4ade80" />
+              <Text style={styles.statPillValue} numberOfLines={1}>
+                {status}
+              </Text>
+            </View>
+
+            {!!detail.type && (
+              <View style={styles.statPill}>
+                <Ionicons name="tv-outline" size={12} color="#60a5fa" />
+                <Text style={styles.statPillValue} numberOfLines={1}>
+                  {detail.type}
+                </Text>
+              </View>
+            )}
+
+            {!!detail.year && (
+              <View style={styles.statPill}>
+                <Ionicons name="calendar-outline" size={12} color="#f472b6" />
+                <Text style={styles.statPillValue} numberOfLines={1}>
+                  {detail.year}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </View>
@@ -127,43 +121,57 @@ export function SenpaiCoreHeader({ detail }: SenpaiCoreHeaderProps) {
 }
 
 const styles = StyleSheet.create({
-  // ----- Header móvil: portada de fondo con datos al pie -----
+  // ----- Header móvil: portada a la izquierda, datos a la derecha -----
   hero: {
     position: 'relative',
-    minHeight: 560,
-    justifyContent: 'flex-end',
     backgroundColor: '#0b0f19',
     overflow: 'hidden',
   },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
+  heroBackdrop: {
+    ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
+    opacity: 0.3,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(11, 15, 25, 0.82)',
+  },
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+  },
+  infoColumn: {
+    flex: 1,
+    gap: 10,
+    paddingTop: 2,
+  },
+  coverContainer: {
+    width: 104,
+    height: 156,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#1e293b',
+    overflow: 'hidden',
+  },
+  coverImage: {
     width: '100%',
     height: '100%',
   },
-  heroFallback: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#1e293b',
-  },
-  heroScrim: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  scrimBand: {
+  coverPlaceholder: {
     flex: 1,
-    backgroundColor: '#0b0f19',
-  },
-  heroContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 22,
-    gap: 12,
-  },
-  titleBlock: {
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   animeTitle: {
     color: '#ffffff',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
-    lineHeight: 31,
+    lineHeight: 27,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
@@ -177,9 +185,9 @@ const styles = StyleSheet.create({
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
     backgroundColor: 'rgba(15, 23, 42, 0.72)',
     borderWidth: 1,
@@ -187,7 +195,7 @@ const styles = StyleSheet.create({
   },
   statPillValue: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
   },
 

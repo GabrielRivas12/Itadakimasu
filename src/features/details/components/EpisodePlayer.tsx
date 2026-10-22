@@ -266,8 +266,6 @@ async function enterImmersiveMode() {
       await new Promise(r => setTimeout(r, 150));
     }
 
-    // translucent SIEMPRE antes de setHidden con edge-to-edge
-    StatusBar.setTranslucent(true);
     StatusBar.setHidden(true, 'fade');
 
     // Segunda pasada sin animación para cubrir el layout pass tardío
@@ -286,8 +284,6 @@ async function exitImmersiveMode() {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     }
 
-    // Mantener translucent para edge-to-edge
-    StatusBar.setTranslucent(true);
     StatusBar.setHidden(false, 'fade');
 
     if (Platform.OS === 'android') {
@@ -568,7 +564,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   webview: { flex: 1, backgroundColor: '#000' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.85)' },
   centered: { justifyContent: 'center', alignItems: 'center', gap: 12 },
   errorText: { color: '#94a3b8', fontSize: 14, textAlign: 'center' },
   retryBtn: {

@@ -79,6 +79,12 @@ function TrailerNative({ trailer }: { trailer: { id: string; site: string; thumb
           videoId={trailer.id}
           height={playerHeight}
           play={true}
+          contentScale={0.67}
+          initialPlayerParams={{
+            rel: false,
+            iv_load_policy: 3,
+            playerLang: 'es',
+          }}
         />
       </View>
     );
@@ -114,8 +120,7 @@ export const AnimeTrailer: React.FC<AnimeTrailerProps> = ({ trailer }) => {
   if (!supportedSites.includes(trailer.site)) return null;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Trailer</Text>
+    <View >
       {Platform.OS === 'web' ? (
         <TrailerWeb trailer={trailer as { id: string; site: string }} />
       ) : (
@@ -126,18 +131,6 @@ export const AnimeTrailer: React.FC<AnimeTrailerProps> = ({ trailer }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 24,
-  },
-  header: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#8b5cf6',
-    paddingLeft: 12,
-  },
   webContainer: {
     width: '100%',
     aspectRatio: 16 / 9,
@@ -165,7 +158,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
   },
   playOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.3)',

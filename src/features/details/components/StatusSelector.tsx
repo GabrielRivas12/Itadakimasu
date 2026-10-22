@@ -59,7 +59,7 @@ export function StatusSelector({
           <ActivityIndicator size="small" color="#8b5cf6" style={styles.actionIcon} />
         ) : (
           <Ionicons
-            name={userStatus ? 'checkmark-circle' : 'add-circle-outline'}
+            name={userStatus ? 'bookmark' : 'bookmark-outline'}
             size={20}
             color={userStatus ? getStatusColor() : '#ffffff'}
             style={styles.actionIcon}
@@ -67,11 +67,8 @@ export function StatusSelector({
         )}
         <View style={styles.listButtonTextContainer}>
           <View style={styles.statusTextWrapper}>
-            {userStatus && (
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-            )}
             <Text style={[styles.listButtonText, userStatus && styles.listButtonTextActive]}>
-              {userStatus ? `Lista: ${userStatus}` : 'Añadir a mi Lista'}
+              {userStatus ? userStatus : 'Mi Colección'}
             </Text>
           </View>
           {userStatus && (
@@ -169,11 +166,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   listButtonText: {
     color: '#ffffff',

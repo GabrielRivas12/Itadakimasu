@@ -34,7 +34,6 @@ async function enterImmersiveMode() {
     if (isFirst) {
       await new Promise(r => setTimeout(r, 150));
     }
-    StatusBar.setTranslucent(true);
     StatusBar.setHidden(true, 'fade');
 
     await new Promise(r => setTimeout(r, 80));
@@ -51,7 +50,6 @@ async function exitImmersiveMode() {
     if (Platform.OS !== 'web' && !esTablet) {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     }
-    StatusBar.setTranslucent(true);
     StatusBar.setHidden(false, 'fade');
 
     if (Platform.OS === 'android') {
@@ -207,11 +205,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#070a13',
   },
   videoOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   centered: {

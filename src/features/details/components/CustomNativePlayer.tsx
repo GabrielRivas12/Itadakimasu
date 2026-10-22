@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   container: { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000', overflow: 'hidden' },
   fullscreen: { flex: 1, backgroundColor: '#000' },
   video: { flex: 1, backgroundColor: '#000' },
-  controlsDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  controlsDim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.35)' },
   topRow: { position: 'absolute', top: 10, right: 10, flexDirection: 'row', gap: 8 },
   topRowFs: { top: 24, right: 28 },
   iconBtn: {
@@ -808,7 +808,7 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   centerRow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: '#fff',
   },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
   centered: { justifyContent: 'center', alignItems: 'center', gap: 12 },
   title: { color: '#e2e8f0', fontSize: 13, fontWeight: '600', paddingHorizontal: 16, textAlign: 'center' },
   errorText: { color: '#94a3b8', fontSize: 14, textAlign: 'center', paddingHorizontal: 20 },

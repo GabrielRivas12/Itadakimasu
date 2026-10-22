@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     // @ts-ignore - Propiedad de Web
     backgroundImage: 'linear-gradient(90deg, rgba(11, 15, 25, 0.95) 0%, rgba(11, 15, 25, 0.6) 50%, rgba(11, 15, 25, 0.4) 100%)',
     backgroundColor: 'rgba(11, 15, 25, 0.6)',

@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    right: 8,
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingHorizontal: 8,
     paddingVertical: 3,

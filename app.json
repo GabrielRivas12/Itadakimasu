@@ -8,11 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0b0f19",
-    "splash": {
-      "image": "./assets/android-icon-monochrome.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0b0f19"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -34,7 +29,30 @@
       "@react-native-firebase/auth",
       "@react-native-firebase/messaging",
       "react-native-edge-to-edge",
-      "react-native-video"
+      "react-native-video",
+      "./plugins/withAndroidLocalProperties",
+      "./plugins/withAndroidCmakeConfig",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/android-icon-monochrome.png",
+          "imageWidth": 288,
+          "resizeMode": "contain",
+          "backgroundColor": "#0b0f19"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 37,
+            "targetSdkVersion": 37,
+            "buildToolsVersion": "37.0.0",
+            "cmakeVersion": "3.31.6"
+          }
+        }
+      ]
     ]
   }
 }

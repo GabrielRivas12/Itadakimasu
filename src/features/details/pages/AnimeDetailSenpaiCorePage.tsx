@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { SenpaiCoreHeader } from '../components/SenpaiCoreHeader';
 import { StatusSelector } from '../components/StatusSelector';
@@ -113,6 +114,7 @@ const probePlaybackHeaders = async (
 export function AnimeDetailSenpaiCorePage() {
   usePortraitOrientation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isWeb, isMobile } = useResponsive();
   const showWebLayout = isWeb && !isMobile;
 
@@ -362,11 +364,7 @@ export function AnimeDetailSenpaiCorePage() {
           />
         )}
 
-        <Text style={styles.sectionHeader}>
-          {currentEpisode
-            ? `Reproduciendo: Episodio ${currentEpisode.number}`
-            : 'Episodios'}
-        </Text>
+        {!currentEpisode && <Text style={styles.sectionHeader}>Episodios</Text>}
 
         {contentNotAvailable ? (
           <View style={styles.notAvailableContainer}>
@@ -532,7 +530,13 @@ export function AnimeDetailSenpaiCorePage() {
 
     const renderTrailer = () =>
       !!parsedTrailer && (
-        <View style={styles.sectionContainer}>
+        <View
+          style={[
+            styles.sectionContainer,
+            { marginBottom: 0 },
+            !showWebLayout && { paddingTop: insets.top + 8 },
+          ]}
+        >
           <AnimeTrailer trailer={parsedTrailer} />
         </View>
       );
@@ -587,8 +591,10 @@ export function AnimeDetailSenpaiCorePage() {
       return (
         <View style={styles.webDetailsContainer}>
           <View style={styles.webSidebar}>
-            <SenpaiCoreHeader detail={detail} />
+        <SenpaiCoreHeader detail={detail} compact={!!parsedTrailer} />
             <View style={styles.webSidebarActions}>
+              {renderStats()}
+              {renderGenres()}
               <StatusSelector
                 userStatus={userStatus}
                 userProgress={userProgress}
@@ -599,17 +605,15 @@ export function AnimeDetailSenpaiCorePage() {
                 onRemove={handleRemove}
                 isUpdating={isUpdatingStatus}
               />
-              {renderStats()}
-              {renderGenres()}
               {renderSpecs()}
             </View>
           </View>
 
           <View style={styles.webMainContent}>
-            {renderSynopsis()}
             {renderTrailer()}
-            <View style={styles.playerSection}>{renderEpisodesSection()}</View>
+            {renderSynopsis()}
             {renderRelated()}
+            <View style={styles.playerSection}>{renderEpisodesSection()}</View>
           </View>
         </View>
       );
@@ -617,6 +621,7 @@ export function AnimeDetailSenpaiCorePage() {
 
     return (
       <>
+        {renderTrailer()}
         <SenpaiCoreHeader detail={detail} />
         {renderGenres()}
         <StatusSelector
@@ -630,9 +635,7 @@ export function AnimeDetailSenpaiCorePage() {
           isUpdating={isUpdatingStatus}
         />
         {renderSynopsis()}
-        {renderTrailer()}
         {renderRelated()}
-
         <View style={styles.playerSection}>{renderEpisodesSection()}</View>
       </>
     );
@@ -877,7 +880,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   webHeroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#0b0f19',
     opacity: 0.6,
   },
