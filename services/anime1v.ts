@@ -121,6 +121,7 @@ export interface Anime1VEpisode {
   number: number;
   title: string;
   url: string;
+  miniature?: string | null;
 }
 
 export interface Anime1VInfo {

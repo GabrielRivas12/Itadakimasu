@@ -185,7 +185,6 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 9,
     backgroundColor: '#000',
-    borderRadius: 8,
     overflow: 'hidden',
     marginBottom: 16,
   },
