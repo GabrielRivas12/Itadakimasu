@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -56,6 +56,7 @@ export function AnimeDetailSenpaiCorePage() {
   const insets = useSafeAreaInsets();
   const { isWeb, isMobile } = useResponsive();
   const showWebLayout = isWeb && !isMobile;
+  const [webTopBlockHeight, setWebTopBlockHeight] = useState(0);
 
   const {
     detail,
@@ -390,11 +391,35 @@ export function AnimeDetailSenpaiCorePage() {
     if (showWebLayout) {
       return (
         <View style={styles.webDetailsContainer}>
+          {heroUri && webTopBlockHeight > 0 && (
+            <View
+              pointerEvents="none"
+              style={[styles.webHeroContainer, { top: webTopBlockHeight }]}
+            >
+              <Image
+                source={{ uri: heroUri }}
+                style={styles.webHeroImage}
+                resizeMode="cover"
+              />
+              <View style={styles.webHeroOverlay} />
+            </View>
+          )}
+
           <View style={styles.webSidebar}>
-        <SenpaiCoreHeader detail={detail} compact={!!parsedTrailer} />
+            <View
+              style={styles.webSidebarTop}
+              onLayout={(event) =>
+                setWebTopBlockHeight(event.nativeEvent.layout.height)
+              }
+            >
+              <SenpaiCoreHeader detail={detail} compact={!!parsedTrailer} />
+              <View style={styles.webSidebarActions}>
+                {renderStats()}
+                {renderGenres()}
+              </View>
+            </View>
+
             <View style={styles.webSidebarActions}>
-              {renderStats()}
-              {renderGenres()}
               <StatusSelector
                 userStatus={userStatus}
                 userProgress={userProgress}
@@ -462,11 +487,11 @@ export function AnimeDetailSenpaiCorePage() {
         </View>
       ) : (
         <>
-          {isWeb && detail && heroUri && (
-            <View style={[styles.webHeroContainer, isMobile && { height: 300 }]}>
+          {isWeb && isMobile && detail && heroUri && (
+            <View style={[styles.webHeroContainer, { top: 0, height: 300, zIndex: -1 }]}>
               <Image
                 source={{ uri: heroUri }}
-                style={styles.webHeroImage}
+                style={[styles.webHeroImage, { opacity: 0.8 }]}
                 resizeMode="cover"
               />
               <View style={styles.webHeroOverlay} />
@@ -697,22 +722,21 @@ const styles = StyleSheet.create({
   },
   webHeroContainer: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     height: 400,
     width: '100%',
-    zIndex: -1,
+    zIndex: 0,
   },
   webHeroImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.4,
+    opacity: 0.5,
   },
   webHeroOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#0b0f19',
-    opacity: 0.6,
+    opacity: 0.55,
   },
   webScrollContent: {
     paddingTop: 40,
@@ -721,10 +745,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 40,
+    position: 'relative',
   },
   webSidebar: {
     width: 280,
     alignItems: 'center',
+    position: 'relative',
+    zIndex: 1,
+  },
+  webSidebarTop: {
+    width: '100%',
   },
   webSidebarActions: {
     width: '100%',
@@ -733,6 +763,8 @@ const styles = StyleSheet.create({
   webMainContent: {
     flex: 1,
     paddingTop: 10,
+    position: 'relative',
+    zIndex: 1,
   },
   genresWrap: {
     flexDirection: 'row',
