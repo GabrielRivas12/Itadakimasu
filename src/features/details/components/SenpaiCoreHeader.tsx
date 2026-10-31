@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -121,7 +120,6 @@ export function SenpaiCoreHeader({ detail, compact = false }: SenpaiCoreHeaderPr
 }
 
 const styles = StyleSheet.create({
-  // ----- Header móvil: portada a la izquierda, datos a la derecha -----
   hero: {
     position: 'relative',
     backgroundColor: '#0b0f19',
@@ -131,7 +129,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
-    opacity: 0.3,
+    opacity: 0.9,
+    marginTop: 25
   },
   heroOverlay: {
     ...StyleSheet.absoluteFill,

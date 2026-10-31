@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -18,33 +18,16 @@ import { SkeletonLoader } from '../components/DetailsSkeleton';
 import { EpisodePicker } from '../components/EpisodePicker';
 import { EpisodeNavigation } from '../components/EpisodeNavigation';
 import { EpisodePlayer } from '../components/EpisodePlayer';
-import { NativeEpisodePlayer } from '../components/NativeEpisodePlayer';
-import { CustomNativePlayer } from '../components/CustomNativePlayer';
 import { ProviderSelector } from '../components/ProviderSelector';
 import { VariantSelector } from '../components/VariantSelector';
 import { AnimeTrailer } from '../components/AnimeTrailer';
 import { useSenpaiCoreDetail } from '../hooks/useSenpaiCoreDetail';
 import { cleanHtmlText } from '../utils/animeMatching';
 import { getSeasonLabel, getStatusLabel } from '../utils/detailFormat';
-import {
-  isCustomPlayerUrl,
-  isCustomPlayerProvider,
-  isHentaiDirectSource,
-  isHentaiPlayerEmbed,
-} from '../utils/customPlayer';
 import { usePortraitOrientation } from '../../../hooks/usePortraitOrientation';
 import { useResponsive } from '../../../hooks/useResponsive';
 import { ResponsiveContainer } from '../../../components/common/ResponsiveContainer';
-import { getPlayerType } from '../../../../services/cache';
-import {
-  resolveAnime1VStream,
-  resolveAnime1VStreams,
-  buildVideoProxyUrl,
-  buildImageProxyUrl,
-  isValidMediaUrl,
-  isDirectMediaUrl,
-  Anime1VSubtitle,
-} from '../../../../services/anime1v';
+import { buildImageProxyUrl } from '../../../../services/anime1v';
 
 function parseTrailer(url: string | null | undefined): { id: string; site: string; thumbnail: string | null } | null {
   if (!url) return null;
@@ -67,69 +50,13 @@ function parseTrailer(url: string | null | undefined): { id: string; site: strin
   return null;
 }
 
-const MOBILE_BROWSER_UA =
-  'Mozilla/5.0 (Linux; Android 12; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
-
-// Perfiles de headers de menos a más "ruidosos" para la carga directa de
-// hentaiplayer.com / 1hanime.com en el reproductor nativo (ExoPlayer/OkHttp).
-// Ningún perfil envía Origin / Sec-Fetch-* / Range / Connection: un <video>
-// de navegador no los manda en un GET de media y el antihotlink del CDN
-// suele rechazar un Origin inesperado.
-const buildHeaderProfiles = (embedUrl?: string | null): Record<string, string>[] => {
-  const embed = embedUrl && isHentaiPlayerEmbed(embedUrl) ? embedUrl : null;
-  const embedOrigin = 'https://hentaiplayer.com/';
-  const accept = 'video/mp4,video/webm,video/*;q=0.9,*/*;q=0.5';
-  return [
-    { 'User-Agent': MOBILE_BROWSER_UA, Referer: embed || embedOrigin, Accept: accept },
-    { 'User-Agent': MOBILE_BROWSER_UA, Referer: embedOrigin, Accept: accept },
-    { 'User-Agent': MOBILE_BROWSER_UA, Referer: 'https://hentaila.io/', Accept: accept },
-    { 'User-Agent': MOBILE_BROWSER_UA, Accept: accept }, // sin Referer
-  ];
-};
-
-// Devuelve el primer perfil que el CDN acepta (200/206), o null si todos fallan.
-// El fetch de RN en Android usa el mismo OkHttp que react-native-video, así que
-// si el fetch pasa, ExoPlayer también debería pasar.
-const probePlaybackHeaders = async (
-  url: string,
-  profiles: Record<string, string>[]
-): Promise<Record<string, string> | null> => {
-  for (const headers of profiles) {
-    const controller = new AbortController();
-    try {
-      const res = await fetch(url, {
-        headers: { ...headers, Range: 'bytes=0-1' },
-        signal: controller.signal,
-      });
-      console.log('[Probe]', res.status, Object.keys(headers).join(','), url.slice(0, 80));
-      controller.abort(); // no descargar el cuerpo si el server ignora Range
-      if (res.status === 200 || res.status === 206) return headers;
-    } catch (e: any) {
-      console.log('[Probe] error', e?.message);
-    }
-  }
-  return null;
-};
-
 export function AnimeDetailSenpaiCorePage() {
   usePortraitOrientation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isWeb, isMobile } = useResponsive();
   const showWebLayout = isWeb && !isMobile;
-
-  const [nativePlayerFailed, setNativePlayerFailed] = useState(false);
-  const [preferredPlayer, setPreferredPlayer] = useState<'native' | 'webview'>('native');
-  const [nativePlaybackUrl, setNativePlaybackUrl] = useState<string | null>(null);
-  const [nativeSubtitles, setNativeSubtitles] = useState<Anime1VSubtitle[]>([]);
-  const [nativeResolving, setNativeResolving] = useState(false);
-  const [nativeResolveFailed, setNativeResolveFailed] = useState(false);
-  const [nativeRetryTick, setNativeRetryTick] = useState(0);
-  // Config del reproductor personalizado para HentaiLA: headers de navegador
-  // (Cloudflare bloquea requests sin UA/Referer) + subtítulos crudos vía JS.
-  const [nativePlaybackHeaders, setNativePlaybackHeaders] = useState<Record<string, string> | undefined>(undefined);
-  const [nativeSubtitleMode, setNativeSubtitleMode] = useState<'auto' | 'native' | 'js'>('auto');
-  const [nativeRawSubs, setNativeRawSubs] = useState(false);
+  const [webTopBlockHeight, setWebTopBlockHeight] = useState(0);
 
   const {
     detail,
@@ -164,17 +91,6 @@ export function AnimeDetailSenpaiCorePage() {
   const heroRawBackdrop = detail ? detail.backcover || detail.backdrop : null;
   const heroUri = heroRawBackdrop ? buildImageProxyUrl(heroRawBackdrop) : null;
 
-  // El player personalizado (con subtítulos propios) solo se activa para
-  // dominios definidos en CUSTOM_PLAYER_HOSTS (por ahora: hentaila.moe / .io).
-  // Se valida únicamente el origen del anime/episodio, NO los servidores embed
-  // ni el streamUrl (esos pueden ser de cualquier dominio).
-  const useCustomPlayer = React.useMemo(() => {
-    if (isCustomPlayerUrl(detail?.url)) return true;
-    if (isCustomPlayerUrl(currentEpisode?.url)) return true;
-    if (isCustomPlayerProvider((detail as any)?.provider, (detail as any)?.domain)) return true;
-    return false;
-  }, [detail, currentEpisode]);
-
   // Detecta específicamente HentaiLA .moe (solo afecta el estilo de subtítulos
   // del player web; el .io se queda con el estilo por defecto).
   const isHentaiMoe = React.useMemo(() => {
@@ -191,140 +107,6 @@ export function AnimeDetailSenpaiCorePage() {
     return hostIsMoe(detail?.url) || hostIsMoe(currentEpisode?.url ?? null);
   }, [detail, currentEpisode]);
 
-  useEffect(() => {
-    getPlayerType().then(setPreferredPlayer);
-  }, []);
-
-  useEffect(() => {
-    setNativePlayerFailed(false);
-  }, [streamUrl]);
-
-  // Los servidores de HentaiLA (hentaiplayer.com / 1hanime.com) deben recibir la
-  // URL DIRECTA: Cloudflare bloquea los proxies de servidor pero acepta la carga
-  // directa desde el cliente si la request trae headers de navegador. Antes de
-  // entregar la URL al player se sondean varios perfiles de headers; si todos
-  // dan 403 se devuelve false y la pantalla cae al WebView. El resto de fuentes
-  // sigue pasando por /video-proxy.
-  const applyNativeSource = useCallback(
-    async (resolvedUrl: string, resolvedFrom?: string | null): Promise<boolean> => {
-      const hentai =
-        isHentaiDirectSource(resolvedUrl) || isHentaiDirectSource(resolvedFrom);
-
-      if (!hentai) {
-        setNativePlaybackUrl(buildVideoProxyUrl(resolvedUrl));
-        setNativePlaybackHeaders(undefined);
-        setNativeSubtitleMode('auto');
-        setNativeRawSubs(false);
-        return true;
-      }
-
-      const working = await probePlaybackHeaders(resolvedUrl, buildHeaderProfiles(resolvedFrom));
-      if (!working) {
-        console.warn('[Native] Todos los perfiles de headers fallaron -> fallback a WebView');
-        return false;
-      }
-
-      setNativePlaybackUrl(resolvedUrl);
-      setNativePlaybackHeaders(working);
-      setNativeSubtitleMode('js');
-      setNativeRawSubs(true);
-      return true;
-    },
-    []
-  );
-
-  const resetNativeSource = useCallback(() => {
-    setNativePlaybackUrl(null);
-    setNativeSubtitles([]);
-    setNativePlaybackHeaders(undefined);
-    setNativeSubtitleMode('auto');
-    setNativeRawSubs(false);
-  }, []);
-
-  useEffect(() => {
-    if (preferredPlayer !== 'native' || nativePlayerFailed || isWeb) {
-      resetNativeSource();
-      setNativeResolving(false);
-      setNativeResolveFailed(false);
-      return;
-    }
-
-    if (!streamUrl) {
-      resetNativeSource();
-      setNativeResolving(false);
-      setNativeResolveFailed(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const isDirect = isDirectMediaUrl(streamUrl);
-    if (isDirect) {
-      setNativeResolving(true);
-      setNativeResolveFailed(false);
-      applyNativeSource(streamUrl).then((ok) => {
-        if (cancelled) return;
-        setNativeSubtitles([]);
-        setNativeResolving(false);
-        if (!ok) setNativePlayerFailed(true);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setNativeResolving(true);
-    setNativeResolveFailed(false);
-
-    (async () => {
-      try {
-        const selected = await resolveAnime1VStream(streamUrl);
-        if (cancelled) return;
-        if (selected?.success && selected.streamUrl && isValidMediaUrl(selected.streamUrl)) {
-          const ok = await applyNativeSource(selected.streamUrl, selected.resolvedFrom);
-          if (cancelled) return;
-          if (ok) {
-            setNativeSubtitles(selected.subtitles ?? []);
-            return;
-          }
-          setNativePlayerFailed(true);
-          return;
-        }
-
-        const others = availableServers.map((s) => s.url).filter((u) => u !== streamUrl);
-        if (others.length > 0) {
-          const cascaded = await resolveAnime1VStreams(others);
-          if (cancelled) return;
-          if (cascaded?.success && cascaded.streamUrl && isValidMediaUrl(cascaded.streamUrl)) {
-            const ok = await applyNativeSource(cascaded.streamUrl, cascaded.resolvedFrom);
-            if (cancelled) return;
-            if (ok) {
-              setNativeSubtitles(cascaded.subtitles ?? []);
-              return;
-            }
-            setNativePlayerFailed(true);
-            return;
-          }
-        }
-
-        resetNativeSource();
-        setNativeResolveFailed(true);
-      } catch (err) {
-        console.error('[NativeResolve] Error:', err);
-        if (!cancelled) {
-          resetNativeSource();
-          setNativeResolveFailed(true);
-        }
-      } finally {
-        if (!cancelled) setNativeResolving(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [streamUrl, availableServers, preferredPlayer, nativePlayerFailed, nativeRetryTick, isWeb, applyNativeSource, resetNativeSource]);
-
   const goBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -340,8 +122,58 @@ export function AnimeDetailSenpaiCorePage() {
     });
   }, [router]);
 
+  const handleListScroll = useCallback(({ nativeEvent }: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+    const isNearBottom =
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - 200;
+    if (isNearBottom) loadMoreEpisodes();
+  }, [loadMoreEpisodes]);
+
+  const handleWatchEpisodes = useCallback(() => {
+    if (!detail) return;
+    router.push({
+      pathname: '/mediaplayer',
+      params: {
+        url: detail.url,
+        episode: String(currentEpisode?.number ?? userProgress ?? 1),
+        title: detail.title,
+      },
+    });
+  }, [detail, currentEpisode, userProgress, router]);
+
   const renderEpisodesSection = () => {
     if (!detail) return null;
+
+    if (!showWebLayout) {
+      if (detail.episodes.length === 0) {
+        return (
+          <View style={styles.notAvailableContainer}>
+            <Text style={styles.notAvailableText}>No se encontraron episodios para este anime.</Text>
+          </View>
+        );
+      }
+
+      return (
+        <View style={styles.watchButtonContainer}>
+          <TouchableOpacity
+            style={styles.watchButton}
+            onPress={handleWatchEpisodes}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="play-circle" size={22} color="#ffffff" />
+            <View style={styles.watchButtonTextWrap}>
+              <Text style={styles.watchButtonText}>Ir a ver los episodios</Text>
+              <Text style={styles.watchButtonHint}>
+                {currentEpisode
+                  ? `Episodio ${currentEpisode.number}`
+                  : `${detail.episodes.length} episodios disponibles`}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
+      );
+    }
 
     const currentEpisodeIndex = currentEpisode
       ? detail.episodes.findIndex((e) => e.number === currentEpisode.number)
@@ -380,38 +212,7 @@ export function AnimeDetailSenpaiCorePage() {
           </View>
         ) : currentEpisode && streamUrl ? (
           <>
-            {isWeb || preferredPlayer === 'webview' || nativePlayerFailed ? (
-              <EpisodePlayer url={streamUrl} servers={availableServers} isHentaiMoe={isHentaiMoe} />
-            ) : useCustomPlayer ? (
-              <View style={{ marginBottom: 12 }}>
-                <CustomNativePlayer
-                  url={nativePlaybackUrl}
-                  subtitles={nativeSubtitles}
-                  headers={nativePlaybackHeaders}
-                  subtitleRenderMode={nativeSubtitleMode}
-                  bypassSubtitleProxy={nativeRawSubs}
-                  title={detail?.title || currentEpisode?.title || undefined}
-                  onError={() => setNativePlayerFailed(true)}
-                  onRetry={() => {
-                    setNativeResolveFailed(false);
-                    setNativeRetryTick((t) => t + 1);
-                  }}
-                />
-              </View>
-            ) : (
-              <View style={{ marginBottom: 12 }}>
-                <NativeEpisodePlayer
-                  url={nativePlaybackUrl}
-                  resolving={nativeResolving}
-                  resolveFailed={nativeResolveFailed}
-                  onError={() => setNativePlayerFailed(true)}
-                  onRetry={() => {
-                    setNativeResolveFailed(false);
-                    setNativeRetryTick((t) => t + 1);
-                  }}
-                />
-              </View>
-            )}
+            <EpisodePlayer url={streamUrl} servers={availableServers} isHentaiMoe={isHentaiMoe} />
 
             <VariantSelector
               hasDub={hasDub}
@@ -590,11 +391,35 @@ export function AnimeDetailSenpaiCorePage() {
     if (showWebLayout) {
       return (
         <View style={styles.webDetailsContainer}>
+          {heroUri && webTopBlockHeight > 0 && (
+            <View
+              pointerEvents="none"
+              style={[styles.webHeroContainer, { top: webTopBlockHeight }]}
+            >
+              <Image
+                source={{ uri: heroUri }}
+                style={styles.webHeroImage}
+                resizeMode="cover"
+              />
+              <View style={styles.webHeroOverlay} />
+            </View>
+          )}
+
           <View style={styles.webSidebar}>
-        <SenpaiCoreHeader detail={detail} compact={!!parsedTrailer} />
+            <View
+              style={styles.webSidebarTop}
+              onLayout={(event) =>
+                setWebTopBlockHeight(event.nativeEvent.layout.height)
+              }
+            >
+              <SenpaiCoreHeader detail={detail} compact={!!parsedTrailer} />
+              <View style={styles.webSidebarActions}>
+                {renderStats()}
+                {renderGenres()}
+              </View>
+            </View>
+
             <View style={styles.webSidebarActions}>
-              {renderStats()}
-              {renderGenres()}
               <StatusSelector
                 userStatus={userStatus}
                 userProgress={userProgress}
@@ -662,11 +487,11 @@ export function AnimeDetailSenpaiCorePage() {
         </View>
       ) : (
         <>
-          {isWeb && detail && heroUri && (
-            <View style={[styles.webHeroContainer, isMobile && { height: 300 }]}>
+          {isWeb && isMobile && detail && heroUri && (
+            <View style={[styles.webHeroContainer, { top: 0, height: 300, zIndex: -1 }]}>
               <Image
                 source={{ uri: heroUri }}
-                style={styles.webHeroImage}
+                style={[styles.webHeroImage, { opacity: 0.8 }]}
                 resizeMode="cover"
               />
               <View style={styles.webHeroOverlay} />
@@ -676,8 +501,10 @@ export function AnimeDetailSenpaiCorePage() {
           <ResponsiveContainer
             contentContainerStyle={StyleSheet.flatten([
               styles.scrollContent,
-              isWeb && styles.webScrollContent,
-            ])}
+              isWeb ? styles.webScrollContent : {},
+            ]) ?? undefined}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
           >
             {renderContent()}
           </ResponsiveContainer>
@@ -792,6 +619,34 @@ const styles = StyleSheet.create({
   playerSection: {
     marginBottom: 24,
   },
+  watchButtonContainer: {
+    paddingHorizontal: 16,
+  },
+  watchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#8b5cf6',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#a78bfa',
+  },
+  watchButtonTextWrap: {
+    flex: 1,
+  },
+  watchButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  watchButtonHint: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   episodesLoadingContainer: {
     padding: 30,
     alignItems: 'center',
@@ -867,22 +722,21 @@ const styles = StyleSheet.create({
   },
   webHeroContainer: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     height: 400,
     width: '100%',
-    zIndex: -1,
+    zIndex: 0,
   },
   webHeroImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.4,
+    opacity: 0.5,
   },
   webHeroOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#0b0f19',
-    opacity: 0.6,
+    opacity: 0.55,
   },
   webScrollContent: {
     paddingTop: 40,
@@ -891,10 +745,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 40,
+    position: 'relative',
   },
   webSidebar: {
     width: 280,
     alignItems: 'center',
+    position: 'relative',
+    zIndex: 1,
+  },
+  webSidebarTop: {
+    width: '100%',
   },
   webSidebarActions: {
     width: '100%',
@@ -903,6 +763,8 @@ const styles = StyleSheet.create({
   webMainContent: {
     flex: 1,
     paddingTop: 10,
+    position: 'relative',
+    zIndex: 1,
   },
   genresWrap: {
     flexDirection: 'row',
