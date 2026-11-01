@@ -14,8 +14,6 @@ export function SenpaiCoreHeader({ detail, compact = false }: SenpaiCoreHeaderPr
   const { isWeb } = useResponsive();
   const insets = useSafeAreaInsets();
 
-  const rawBackdrop = detail.backcover || detail.backdrop;
-  const backdropUri = rawBackdrop ? buildImageProxyUrl(rawBackdrop) : null;
   const coverUri = detail.image ? buildImageProxyUrl(detail.image) : null;
   const displayTitle = detail.title || 'Detalles';
 
@@ -42,16 +40,6 @@ export function SenpaiCoreHeader({ detail, compact = false }: SenpaiCoreHeaderPr
 
   return (
     <View style={[styles.hero, { paddingTop: compact ? 0 : insets.top + 0 }]}>
-      {backdropUri && (
-        <Image
-          source={{ uri: backdropUri }}
-          style={styles.heroBackdrop}
-          resizeMode="cover"
-          fadeDuration={300}
-        />
-      )}
-      <View pointerEvents="none" style={styles.heroOverlay} />
-
       <View style={styles.heroContent}>
         <View style={styles.coverContainer}>
           {coverUri ? (
@@ -124,17 +112,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#0b0f19',
     overflow: 'hidden',
-  },
-  heroBackdrop: {
-    ...StyleSheet.absoluteFill,
-    width: '100%',
-    height: '100%',
-    opacity: 0.9,
-    marginTop: 25
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(11, 15, 25, 0.82)',
   },
   heroContent: {
     flexDirection: 'row',
