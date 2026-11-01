@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { BackgroundImage } from '../components/BackgroundImage';
 import { SenpaiCoreHeader } from '../components/SenpaiCoreHeader';
 import { StatusSelector } from '../components/StatusSelector';
 import { RelatedAnimeRow } from '../components/RelatedAnimeRow';
@@ -56,7 +57,6 @@ export function AnimeDetailSenpaiCorePage() {
   const insets = useSafeAreaInsets();
   const { isWeb, isMobile } = useResponsive();
   const showWebLayout = isWeb && !isMobile;
-  const [webTopBlockHeight, setWebTopBlockHeight] = useState(0);
 
   const {
     detail,
@@ -331,13 +331,7 @@ export function AnimeDetailSenpaiCorePage() {
 
     const renderTrailer = () =>
       !!parsedTrailer && (
-        <View
-          style={[
-            styles.sectionContainer,
-            { marginBottom: 0 },
-            !showWebLayout && { paddingTop: insets.top + 8 },
-          ]}
-        >
+        <View style={styles.sectionContainer}>
           <AnimeTrailer trailer={parsedTrailer} />
         </View>
       );
@@ -391,20 +385,6 @@ export function AnimeDetailSenpaiCorePage() {
     if (showWebLayout) {
       return (
         <View style={styles.webDetailsContainer}>
-          {heroUri && webTopBlockHeight > 0 && (
-            <View
-              pointerEvents="none"
-              style={[styles.webHeroContainer, { top: webTopBlockHeight }]}
-            >
-              <Image
-                source={{ uri: heroUri }}
-                style={styles.webHeroImage}
-                resizeMode="cover"
-              />
-              <View style={styles.webHeroOverlay} />
-            </View>
-          )}
-
           <View style={styles.webSidebar}>
             <View
               style={styles.webSidebarTop}
@@ -446,8 +426,11 @@ export function AnimeDetailSenpaiCorePage() {
 
     return (
       <>
-        {renderTrailer()}
-        <SenpaiCoreHeader detail={detail} />
+        {heroUri && <BackgroundImage uri={heroUri} top={insets.top} />}
+        {heroUri && (
+          <View style={[styles.backgroundSpacer, { height: insets.top + 160 }]} />
+        )}
+        <SenpaiCoreHeader detail={detail} compact={!!heroUri} />
         {renderGenres()}
         <StatusSelector
           userStatus={userStatus}
@@ -459,6 +442,7 @@ export function AnimeDetailSenpaiCorePage() {
           onRemove={handleRemove}
           isUpdating={isUpdatingStatus}
         />
+        {renderTrailer()}
         {renderSynopsis()}
         {renderRelated()}
         <View style={styles.playerSection}>{renderEpisodesSection()}</View>
@@ -486,29 +470,16 @@ export function AnimeDetailSenpaiCorePage() {
           </View>
         </View>
       ) : (
-        <>
-          {isWeb && isMobile && detail && heroUri && (
-            <View style={[styles.webHeroContainer, { top: 0, height: 300, zIndex: -1 }]}>
-              <Image
-                source={{ uri: heroUri }}
-                style={[styles.webHeroImage, { opacity: 0.8 }]}
-                resizeMode="cover"
-              />
-              <View style={styles.webHeroOverlay} />
-            </View>
-          )}
-
-          <ResponsiveContainer
-            contentContainerStyle={StyleSheet.flatten([
-              styles.scrollContent,
-              isWeb ? styles.webScrollContent : {},
-            ]) ?? undefined}
-            onScroll={handleListScroll}
-            scrollEventThrottle={16}
-          >
-            {renderContent()}
-          </ResponsiveContainer>
-        </>
+        <ResponsiveContainer
+          contentContainerStyle={StyleSheet.flatten([
+            styles.scrollContent,
+            isWeb ? styles.webScrollContent : {},
+          ]) ?? undefined}
+          onScroll={handleListScroll}
+          scrollEventThrottle={16}
+        >
+          {renderContent()}
+        </ResponsiveContainer>
       )}
     </View>
   );
@@ -521,6 +492,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  backgroundSpacer: {
+    height: 300,
   },
   statsRow: {
     flexDirection: 'row',
@@ -719,24 +693,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#ffffff',
     fontWeight: 'bold',
-  },
-  webHeroContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 400,
-    width: '100%',
-    zIndex: 0,
-  },
-  webHeroImage: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.5,
-  },
-  webHeroOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#0b0f19',
-    opacity: 0.55,
   },
   webScrollContent: {
     paddingTop: 40,
